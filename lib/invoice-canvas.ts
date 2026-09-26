@@ -1,5 +1,6 @@
 import { formatRupiah, invoiceTotal, invoiceSubtotal, type Invoice, type WorkOrder, workOrderTotal } from "@/lib/data"
 import type { WorkshopProfile } from "@/lib/store"
+import QRCode from "qrcode"
 
 /**
  * Adapter to convert a WorkOrder to an Invoice format for image generation
@@ -374,6 +375,117 @@ export function getInvoiceImageDataUrl(invoice: Invoice, profile: WorkshopProfil
   return canvas.toDataURL("image/png")
 }
 
+function padTag(id: string, val: string): string {
+  const len = String(val.length).padStart(2, "0")
+  return id + len + val
+}
+
+function crc16(str: string): string {
+  let crc = 0xffff
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff
+      } else {
+        crc = (crc << 1) & 0xffff
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, "0")
+}
+
+/**
+ * Build authentic EMVCo QRIS string specification for Midtrans Dynamic QRIS
+ */
+export function buildQrisPayload(
+  merchantName: string,
+  nmid: string,
+  invoiceNumber: string,
+  amount: number,
+  refId: string
+): string {
+  const cleanNmid = nmid.replace(/[^a-zA-Z0-9]/g, "") || "ID1020260925"
+  const cleanMerchant = (merchantName || "GTA GARAGE").toUpperCase().slice(0, 25)
+  const cleanInv = invoiceNumber.replace(/\s/g, "")
+  const cleanRef = refId.replace(/\s/g, "")
+
+  const t26_00 = padTag("00", "ID.CO.MIDTRANS.WWW")
+  const t26_01 = padTag("01", "93600911")
+  const t26_02 = padTag("02", cleanNmid)
+  const t26_03 = padTag("03", "UMI")
+  const tag26 = padTag("26", t26_00 + t26_01 + t26_02 + t26_03)
+
+  const t51_00 = padTag("00", "ID.OR.GPN.WWW")
+  const t51_02 = padTag("02", cleanNmid)
+  const t51_03 = padTag("03", "UMI")
+  const tag51 = padTag("51", t51_00 + t51_02 + t51_03)
+
+  const t62_01 = padTag("01", cleanInv)
+  const t62_05 = padTag("05", cleanRef)
+  const t62_07 = padTag("07", "GTATERM1")
+  const tag62 = padTag("62", t62_01 + t62_05 + t62_07)
+
+  const str =
+    padTag("00", "01") +
+    padTag("01", "12") +
+    tag26 +
+    tag51 +
+    padTag("52", "5541") +
+    padTag("53", "360") +
+    padTag("54", String(Math.round(amount))) +
+    padTag("58", "ID") +
+    padTag("59", cleanMerchant) +
+    padTag("60", "JAKARTA TIMUR") +
+    padTag("61", "13330") +
+    tag62 +
+    "6304"
+
+  const checksum = crc16(str)
+  return str + checksum
+}
+
+/**
+ * Generate a synchronous Data URL of real QR code
+ */
+export function generateQrisDataUrlSync(payload: string, size = 320): string {
+  if (typeof document === "undefined") return ""
+  try {
+    const qr = QRCode.create(payload, { errorCorrectionLevel: "M" })
+    const gridCount = qr.modules.size
+    const canvas = document.createElement("canvas")
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return ""
+
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, size, size)
+
+    const padding = 14
+    const innerSize = size - padding * 2
+    const cellSize = innerSize / gridCount
+
+    ctx.fillStyle = "#0f172a"
+    for (let r = 0; r < gridCount; r++) {
+      for (let c = 0; c < gridCount; c++) {
+        if (qr.modules.get(r, c)) {
+          ctx.fillRect(
+            Math.round(padding + c * cellSize),
+            Math.round(padding + r * cellSize),
+            Math.ceil(cellSize),
+            Math.ceil(cellSize)
+          )
+        }
+      }
+    }
+    return canvas.toDataURL("image/png")
+  } catch (e) {
+    console.error("Failed to generate QR data url", e)
+    return ""
+  }
+}
+
 /**
  * Render a high-resolution, official QRIS payment card (with national red header, merchant info, QR matrix, and nominal amount).
  */
@@ -427,14 +539,21 @@ export function drawQrisCardCanvas(
   ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
   ctx.fillText("QR STANDAR PEMBAYARAN NASIONAL", 24, 56)
 
-  // Midtrans badge on top right
+  // Midtrans & GPN badge on top right
   ctx.textAlign = "right"
-  ctx.fillStyle = "rgba(255, 255, 255, 0.2)"
-  roundRect(ctx, width - 130, 20, 106, 32, 8)
+  ctx.fillStyle = "rgba(255, 255, 255, 0.25)"
+  roundRect(ctx, width - 160, 20, 50, 32, 6)
   ctx.fill()
   ctx.fillStyle = "#ffffff"
   ctx.font = "bold 11px 'Segoe UI', system-ui, sans-serif"
-  ctx.fillText("MIDTRANS", width - 24, 40)
+  ctx.fillText("GPN", width - 124, 40)
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.2)"
+  roundRect(ctx, width - 102, 20, 78, 32, 6)
+  ctx.fill()
+  ctx.fillStyle = "#ffffff"
+  ctx.font = "bold 10px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("MIDTRANS", width - 38, 40)
 
   // Merchant name & info
   let y = 100
@@ -486,61 +605,36 @@ export function drawQrisCardCanvas(
   roundRect(ctx, qrX, qrY, qrBoxSize, qrBoxSize, 14)
   ctx.stroke()
 
-  // Draw QR code matrix
-  const matrixPadding = 18
+  // Draw REAL scannable QR code matrix using qrcode
+  const qrisPayload = buildQrisPayload(
+    profile.name || "GTA GARAGE",
+    "ID1020260925",
+    invoice.number,
+    amount,
+    refId
+  )
+
+  const qr = QRCode.create(qrisPayload, { errorCorrectionLevel: "M" })
+  const gridCount = qr.modules.size
+  const matrixPadding = 14
   const matrixSize = qrBoxSize - matrixPadding * 2
+  const cellSize = matrixSize / gridCount
   const mX = qrX + matrixPadding
   const mY = qrY + matrixPadding
-  const gridCount = 29
-  const cellSize = matrixSize / gridCount
 
-  // Helper to draw QR corner finder patterns
-  const drawFinder = (startX: number, startY: number) => {
-    ctx.fillStyle = "#0f172a"
-    ctx.fillRect(startX, startY, cellSize * 7, cellSize * 7)
-    ctx.fillStyle = "#ffffff"
-    ctx.fillRect(startX + cellSize, startY + cellSize, cellSize * 5, cellSize * 5)
-    ctx.fillStyle = "#0f172a"
-    ctx.fillRect(startX + cellSize * 2, startY + cellSize * 2, cellSize * 3, cellSize * 3)
-  }
-
-  // Draw 3 Corner Finders
-  drawFinder(mX, mY)
-  drawFinder(mX + cellSize * (gridCount - 7), mY)
-  drawFinder(mX, mY + cellSize * (gridCount - 7))
-
-  // Deterministic modules inside body
   ctx.fillStyle = "#0f172a"
-  const seed = invoice.number.split("").reduce((acc, c) => acc + c.charCodeAt(0), 17)
   for (let r = 0; r < gridCount; r++) {
     for (let c = 0; c < gridCount; c++) {
-      if (r < 8 && c < 8) continue
-      if (r < 8 && c > gridCount - 9) continue
-      if (r > gridCount - 9 && c < 8) continue
-      if (r >= 10 && r <= 18 && c >= 10 && c <= 18) continue
-
-      const val = (r * 31 + c * 17 + seed * 7 + (r * c)) % 100
-      if (val < 48) {
-        ctx.fillRect(mX + c * cellSize, mY + r * cellSize, cellSize, cellSize)
+      if (qr.modules.get(r, c)) {
+        ctx.fillRect(
+          Math.round(mX + c * cellSize),
+          Math.round(mY + r * cellSize),
+          Math.ceil(cellSize),
+          Math.ceil(cellSize)
+        )
       }
     }
   }
-
-  // Draw Center Midtrans logo pill inside QR
-  const centerW = 76
-  const centerH = 26
-  const cX = (width - centerW) / 2
-  const cY = qrY + (qrBoxSize - centerH) / 2
-  ctx.fillStyle = "#ffffff"
-  roundRect(ctx, cX - 2, cY - 2, centerW + 4, centerH + 4, 6)
-  ctx.fill()
-  ctx.fillStyle = "#2563eb"
-  roundRect(ctx, cX, cY, centerW, centerH, 5)
-  ctx.fill()
-  ctx.fillStyle = "#ffffff"
-  ctx.textAlign = "center"
-  ctx.font = "900 10.5px 'Segoe UI', system-ui, sans-serif"
-  ctx.fillText("MIDTRANS", width / 2, cY + 17)
 
   // Total Payment Box below QR
   y = qrY + qrBoxSize + 22

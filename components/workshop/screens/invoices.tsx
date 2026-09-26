@@ -55,6 +55,8 @@ import {
   getInvoiceImageBlob,
   getQrisCardBlob,
   getQrisCardDataUrl,
+  buildQrisPayload,
+  generateQrisDataUrlSync,
 } from "@/lib/invoice-canvas"
 
 export type InvoiceFilter = "Belum Lunas" | "Belum Bayar" | "Sebagian" | "Jatuh Tempo" | "Lunas" | "Semua"
@@ -454,6 +456,8 @@ export function InvoicesScreen() {
   const [cardNumber, setCardNumber] = useState("4111 2222 3333 4444")
   const [cardExp, setCardExp] = useState("12/28")
   const [cardCvv, setCardCvv] = useState("888")
+  const [copiedQrisString, setCopiedQrisString] = useState(false)
+
 
   // Discount Modal State
   const [discountFor, setDiscountFor] = useState<Invoice | null>(null)
@@ -1409,6 +1413,16 @@ export function InvoicesScreen() {
           }
           const finalPayAmount = rawSisa + adminFee
 
+          // Real Scannable QRIS Dynamic Payload & Data URL
+          const qrisPayload = buildQrisPayload(
+            profile.name || "GTA GARAGE",
+            "ID1020260925",
+            payFor.number,
+            finalPayAmount,
+            paymentRefId || `MDT-${Date.now().toString().slice(-8)}`
+          )
+          const qrisDataUrl = generateQrisDataUrlSync(qrisPayload, 440)
+
           // Quick cash options for Tunai
           const quickCashOpts: number[] = [finalPayAmount]
           const round50k = Math.ceil(finalPayAmount / 50000) * 50000
@@ -1720,55 +1734,90 @@ export function InvoicesScreen() {
                         </span>
                       </div>
 
-                      <div className="flex flex-col items-center justify-center gap-2.5 py-1">
-                        {/* High-Resolution Styled QRIS Box */}
-                        <div className="relative rounded-2xl bg-white p-3.5 shadow-md border-2 border-slate-200">
-                          <div className="size-44 rounded-xl border border-slate-300 p-2 flex flex-col justify-between bg-white">
-                            {/* QR Corners styling */}
-                            <div className="flex justify-between">
-                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                                <div className="size-3 bg-slate-900 rounded-xs" />
-                              </div>
-                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                                <div className="size-3 bg-slate-900 rounded-xs" />
-                              </div>
+                      {/* Authentic National Standard QRIS Card */}
+                      <div className="rounded-2xl border-2 border-slate-200 bg-white overflow-hidden shadow-sm dark:border-slate-700">
+                        {/* Red Header Bar (Standar Nasional QRIS) */}
+                        <div className="bg-[#dc2626] px-4 py-2.5 flex items-center justify-between text-white">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black text-xl tracking-wider leading-none">QRIS</span>
+                              <span className="text-[9px] uppercase font-bold tracking-tight bg-white/20 px-1.5 py-0.5 rounded leading-none">
+                                Dinamis
+                              </span>
                             </div>
-
-                            {/* QR Matrix body simulation */}
-                            <div className="grid grid-cols-11 gap-1 my-1 px-1">
-                              {Array.from({ length: 77 }).map((_, i) => (
-                                <span
-                                  key={i}
-                                  className={cn(
-                                    "size-1.5 rounded-[1px]",
-                                    (i * 13 + ((i * i) % 7)) % 3 !== 1 ? "bg-slate-900" : "bg-transparent"
-                                  )}
-                                />
-                              ))}
+                            <p className="text-[9px] text-white/90 font-medium mt-0.5">
+                              QR Code Standar Pembayaran Nasional
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="rounded bg-white/20 px-2 py-0.5 text-[9.5px] font-bold tracking-wide">
+                              GPN
                             </div>
-
-                            {/* Center Midtrans / Logo Badge */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="rounded-lg bg-blue-600 px-2 py-0.5 text-[8.5px] font-black text-white shadow-sm border border-white">
-                                MIDTRANS
-                              </div>
-                            </div>
-
-                            {/* Bottom Corners */}
-                            <div className="flex justify-between items-end">
-                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                                <div className="size-3 bg-slate-900 rounded-xs" />
-                              </div>
-                              <span className="text-[7.5px] font-mono text-slate-500 font-bold">NMID: ID1020260925</span>
+                            <div className="rounded bg-white px-2 py-0.5 text-[9.5px] font-black text-[#dc2626]">
+                              MIDTRANS
                             </div>
                           </div>
                         </div>
 
-                        <div className="text-center space-y-0.5">
-                          <p className="text-xs font-bold text-foreground">{profile.name || "GTA GARAGE"}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            Scan dengan e-Wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking (BCA, Livin&apos;, BRImo)
+                        {/* Merchant Details */}
+                        <div className="px-4 pt-3 pb-1 text-center space-y-0.5">
+                          <h4 className="font-bold text-sm text-slate-900 tracking-wide uppercase">
+                            {profile.name || "GTA GARAGE"}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 font-mono">
+                            NMID: ID1020260925 · KODE: GTABGK01
                           </p>
+                        </div>
+
+                        {/* Real Scannable QR Code Matrix */}
+                        <div className="flex flex-col items-center justify-center p-3">
+                          <div className="relative size-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xs flex items-center justify-center">
+                            {qrisDataUrl ? (
+                              <img
+                                src={qrisDataUrl}
+                                alt="QRIS Midtrans Real Scannable Code"
+                                className="size-full object-contain rounded-md"
+                              />
+                            ) : (
+                              <div className="text-xs text-muted-foreground animate-pulse">Menghasilkan QRIS...</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-2.5 text-[11px] font-medium text-slate-700">
+                            <span className="size-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span>Scan dengan GoPay, OVO, Dana, ShopeePay, atau m-Banking</span>
+                          </div>
+                        </div>
+
+                        {/* Nominal Pas */}
+                        <div className="bg-emerald-50/90 border-t border-emerald-100 px-4 py-2.5 text-center">
+                          <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">
+                            Total Bayar Pas
+                          </span>
+                          <span className="text-xl font-black text-emerald-700">
+                            {formatRupiah(finalPayAmount)}
+                          </span>
+                        </div>
+
+                        {/* Supported Brands row & Quick action */}
+                        <div className="bg-slate-50 px-3.5 py-2.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+                          <div className="text-left text-[9.5px] text-slate-500">
+                            <p className="font-semibold text-slate-700">BCA · Livin&apos; · BRImo · GoPay · OVO · Dana</p>
+                            <p className="text-[8.5px] text-slate-400">Ref: {paymentRefId} · Exp: 15 Menit</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!qrisPayload) return
+                              navigator.clipboard.writeText(qrisPayload)
+                              setCopiedQrisString(true)
+                              toast.success("String QRIS Disalin", "String payload EMVCo QRIS berhasil disalin untuk simulator!")
+                              setTimeout(() => setCopiedQrisString(false), 2000)
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+                          >
+                            {copiedQrisString ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                            <span>{copiedQrisString ? "Tersalin!" : "Salin String QRIS"}</span>
+                          </button>
                         </div>
                       </div>
 
