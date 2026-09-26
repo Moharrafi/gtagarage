@@ -167,9 +167,10 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <button
               type="button"
               onClick={() => onNavigate("pekerjaan")}
+              aria-label="Lihat semua daftar pekerjaan aktif"
               className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
             >
-              Lihat semua <ChevronRight className="size-3.5" />
+              Lihat semua <ChevronRight className="size-3.5" aria-hidden="true" />
             </button>
           </div>
           <div className="space-y-2.5">
@@ -193,7 +194,11 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
                   <WorkStatusBadge status={w.status} />
                   <span className="text-xs text-muted-foreground">{w.progress}%</span>
                 </div>
-                <Progress value={w.progress} className="h-1.5" />
+                <Progress
+                  value={w.progress}
+                  className="h-1.5"
+                  aria-label={`Progres pengerjaan ${w.vehicle.brand} ${w.vehicle.model}: ${w.progress}%`}
+                />
               </Card>
             ))}
           </div>
@@ -205,9 +210,10 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <button
               type="button"
               onClick={() => onNavigate("invoice")}
+              aria-label="Lihat semua riwayat invoice"
               className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
             >
-              Lihat semua <ChevronRight className="size-3.5" />
+              Lihat semua <ChevronRight className="size-3.5" aria-hidden="true" />
             </button>
           </div>
           <Card className="divide-y divide-border p-0 overflow-hidden">

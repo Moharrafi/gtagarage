@@ -1,21 +1,68 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { useState } from "react"
 import { Bell, Wrench, Home, Package, ReceiptText, BarChart3, Settings } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
-import { NotificationsPanel } from "@/components/workshop/notifications-panel"
-import { SettingsModal } from "@/components/workshop/settings-modal"
 import { Toaster } from "@/components/workshop/toast"
 import { ConfirmDialog } from "@/components/workshop/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
 import { LoginScreen } from "@/components/workshop/login-screen"
 import { DashboardScreen } from "@/components/workshop/screens/dashboard"
-import { WorkOrdersScreen } from "@/components/workshop/screens/work-orders"
-import { InventoryScreen } from "@/components/workshop/screens/inventory"
-import { InvoicesScreen } from "@/components/workshop/screens/invoices"
-import { AnalyticsScreen } from "@/components/workshop/screens/analytics"
+
+const WorkOrdersScreen = dynamic(
+  () => import("@/components/workshop/screens/work-orders").then((mod) => mod.WorkOrdersScreen),
+  {
+    loading: () => (
+      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
+        Memuat data pekerjaan...
+      </div>
+    ),
+  }
+)
+
+const InventoryScreen = dynamic(
+  () => import("@/components/workshop/screens/inventory").then((mod) => mod.InventoryScreen),
+  {
+    loading: () => (
+      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
+        Memuat katalog suku cadang...
+      </div>
+    ),
+  }
+)
+
+const InvoicesScreen = dynamic(
+  () => import("@/components/workshop/screens/invoices").then((mod) => mod.InvoicesScreen),
+  {
+    loading: () => (
+      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
+        Memuat kasir & invoice...
+      </div>
+    ),
+  }
+)
+
+const AnalyticsScreen = dynamic(
+  () => import("@/components/workshop/screens/analytics").then((mod) => mod.AnalyticsScreen),
+  {
+    loading: () => (
+      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
+        Memuat grafik analitik...
+      </div>
+    ),
+  }
+)
+
+const SettingsModal = dynamic(
+  () => import("@/components/workshop/settings-modal").then((mod) => mod.SettingsModal)
+)
+
+const NotificationsPanel = dynamic(
+  () => import("@/components/workshop/notifications-panel").then((mod) => mod.NotificationsPanel)
+)
 
 const titles: Record<TabKey, { title: string; subtitle: string }> = {
   beranda: { title: "GTA GARAGE", subtitle: "Sistem Operasional & Kasir Bengkel" },
