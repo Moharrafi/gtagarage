@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Wrench,
   ShieldCheck,
@@ -8,11 +8,13 @@ import {
   Eye,
   EyeOff,
   LogIn,
-  ArrowRight,
-  Sparkles,
   Lock,
   User,
-  Info,
+  Sun,
+  Moon,
+  CheckCircle2,
+  HelpCircle,
+  ShieldAlert,
 } from "lucide-react"
 import { useWorkshop } from "@/lib/store"
 import { defaultUsers, type UserAccount } from "@/lib/data"
@@ -22,15 +24,41 @@ import { cn } from "@/lib/utils"
 
 export function LoginScreen() {
   const { profile, login, loginAs } = useWorkshop()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
+  const [username, setUsername] = useState("owner")
+  const [password, setPassword] = useState("owner")
+  const [selectedUser, setSelectedUser] = useState<UserAccount | null>(defaultUsers[0])
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [isDark, setIsDark] = useState(false)
+
+  // Sync theme state on mount
+  useEffect(() => {
+    const currentIsDark = document.documentElement.classList.contains("dark")
+    setIsDark(currentIsDark)
+  }, [])
+
+  const toggleTheme = () => {
+    const nextDark = !isDark
+    setIsDark(nextDark)
+    document.documentElement.classList.toggle("dark", nextDark)
+    try {
+      localStorage.setItem("bengkel_theme", nextDark ? "dark" : "light")
+    } catch {}
+  }
+
+  // Quick switch role
+  const handleSelectRole = (user: UserAccount) => {
+    setSelectedUser(user)
+    setUsername(user.username)
+    setPassword(user.password || user.username)
+  }
 
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim()) {
-      toast.error("Username Kosong", "Silakan masukkan username Anda.")
+      toast.error("Username Kosong", "Silakan masukkan username atau pilih salah satu akun.")
       return
     }
 
@@ -39,202 +67,262 @@ export function LoginScreen() {
       const ok = login(username, password)
       setLoading(false)
       if (ok) {
-        toast.success("Login Berhasil", `Selamat datang kembali di ${profile.name || "GTA GARAGE"}!`)
+        toast.success(
+          "Login Berhasil",
+          `Selamat datang di sistem operasional ${profile.name || "GTA GARAGE"}!`
+        )
       } else {
         toast.error(
-          "Login Gagal",
-          "Username atau password salah. Coba gunakan: owner, admin, atau mekanik (password: 123456)."
+          "Kredensial Tidak Sesuai",
+          "Username atau kata sandi tidak cocok. Gunakan pilihan profil di atas atau masukkan akun terdaftar."
         )
       }
-    }, 350)
+    }, 300)
   }
 
-  const handleQuickLogin = (user: UserAccount) => {
+  const handleDirectLogin = (user: UserAccount) => {
     setLoading(true)
     setTimeout(() => {
       loginAs(user)
       setLoading(false)
       toast.success(
-        `Login sebagai ${user.role}`,
-        `Selamat datang, ${user.name}! ${
-          user.role === "Mekanik"
-            ? "Mode Mekanik aktif (akses baca saja)."
-            : "Akses penuh aktif."
-        }`
+        `Masuk sebagai ${user.name} (${user.role})`,
+        user.role === "Mekanik"
+          ? "Hak akses Mekanik: Mode hanya lihat (Read-Only) aktif."
+          : "Hak akses penuh aktif untuk operasional bengkel."
       )
-    }, 250)
+    }, 200)
   }
 
   return (
-    <div className="flex min-h-dvh w-full items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-6 text-foreground">
-      <div className="relative w-full max-w-[420px] overflow-hidden rounded-3xl border border-slate-800/80 bg-slate-900/90 p-6 shadow-2xl backdrop-blur-xl animate-in fade-in duration-300">
-        {/* Glow decoration */}
-        <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 size-48 rounded-full bg-primary/20 blur-3xl" />
+    <div className="flex min-h-dvh w-full items-center justify-center bg-slate-100/80 dark:bg-zinc-950 p-4 sm:p-6 text-foreground transition-colors duration-200">
+      {/* Background subtle texture for authentic industrial feel */}
+      <div className="fixed inset-0 pointer-events-none opacity-40 dark:opacity-20 [background-image:radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:20px_20px]" />
 
-        {/* Brand Header */}
-        <div className="text-center space-y-2 mb-6">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-primary/30 ring-4 ring-primary/10">
-            <Wrench className="size-7" strokeWidth={2.4} />
+      <div className="relative w-full max-w-[420px] rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/95 p-6 sm:p-7 shadow-xl shadow-slate-200/50 dark:shadow-2xl dark:shadow-black/60 transition-all">
+        {/* Top Header: Brand & Theme Toggle */}
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center gap-3">
+            {/* Automotive Monogram / Badge */}
+            <div className="flex size-11 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-white dark:text-zinc-950 font-black text-sm tracking-wider shadow-sm">
+              GTA
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
+                  {profile.name || "GTA GARAGE"}
+                </h1>
+                <span className="rounded bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 dark:text-zinc-400">
+                  v2.4
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Sistem Operasional &amp; Manajemen Bengkel
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              {profile.name || "GTA GARAGE"}
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Sistem Manajemen Bengkel, Blasting &amp; Kustomisasi
-            </p>
-          </div>
+
+          {/* Theme switcher button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={isDark ? "Ganti ke Mode Terang" : "Ganti ke Mode Gelap"}
+            className="flex size-8 items-center justify-center rounded-lg border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/80 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700/80 transition-colors"
+          >
+            {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </button>
         </div>
 
-        {/* Quick Role Selection (Paling Praktis & Cepat) */}
-        <div className="space-y-2.5 mb-6">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-primary" />
-              <span>Pilih Role Akun</span>
+        {/* Shift / User Quick Selector (POS Kiosk Style) */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+              Pilih Pengguna / Shift
             </span>
-            <span className="text-[10px] text-slate-400 font-normal">
-              1-Klik Masuk Langsung
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500">
+              {defaultUsers.length} Akun Terdaftar
             </span>
           </div>
 
-          <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/70 border border-slate-200/80 dark:border-zinc-700/60">
             {defaultUsers.map((u) => {
-              const isOwner = u.role === "Owner"
-              const isAdmin = u.role === "Admin"
-              const isMekanik = u.role === "Mekanik"
-
+              const isSelected = selectedUser?.id === u.id
               return (
                 <button
                   key={u.id}
                   type="button"
-                  onClick={() => handleQuickLogin(u)}
-                  disabled={loading}
+                  onClick={() => handleSelectRole(u)}
                   className={cn(
-                    "group flex w-full items-center justify-between gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.98]",
-                    isOwner
-                      ? "border-primary/40 bg-primary/10 hover:bg-primary/20 hover:border-primary text-white"
-                      : isAdmin
-                      ? "border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-900/40 hover:border-emerald-500 text-white"
-                      : "border-amber-500/40 bg-amber-950/30 hover:bg-amber-900/40 hover:border-amber-500 text-white"
+                    "flex flex-col items-center justify-center py-2 px-1.5 rounded-lg text-center transition-all",
+                    isSelected
+                      ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-sm font-semibold border border-slate-200/80 dark:border-zinc-700"
+                      : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-800"
                   )}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={cn(
-                        "flex size-10 shrink-0 items-center justify-center rounded-xl font-bold text-xs ring-1",
-                        isOwner
-                          ? "bg-primary text-white ring-primary/40"
-                          : isAdmin
-                          ? "bg-emerald-600 text-white ring-emerald-500/40"
-                          : "bg-amber-600 text-white ring-amber-500/40"
-                      )}
-                    >
-                      {u.avatarInitials}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-xs text-white truncate">{u.name}</p>
-                        <span
-                          className={cn(
-                            "rounded-md px-1.5 py-0.5 text-[9px] font-bold shrink-0",
-                            isOwner
-                              ? "bg-primary/30 text-blue-200 border border-primary/40"
-                              : isAdmin
-                              ? "bg-emerald-500/25 text-emerald-200 border border-emerald-500/40"
-                              : "bg-amber-500/25 text-amber-200 border border-amber-500/40"
-                          )}
-                        >
-                          {isMekanik ? "Mekanik · Hanya Lihat" : `${u.role} · Full Access`}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                        {isOwner
-                          ? "Owner: Kendali penuh finansial & tarif"
-                          : isAdmin
-                          ? "Admin: Kasir, SPK, & faktur WhatsApp"
-                          : "Mekanik: Cek antrian pengerjaan & stok"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-slate-400 group-hover:text-white transition-colors">
-                    <ArrowRight className="size-4" />
-                  </div>
+                  <span className="text-xs font-bold leading-tight truncate w-full">
+                    {u.name}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] mt-0.5 font-medium",
+                      u.role === "Owner"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : u.role === "Admin"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    )}
+                  >
+                    {u.role}
+                  </span>
                 </button>
               )
             })}
           </div>
+
+          {/* Role Access Information Box */}
+          {selectedUser && (
+            <div className="mt-2.5 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 p-2.5 text-[11px] text-slate-600 dark:text-zinc-400 flex items-start gap-2">
+              {selectedUser.role === "Mekanik" ? (
+                <ShieldAlert className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
+              )}
+              <div className="leading-relaxed">
+                <span className="font-semibold text-slate-900 dark:text-zinc-200">
+                  {selectedUser.role === "Mekanik" ? "Akses Terbatas:" : "Akses Penuh:"}
+                </span>{" "}
+                {selectedUser.role === "Owner"
+                  ? "Kendali finansial, tarif jasa, konfigurasi sistem, dan seluruh operasional."
+                  : selectedUser.role === "Admin"
+                  ? "Kasir, transaksi invoice, cetak SPK, kelola suku cadang, dan pengiriman WhatsApp."
+                  : "Hanya lihat (Read-Only) antrian pengerjaan & stok. Dibatasi dari pengeditan atau kirim pesan."}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Divider */}
-        <div className="relative my-4 text-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-800" />
-          </div>
-          <span className="relative bg-slate-900 px-3 text-[10px] uppercase font-bold tracking-wider text-slate-500">
-            Atau Masuk Manual
-          </span>
-        </div>
-
-        {/* Manual Form */}
-        <form onSubmit={handleManualLogin} className="space-y-3">
+        {/* Authentication Form */}
+        <form onSubmit={handleManualLogin} className="space-y-3.5">
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">
-              Username
+            <label className="block text-xs font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
+              Nama Pengguna / ID Akun
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-2.5 size-4 text-slate-500" />
+              <User className="absolute left-3 top-2.5 size-4 text-slate-400 dark:text-zinc-500" />
               <input
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="owner / admin / mekanik"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2 pl-9 pr-3 text-xs text-white placeholder:text-slate-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                onChange={(e) => {
+                  setUsername(e.target.value)
+                  setSelectedUser(null)
+                }}
+                required
+                placeholder="mis. owner / admin / mekanik"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
             </div>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-300">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium text-slate-700 dark:text-zinc-300">
+                Kata Sandi
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowHelp(!showHelp)}
+                className="text-[11px] text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors flex items-center gap-1"
+              >
+                <HelpCircle className="size-3" />
+                <span>Bantuan Masuk</span>
+              </button>
+            </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-2.5 size-4 text-slate-500" />
+              <Lock className="absolute left-3 top-2.5 size-4 text-slate-400 dark:text-zinc-500" />
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password (default: 123456)"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2 pl-9 pr-9 text-xs text-white placeholder:text-slate-600 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                required
+                placeholder="Kata sandi"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2 pl-9 pr-9 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
             </div>
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full gap-2 rounded-xl bg-brand-gradient py-2.5 text-xs font-semibold text-white shadow-md shadow-primary/20 active:scale-98 mt-2"
-          >
-            <LogIn className="size-4" />
-            {loading ? "Memproses..." : "Masuk ke Sistem Bengkel"}
-          </Button>
+          {/* Help box for credentials */}
+          {showHelp && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 p-2.5 text-[11px] text-blue-800 dark:text-blue-300 space-y-1 animate-in fade-in duration-150">
+              <p className="font-semibold">Info Kredensial Shift Bengkel:</p>
+              <p>
+                • <strong>Owner:</strong> username <code className="bg-blue-100 dark:bg-blue-900/60 px-1 rounded">owner</code> (pass: owner atau 123456)
+              </p>
+              <p>
+                • <strong>Admin:</strong> username <code className="bg-blue-100 dark:bg-blue-900/60 px-1 rounded">admin</code> (pass: admin atau 123456)
+              </p>
+              <p>
+                • <strong>Mekanik:</strong> username <code className="bg-blue-100 dark:bg-blue-900/60 px-1 rounded">mekanik</code> (pass: mekanik atau 123456)
+              </p>
+            </div>
+          )}
+
+          {/* Remember me & submit */}
+          <div className="flex items-center gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="size-3.5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-zinc-700 dark:bg-zinc-800"
+            />
+            <label htmlFor="remember" className="text-xs text-slate-600 dark:text-zinc-400 cursor-pointer select-none">
+              Ingat sesi di perangkat bengkel ini
+            </label>
+          </div>
+
+          <div className="pt-2 space-y-2">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 py-2.5 text-xs font-semibold shadow-sm transition-all"
+            >
+              <LogIn className="size-4" />
+              {loading
+                ? "Memverifikasi..."
+                : selectedUser
+                ? `Masuk sebagai ${selectedUser.name}`
+                : "Masuk ke Sistem Bengkel"}
+            </Button>
+
+            {selectedUser && (
+              <button
+                type="button"
+                onClick={() => handleDirectLogin(selectedUser)}
+                disabled={loading}
+                className="w-full text-center text-[11px] text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 py-1 transition-colors font-medium"
+              >
+                Masuk Langsung 1-Klik →
+              </button>
+            )}
+          </div>
         </form>
 
-        {/* Footer info */}
-        <div className="mt-5 pt-3 border-t border-slate-800/80 text-center">
-          <p className="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-            <Info className="size-3" />
-            Role Mekanik dibatasi hanya untuk melihat (Read-Only).
+        {/* Security & Terminal Footer */}
+        <div className="mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800/80 text-center">
+          <p className="text-[10px] text-slate-400 dark:text-zinc-500 flex items-center justify-center gap-1.5">
+            <ShieldCheck className="size-3.5 text-slate-400 dark:text-zinc-500" />
+            <span>Koneksi Terenkripsi • Terminal Operasional GTA Garage</span>
           </p>
         </div>
       </div>
     </div>
   )
 }
+
