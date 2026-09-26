@@ -261,12 +261,12 @@ function ThermalReceipt({ invoice, isPrint = false }: { invoice: Invoice; isPrin
           </div>
         )}
         <div className={cn("border-b border-dashed my-1.5", isPrint ? "border-black" : "border-slate-400")} />
-        <div className={cn("flex justify-between font-bold text-xs", isPrint ? "text-black" : "text-slate-900")}>
-          <span>TOTAL PENGERJAAN:</span>
-          <span>Rp {formatNumber(total)}</span>
-        </div>
-        {Boolean(invoice.adminFee && invoice.adminFee > 0) && (
+        {Boolean(invoice.adminFee && invoice.adminFee > 0) ? (
           <>
+            <div className={cn("flex justify-between font-bold text-xs", isPrint ? "text-black" : "text-slate-900")}>
+              <span>TOTAL PENGERJAAN:</span>
+              <span>Rp {formatNumber(total)}</span>
+            </div>
             <div className="flex justify-between text-[10.5px]">
               <span className={isPrint ? "text-black/80" : "text-slate-600"}>
                 Biaya Admin ({invoice.method || "Gateway"}):
@@ -280,11 +280,20 @@ function ThermalReceipt({ invoice, isPrint = false }: { invoice: Invoice; isPrin
               <span>Rp {formatNumber(total + invoice.adminFee!)}</span>
             </div>
           </>
+        ) : (
+          <div className={cn("flex justify-between font-bold text-xs", isPrint ? "text-black" : "text-slate-900")}>
+            <span>TOTAL PEMBAYARAN:</span>
+            <span>Rp {formatNumber(total)}</span>
+          </div>
         )}
-        <div className="flex justify-between">
-          <span>Bayar / DP:</span>
-          <span>Rp {formatNumber(invoice.paidAmount)}</span>
-        </div>
+        {!isLunas && invoice.paidAmount > 0 && (
+          <div className="flex justify-between text-[10.5px]">
+            <span className={isPrint ? "text-black/80" : "text-slate-600"}>Uang Muka (DP):</span>
+            <span className={cn("font-medium", isPrint ? "text-black" : "text-slate-900")}>
+              Rp {formatNumber(invoice.paidAmount)}
+            </span>
+          </div>
+        )}
         <div className={cn("border-b border-dashed my-1.5", isPrint ? "border-black" : "border-slate-400")} />
         <div className={cn("flex justify-between font-bold", isPrint ? "text-black" : "text-slate-900")}>
           <span>STATUS:</span>
