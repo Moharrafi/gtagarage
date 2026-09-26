@@ -188,7 +188,11 @@ export interface NotificationItem {
   time: string
   channel: string
   status: "terkirim" | "menunggu" | "gagal"
+  read?: boolean
+  createdAt?: string
+  linkTab?: "beranda" | "pekerjaan" | "stok" | "invoice" | "analitik"
 }
+
 
 export interface ServiceRate {
   id: string

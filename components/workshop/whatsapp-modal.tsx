@@ -17,7 +17,7 @@ interface WhatsAppModalProps {
 }
 
 export function WhatsAppModal({ open, onClose, initialWorkOrderId }: WhatsAppModalProps) {
-  const { workOrders, profile, dismissTip, isTipDismissed, canEdit } = useWorkshop()
+  const { workOrders, profile, dismissTip, isTipDismissed, canEdit, addNotification } = useWorkshop()
   const [selectedWoId, setSelectedWoId] = useState<string>("")
 
   if (!canEdit) return null
@@ -155,6 +155,14 @@ Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
 
     const encoded = encodeURIComponent(message)
     const url = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`
+    addNotification({
+      type: "whatsapp",
+      title: "Invoice WhatsApp Terkirim",
+      body: `Pemberitahuan invoice & unit siap diambil dikirim ke ${customerName || "Pelanggan"} (${cleanPhone}).`,
+      channel: cleanPhone,
+      status: "terkirim",
+      linkTab: "pekerjaan",
+    })
     toast.success("Membuka WhatsApp", "Gambar invoice telah disalin! Tekan Ctrl+V di chat WhatsApp.")
     window.open(url, "_blank")
   }

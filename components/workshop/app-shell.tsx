@@ -29,7 +29,7 @@ function AppShellInner() {
   const [tab, setTab] = useState<TabKey>("beranda")
   const [notifOpen, setNotifOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { profile, currentUser, authLoaded } = useWorkshop()
+  const { profile, currentUser, authLoaded, unreadNotifCount } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
 
@@ -80,10 +80,14 @@ function AppShellInner() {
             type="button"
             onClick={() => setNotifOpen(true)}
             aria-label="Buka notifikasi"
-            className="relative flex size-9 items-center justify-center rounded-full text-foreground hover:bg-accent"
+            className="relative flex size-9 items-center justify-center rounded-full text-foreground hover:bg-accent transition-colors"
           >
             <Bell className="size-5" />
-            <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-card" />
+            {unreadNotifCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-card animate-in zoom-in duration-200">
+                {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -121,7 +125,7 @@ function AppShellInner() {
         </main>
 
         <BottomNav active={tab} onChange={setTab} />
-        <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+        <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} onNavigate={setTab} />
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <Toaster />
         <ConfirmDialog />

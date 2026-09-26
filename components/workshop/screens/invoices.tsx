@@ -295,7 +295,7 @@ Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
 }
 
 export function InvoicesScreen() {
-  const { profile, vouchers, dismissTip, isTipDismissed, canEdit } = useWorkshop()
+  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification } = useWorkshop()
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
   const [active, setActive] = useState<Invoice | null>(null)
@@ -496,6 +496,14 @@ export function InvoicesScreen() {
     await handleCopyImage()
 
     const encoded = encodeURIComponent(waMessage)
+    addNotification({
+      type: "whatsapp",
+      title: "Invoice WA Terkirim",
+      body: `Faktur tagihan/kwitansi an. ${active?.customer.name || "Pelanggan"} (${clean}) berhasil disiapkan & dikirim ke WhatsApp.`,
+      channel: clean,
+      status: "terkirim",
+      linkTab: "invoice",
+    })
     window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encoded}`, "_blank")
     toast.success("Membuka WhatsApp", "Gambar invoice telah disalin! Tekan Ctrl+V di chat WhatsApp.")
   }
@@ -1174,6 +1182,14 @@ export function InvoicesScreen() {
                         }
                       : prev,
                   )
+                  addNotification({
+                    type: "push",
+                    title: "Pembayaran Lunas",
+                    body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(total)} telah diterima lunas via ${method || "QRIS"}.`,
+                    channel: "Kasir POS",
+                    status: "terkirim",
+                    linkTab: "invoice",
+                  })
                   toast.success("Pembayaran Berhasil", `${formatRupiah(sisa)} via ${method} tercatat lunas.`)
                 }
               }}

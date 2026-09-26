@@ -8,6 +8,7 @@ import {
   defaultCategories,
   defaultVouchers,
   defaultUsers,
+  invoices,
   type WorkOrder,
   type Part,
   type ServiceType,
@@ -16,6 +17,7 @@ import {
   type Voucher,
   type UserAccount,
   type UserRole,
+  type NotificationItem,
 } from "@/lib/data"
 
 export interface WorkOrderInput {
@@ -110,6 +112,13 @@ interface WorkshopContextValue {
   isMekanik: boolean
   isOwner: boolean
   isAdmin: boolean
+  notifications: NotificationItem[]
+  unreadNotifCount: number
+  addNotification: (item: Omit<NotificationItem, "id" | "time"> & { time?: string; createdAt?: string }) => void
+  markAllNotifAsRead: () => void
+  markNotifAsRead: (id: string) => void
+  clearNotifications: () => void
+  deleteNotification: (id: string) => void
 }
 
 const WorkshopContext = createContext<WorkshopContextValue | null>(null)
@@ -146,12 +155,180 @@ function nextWorkOrderCode(existing: WorkOrder[]): string {
   return `WO-${max + 1}`
 }
 
+export function getInitialRealNotifications(
+  orders: WorkOrder[],
+  partsList: Part[],
+  invList: typeof invoices
+): NotificationItem[] {
+  const notifs: NotificationItem[] = []
+
+  // 1. Peringatan stok menipis / kritis dari inventaris aktual
+  const lowParts = partsList.filter((p) => p.stock <= p.minStock)
+  lowParts.forEach((p, idx) => {
+    notifs.push({
+      id: `low-stock-${p.id}`,
+      type: "push",
+      title: "Stok Suku Cadang Menipis",
+      body: `${p.name} (${p.sku}) tersisa ${p.stock} unit, di bawah batas minimum (${p.minStock}).`,
+      time: "08:20",
+      createdAt: new Date(Date.now() - (idx + 1) * 3600000).toISOString(),
+      channel: "Gudang Suku Cadang",
+      status: "terkirim",
+      read: false,
+      linkTab: "stok",
+    })
+  })
+
+  // 2. Unit siap diambil dari data pekerjaan aktual
+  const readyWo = orders.filter((w) => w.status === "Siap Diambil")
+  readyWo.forEach((w) => {
+    notifs.push({
+      id: `ready-wo-${w.id}`,
+      type: "whatsapp",
+      title: "Kendaraan Siap Diambil",
+      body: `Halo ${w.customer.name}, ${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate}) sudah selesai & siap diambil. Terima kasih!`,
+      time: "10:02",
+      createdAt: new Date(Date.now() - 7200000).toISOString(),
+      channel: w.customer.phone || w.technician,
+      status: "terkirim",
+      read: false,
+      linkTab: "pekerjaan",
+    })
+  })
+
+  // 3. Update progres pengerjaan unit aktual
+  const inProgressWo = orders.find((w) => w.status === "Dikerjakan")
+  if (inProgressWo) {
+    notifs.push({
+      id: `prog-wo-${inProgressWo.id}`,
+      type: "push",
+      title: "Update Status Perbaikan",
+      body: `${inProgressWo.code} ${inProgressWo.vehicle.brand} ${inProgressWo.vehicle.model} — progres ${inProgressWo.progress}%, sedang ${inProgressWo.complaint.toLowerCase()}.`,
+      time: "09:35",
+      createdAt: new Date(Date.now() - 1800000).toISOString(),
+      channel: inProgressWo.technician,
+      status: "terkirim",
+      read: false,
+      linkTab: "pekerjaan",
+    })
+  }
+
+  // 4. Tagihan invoice jatuh tempo aktual
+  const overdueInvs = invList.filter((inv) => inv.status === "Jatuh Tempo")
+  overdueInvs.forEach((inv) => {
+    notifs.push({
+      id: `overdue-inv-${inv.id}`,
+      type: "whatsapp",
+      title: "Pengingat Pembayaran",
+      body: `Halo ${inv.customer.name}, invoice ${inv.number} telah jatuh tempo. Mohon segera diselesaikan.`,
+      time: "Kemarin",
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      channel: inv.customer.phone,
+      status: "menunggu",
+      read: false,
+      linkTab: "invoice",
+    })
+  })
+
+  return notifs
+}
+
 export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>(seedWorkOrders)
   const [parts, setParts] = useState<Part[]>(seedParts)
   const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
+
+  // Real Notifications State
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bengkel_notifications")
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setNotifications(parsed)
+          return
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load bengkel_notifications", e)
+    }
+
+    const initial = getInitialRealNotifications(seedWorkOrders, seedParts, invoices)
+    setNotifications(initial)
+    try {
+      localStorage.setItem("bengkel_notifications", JSON.stringify(initial))
+    } catch {}
+  }, [])
+
+  const addNotification = useCallback(
+    (item: Omit<NotificationItem, "id" | "time"> & { time?: string; createdAt?: string }) => {
+      const now = new Date()
+      const timeStr =
+        item.time ||
+        now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+      const newNotif: NotificationItem = {
+        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        ...item,
+        time: timeStr,
+        createdAt: item.createdAt || now.toISOString(),
+        read: item.read ?? false,
+      }
+      setNotifications((prev) => {
+        const next = [newNotif, ...prev]
+        try {
+          localStorage.setItem("bengkel_notifications", JSON.stringify(next))
+        } catch {}
+        return next
+      })
+    },
+    []
+  )
+
+  const markAllNotifAsRead = useCallback(() => {
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, read: true }))
+      try {
+        localStorage.setItem("bengkel_notifications", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const markNotifAsRead = useCallback((id: string) => {
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      try {
+        localStorage.setItem("bengkel_notifications", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([])
+    try {
+      localStorage.setItem("bengkel_notifications", JSON.stringify([]))
+    } catch {}
+  }, [])
+
+  const deleteNotification = useCallback((id: string) => {
+    setNotifications((prev) => {
+      const next = prev.filter((n) => n.id !== id)
+      try {
+        localStorage.setItem("bengkel_notifications", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const unreadNotifCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  )
 
   useEffect(() => {
     try {
@@ -218,13 +395,35 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         laborCost: input.laborCost,
         usedParts: input.usedParts || [],
       }
+
+      addNotification({
+        type: "push",
+        title: "SPK Pengerjaan Baru",
+        body: `${code} ${input.brand} ${input.model} (${input.plate}) an. ${input.customerName} - ${input.service}.`,
+        channel: input.technician || "Kasir",
+        status: "terkirim",
+        linkTab: "pekerjaan",
+      })
+
       return [wo, ...prev]
     })
-  }, [])
+  }, [addNotification])
 
   const updateWorkOrder = useCallback((id: string, input: WorkOrderInput) => {
-    setWorkOrders((prev) =>
-      prev.map((w) =>
+    setWorkOrders((prev) => {
+      const target = prev.find((w) => w.id === id)
+      if (target && target.status !== "Siap Diambil" && input.status === "Siap Diambil") {
+        addNotification({
+          type: "push",
+          title: "Kendaraan Siap Diambil",
+          body: `${input.brand} ${input.model} (${input.plate}) pengerjaan selesai, siap diserahkan ke ${input.customerName}.`,
+          channel: input.technician || "Mekanik",
+          status: "terkirim",
+          linkTab: "pekerjaan",
+        })
+      }
+
+      return prev.map((w) =>
         w.id === id
           ? {
               ...w,
@@ -239,9 +438,9 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
               usedParts: input.usedParts !== undefined ? input.usedParts : w.usedParts,
             }
           : w,
-      ),
-    )
-  }, [])
+      )
+    })
+  }, [addNotification])
 
   const deleteWorkOrder = useCallback((id: string) => {
     setWorkOrders((prev) => prev.filter((w) => w.id !== id))
@@ -279,9 +478,25 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     setParts((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
-  const stockIn = useCallback((id: string, qty: number) => {
-    setParts((prev) => prev.map((p) => (p.id === id ? { ...p, stock: p.stock + qty } : p)))
-  }, [])
+  const stockIn = useCallback(
+    (id: string, qty: number) => {
+      setParts((prev) => {
+        const part = prev.find((p) => p.id === id)
+        if (part) {
+          addNotification({
+            type: "push",
+            title: "Restok Suku Cadang",
+            body: `Penambahan stok ${part.name} sebanyak +${qty} unit berhasil dicatat (Total sekarang: ${part.stock + qty} unit).`,
+            channel: "Gudang Suku Cadang",
+            status: "terkirim",
+            linkTab: "stok",
+          })
+        }
+        return prev.map((p) => (p.id === id ? { ...p, stock: p.stock + qty } : p))
+      })
+    },
+    [addNotification]
+  )
 
   const addServiceRate = useCallback((input: ServiceRateInput) => {
     setServiceRates((prev) => [
@@ -535,6 +750,13 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       isMekanik,
       isOwner,
       isAdmin,
+      notifications,
+      unreadNotifCount,
+      addNotification,
+      markAllNotifAsRead,
+      markNotifAsRead,
+      clearNotifications,
+      deleteNotification,
     }),
     [
       workOrders,
@@ -574,6 +796,13 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       isMekanik,
       isOwner,
       isAdmin,
+      notifications,
+      unreadNotifCount,
+      addNotification,
+      markAllNotifAsRead,
+      markNotifAsRead,
+      clearNotifications,
+      deleteNotification,
     ],
   )
 
