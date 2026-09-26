@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { ReportExportModal } from "@/components/workshop/report-export-modal"
 import {
   TrendingUp,
   Users,
@@ -73,6 +74,7 @@ const periods = ["Mingguan", "Bulanan", "Tahunan"] as const
 
 export function AnalyticsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
+  const [exportOpen, setExportOpen] = useState(false)
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)
 
   const kpis = [
@@ -240,7 +242,12 @@ export function AnalyticsScreen() {
               <h2 className="text-sm font-semibold">Laporan Keuangan</h2>
               <p className="text-xs text-muted-foreground">{monthlyReport.period}</p>
             </div>
-            <Button size="sm" variant="outline" className="gap-1.5 bg-transparent">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setExportOpen(true)}
+              className="gap-1.5 bg-card hover:bg-accent text-foreground shadow-sm transition-all active:scale-95 cursor-pointer"
+            >
               <Download className="size-3.5" /> Ekspor
             </Button>
           </div>
@@ -282,6 +289,11 @@ export function AnalyticsScreen() {
       <p className="pb-2 text-center text-[0.7rem] text-muted-foreground">
         Data ditampilkan sebagai demo. Hubungkan database untuk laporan real-time.
       </p>
+
+      <ReportExportModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+      />
     </div>
   )
 }
