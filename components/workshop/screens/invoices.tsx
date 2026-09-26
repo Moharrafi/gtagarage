@@ -1888,17 +1888,6 @@ export function InvoicesScreen() {
                           Bagikan gambar QRIS resmi &amp; instruksi pembayaran ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
                         </p>
 
-                        {/* Petunjuk Pengiriman WA */}
-                        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2.5 text-[11px] text-emerald-950 dark:text-emerald-200 space-y-1">
-                          <p className="font-bold flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
-                            <Sparkles className="size-3 text-emerald-600 dark:text-emerald-400" />
-                            <span>Mengapa WhatsApp Web hanya membuka teks?</span>
-                          </p>
-                          <p className="opacity-90 leading-tight">
-                            WhatsApp Web membatasi tautan link hanya untuk teks. Klik <strong>Buka WA &amp; Bagikan QRIS</strong> di bawah: gambar QRIS akan otomatis disalin &amp; diunduh. Di WhatsApp Web pelanggan, Anda cukup tekan <strong>Ctrl + V</strong> (Tempel Gambar) lalu Enter!
-                          </p>
-                        </div>
-
                         {/* Action Buttons Grid */}
                         <div className="space-y-1.5 pt-0.5">
                           <Button
