@@ -1503,7 +1503,7 @@ export function InvoicesScreen() {
                           midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
                         )}
                       />
-                      Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
+                      Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox (Mode Uji Coba)"}
                     </span>
                   </div>
 
@@ -1682,9 +1682,27 @@ export function InvoicesScreen() {
                       <ChevronLeft className="size-4" />
                       <span>Ubah Metode</span>
                     </button>
-                    <div className="text-right">
-                      <span className="text-[10px] text-muted-foreground block">Total Tagihan:</span>
-                      <span className="text-sm font-black text-foreground">{formatRupiah(finalPayAmount)}</span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                          midtransConfig?.environment === "production"
+                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
+                            : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full animate-pulse",
+                            midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                          )}
+                        />
+                        {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
+                      </span>
+                      <div className="text-right">
+                        <span className="text-[10px] text-muted-foreground block">Total Tagihan:</span>
+                        <span className="text-sm font-black text-foreground">{formatRupiah(finalPayAmount)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1830,20 +1848,33 @@ export function InvoicesScreen() {
                         </div>
                       </div>
 
-                      {/* Cashier simulation button */}
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={isSimulatingPayment}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                      >
-                        <Sparkles className="size-3.5" />
-                        <span>
-                          {isSimulatingPayment
-                            ? "Memverifikasi notifikasi webhook Midtrans..."
-                            : "⚡ Simulasi: Pelanggan Selesai Scan QRIS"}
-                        </span>
-                      </button>
+                      {/* Cashier simulation button & Sandbox Simulator link */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={handleSimulatePayment}
+                          disabled={isSimulatingPayment}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                        >
+                          <Sparkles className="size-3.5" />
+                          <span>
+                            {isSimulatingPayment
+                              ? "Memverifikasi notifikasi webhook Midtrans..."
+                              : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS"}
+                          </span>
+                        </button>
+                        <div className="flex items-center justify-center text-center">
+                          <a
+                            href="https://simulator.sandbox.midtrans.com/qris/index"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                          >
+                            <span>Buka Simulator QRIS Resmi Midtrans Sandbox</span>
+                            <ExternalLink className="size-2.5" />
+                          </a>
+                        </div>
+                      </div>
 
                       {/* Main Confirm Button */}
                       <Button
@@ -1982,20 +2013,33 @@ export function InvoicesScreen() {
                         </div>
                       </div>
 
-                      {/* Cashier simulation button */}
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={isSimulatingPayment}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                      >
-                        <Sparkles className="size-3.5" />
-                        <span>
-                          {isSimulatingPayment
-                            ? "Menerima notifikasi settlement VA..."
-                            : "⚡ Simulasi: Pelanggan Selesai Transfer VA"}
-                        </span>
-                      </button>
+                      {/* Cashier simulation button & Sandbox Simulator link */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={handleSimulatePayment}
+                          disabled={isSimulatingPayment}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                        >
+                          <Sparkles className="size-3.5" />
+                          <span>
+                            {isSimulatingPayment
+                              ? "Menerima notifikasi settlement VA..."
+                              : "⚡ Simulasi Kasir: Pelanggan Selesai Transfer VA"}
+                          </span>
+                        </button>
+                        <div className="flex items-center justify-center text-center">
+                          <a
+                            href="https://simulator.sandbox.midtrans.com/openapi/va/index"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                          >
+                            <span>Buka Simulator Virtual Account Midtrans Sandbox</span>
+                            <ExternalLink className="size-2.5" />
+                          </a>
+                        </div>
+                      </div>
 
                       {/* Main Confirm Button */}
                       <Button
@@ -2059,20 +2103,25 @@ export function InvoicesScreen() {
                         <span>Diproteksi dengan Fraud Detection System Aegis &amp; One Time Password (OTP).</span>
                       </div>
 
-                      {/* Cashier simulation button */}
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={isSimulatingPayment}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                      >
-                        <Sparkles className="size-3.5" />
-                        <span>
-                          {isSimulatingPayment
-                            ? "Memvalidasi OTP 3DS Midtrans..."
-                            : "⚡ Simulasi: Transaksi Kartu 3D Secure Berhasil"}
-                        </span>
-                      </button>
+                      {/* Cashier simulation button & Test Cards */}
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={handleSimulatePayment}
+                          disabled={isSimulatingPayment}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                        >
+                          <Sparkles className="size-3.5" />
+                          <span>
+                            {isSimulatingPayment
+                              ? "Memvalidasi OTP 3DS Midtrans..."
+                              : "⚡ Simulasi Kasir: Transaksi Kartu 3D Secure Berhasil"}
+                          </span>
+                        </button>
+                        <p className="text-center text-[10px] text-muted-foreground">
+                          Kartu Uji Coba Sandbox: <code className="font-mono bg-muted px-1 py-0.5 rounded text-[9.5px]">4811 1111 1111 1114</code> · Exp: 12/28 · CVV: 123 (OTP: 112233)
+                        </p>
+                      </div>
 
                       {/* Main Confirm Button */}
                       <Button

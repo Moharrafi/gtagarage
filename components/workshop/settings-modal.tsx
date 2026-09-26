@@ -1021,12 +1021,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     className={cn(
                       "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all",
                       localMidtrans.environment === "sandbox"
-                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs"
+                        ? "border-blue-600 bg-blue-500/10 text-blue-600 font-bold shadow-xs dark:text-blue-400"
                         : "border-border text-muted-foreground hover:bg-muted/40"
                     )}
                   >
-                    <span className="text-xs">Sandbox (Testing)</span>
-                    <span className="text-[10px] opacity-75 font-normal">Uji coba simulasi bayar</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-xs">Sandbox (Testing)</span>
+                    </div>
+                    <span className="text-[10px] opacity-75 font-normal">Mode uji coba simulasi bayar</span>
                   </button>
                   <button
                     type="button"
@@ -1042,6 +1045,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     <span className="text-[10px] opacity-75 font-normal">Transaksi uang nyata</span>
                   </button>
                 </div>
+                {localMidtrans.environment === "sandbox" && (
+                  <div className="mt-2 rounded-xl border border-blue-500/25 bg-blue-500/10 p-2.5 text-[11px] text-blue-900 dark:text-blue-200 flex items-start gap-2">
+                    <Sparkles className="size-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-blue-800 dark:text-blue-300">Mode Sandbox Aktif (Aman untuk Uji Coba)</p>
+                      <p className="opacity-90 leading-tight">
+                        Semua transaksi QRIS &amp; Virtual Account berjalan di simulator Midtrans tanpa memotong saldo nyata. Anda dapat menguji bayar langsung di kasir atau membuka{" "}
+                        <a
+                          href="https://simulator.sandbox.midtrans.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold underline text-blue-700 dark:text-blue-300 hover:text-blue-900 inline-flex items-center gap-0.5"
+                        >
+                          <span>Midtrans Simulator</span>
+                          <ExternalLink className="size-2.5 inline" />
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Client Key */}

@@ -383,11 +383,16 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem("bengkel_midtrans")
       if (saved) {
         const parsed = JSON.parse(saved)
-        setMidtransConfig((prev) => ({
-          ...prev,
+        const updatedConfig: MidtransConfig = {
+          ...defaultMidtransConfig,
           ...parsed,
+          environment: "sandbox",
           chargeAdminFeeToCustomer: parsed.chargeAdminFeeToCustomer ?? true,
-        }))
+        }
+        setMidtransConfig(updatedConfig)
+        try {
+          localStorage.setItem("bengkel_midtrans", JSON.stringify(updatedConfig))
+        } catch {}
       } else {
         localStorage.setItem("bengkel_midtrans", JSON.stringify(defaultMidtransConfig))
       }
