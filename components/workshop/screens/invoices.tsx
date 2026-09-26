@@ -286,38 +286,63 @@ function ThermalReceipt({ invoice, isPrint = false }: { invoice: Invoice; isPrin
   )
 }
 
-function generateInvoiceWaMessage(inv: Invoice, profile: WorkshopProfile, customName?: string): string {
+function generateInvoiceWaMessage(
+  inv: Invoice,
+  profile: WorkshopProfile,
+  customName?: string,
+  paymentRef?: string,
+): string {
   const nama = customName || inv.customer.name
   const motor = `${inv.vehicle.brand} ${inv.vehicle.model}`
   const total = invoiceTotal(inv)
   const sisa = Math.max(0, total - inv.paidAmount)
   const isLunas = inv.status === "Lunas" || sisa === 0
-  const bengkel = profile.name || "MOTOCRAFT STUDIO & GARAGE"
+  const bengkel = profile.name || "GTA GARAGE"
 
   if (isLunas) {
+    const methodStr =
+      inv.method === "QRIS"
+        ? "QRIS (Midtrans GoPay/ShopeePay)"
+        : inv.method === "Transfer"
+        ? "Virtual Account (Midtrans)"
+        : inv.method === "Kartu"
+        ? "Kartu Debit/Kredit (Midtrans 3DS)"
+        : inv.method === "Tunai"
+        ? "Tunai di Kasir"
+        : inv.method || "Kasir / Midtrans"
+
     return `Halo Bpk/Ibu *${nama}*,
 
-Pemberitahuan dari *${bengkel}*:
-Pengerjaan kendaraan/mesin/komponen *${motor}* (${inv.vehicle.plate}) telah *SELESAI & SIAP DIAMBIL* (Status: *LUNAS*).
-${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
-Berikut kami lampirkan gambar bukti pembayaran / invoice resminya. Unit sudah selesai diuji dan siap diambil kapan saja di bengkel kami.
+Terima kasih atas pembayaran Anda kepada *${bengkel}*.
+Pembayaran untuk invoice *${inv.number}* telah berhasil kami terima dan tercatat *LUNAS* ✓.
 
-${profile.address ? `• *Alamat:* ${profile.address}\n` : ""}${profile.phone ? `• *Telp/WA:* ${profile.phone}\n` : ""}${profile.receiptWebsite ? `• *Laman Online:* ${profile.receiptWebsite}\n` : ""}
-Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
+📋 *KWITANSI PEMBAYARAN RESMI (LUNAS)*
+• *No. Invoice:* ${inv.number}
+• *Kendaraan/Unit:* *${motor}* (${inv.vehicle.plate})
+• *Layanan:* ${inv.service}
+• *Total Tagihan:* *${formatRupiah(total)}*
+• *Status Pembayaran:* *LUNAS* (Selesai & Lunas)
+• *Metode Bayar:* ${methodStr}
+${paymentRef ? `• *ID Transaksi:* \`${paymentRef}\`\n` : ""}${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
+Berikut kami lampirkan gambar kwitansi pembayaran resmi (*LUNAS*). Kendaraan/mesin Anda sudah selesai diuji dan siap diserahterimakan kapan saja di bengkel kami.
+
+${profile.receiptWarranty ? `• *Garansi:* ${profile.receiptWarranty}\n` : ""}${profile.address ? `• *Alamat Bengkel:* ${profile.address}\n` : ""}${profile.phone ? `• *Telp/WA:* ${profile.phone}\n` : ""}${profile.receiptWebsite ? `• *Website:* ${profile.receiptWebsite}\n` : ""}
+Terima kasih banyak atas kepercayaan Anda kepada bengkel kami!`
   }
 
   return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan dari *${bengkel}*:
-Pengerjaan kendaraan/mesin/komponen *${motor}* (${inv.vehicle.plate}) telah *SELESAI & SIAP DIAMBIL*.
+Pengerjaan kendaraan/mesin/komponen *${motor}* (${inv.vehicle.plate}) Anda telah *SELESAI & SIAP DIAMBIL*.
 
-Berikut kami lampirkan gambar rincian invoice tagihannya.
-*Sisa Tagihan:* *${formatRupiah(sisa)}*
+Berikut kami lampirkan gambar rincian invoice tagihannya:
+• *Total Tagihan:* ${formatRupiah(total)}
+${inv.paidAmount > 0 ? `• *Sudah Dibayar (DP):* ${formatRupiah(inv.paidAmount)}\n` : ""}• *Sisa yang Harus Dibayar:* *${formatRupiah(sisa)}*
 ${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
-Mohon untuk dapat segera melakukan pembayaran. Pembayaran bisa dilakukan via Transfer Bank / QRIS agar saat tiba di bengkel tinggal serah terima unit, atau bayar langsung di kasir saat pengambilan.
+Mohon untuk dapat segera menyelesaikan pembayaran. Anda dapat membayar praktis via Transfer Bank / QRIS, atau langsung tunai di kasir saat pengambilan unit.
 
 ${profile.address ? `• *Alamat:* ${profile.address}\n` : ""}${profile.phone ? `• *Telp/WA:* ${profile.phone}\n` : ""}${profile.receiptWebsite ? `• *Laman Online:* ${profile.receiptWebsite}\n` : ""}
-Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
+Terima kasih banyak atas perhatian dan kerja sama Anda.`
 }
 
 export function InvoicesScreen() {
@@ -336,6 +361,8 @@ export function InvoicesScreen() {
   const [copiedVa, setCopiedVa] = useState(false)
   const [isSimulatingPayment, setIsSimulatingPayment] = useState(false)
   const [paymentRefId, setPaymentRefId] = useState<string>("")
+  const [paidInvoice, setPaidInvoice] = useState<Invoice | null>(null)
+  const [waRefId, setWaRefId] = useState<string>("")
   const [cardNumber, setCardNumber] = useState("4111 2222 3333 4444")
   const [cardExp, setCardExp] = useState("12/28")
   const [cardCvv, setCardCvv] = useState("888")
@@ -470,12 +497,14 @@ export function InvoicesScreen() {
   const [waImageCopied, setWaImageCopied] = useState(false)
   const [waImageDataUrl, setWaImageDataUrl] = useState<string>("")
 
-  function openWa(inv: Invoice) {
+  function openWa(inv: Invoice, customRefId?: string) {
     if (!canEdit) return
+    const ref = customRefId || paymentRefId || ""
+    setWaRefId(ref)
     setWaInvoice(inv)
     setWaName(inv.customer.name)
     setWaPhone(inv.customer.phone || "")
-    setWaMessage(generateInvoiceWaMessage(inv, profile, inv.customer.name))
+    setWaMessage(generateInvoiceWaMessage(inv, profile, inv.customer.name, ref))
     setWaImageCopied(false)
     setWaCopied(false)
 
@@ -576,6 +605,7 @@ export function InvoicesScreen() {
   function openPay(inv: Invoice) {
     setActive(null)
     setPayFor(inv)
+    setPaidInvoice(null)
     setMethod("QRIS")
     setPaid(false)
     setSelectedBank("BCA")
@@ -941,7 +971,11 @@ export function InvoicesScreen() {
       </BottomSheet>
 
       {/* WhatsApp Invoice BottomSheet */}
-      <BottomSheet open={!!waInvoice && canEdit} onClose={() => setWaInvoice(null)} title="Kirim Gambar Invoice via WhatsApp">
+      <BottomSheet
+        open={!!waInvoice && canEdit}
+        onClose={() => setWaInvoice(null)}
+        title={waInvoice?.status === "Lunas" ? "Kirim Kwitansi Lunas via WhatsApp" : "Kirim Tagihan Invoice via WhatsApp"}
+      >
         {waInvoice && (
           <div className="space-y-3.5 max-h-[82vh] overflow-y-auto pr-0.5 no-scrollbar">
             {/* Info Banner */}
@@ -951,10 +985,14 @@ export function InvoicesScreen() {
                   <WhatsAppIcon className="size-4.5 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400 fill-emerald-600 dark:fill-emerald-400" />
                   <div className="space-y-0.5 leading-relaxed">
                     <p className="font-semibold text-emerald-900 dark:text-emerald-200">
-                      Kirim Gambar Invoice + Pesan Singkat
+                      {waInvoice.status === "Lunas"
+                        ? "Kirim Kwitansi Lunas + Bukti Transaksi"
+                        : "Kirim Gambar Tagihan + Instruksi Bayar"}
                     </p>
                     <p className="text-[11px] opacity-90">
-                      Gambar invoice digital siap dikirim ke WhatsApp dengan pengantar singkat: pengerjaan selesai &amp; instruksi pembayaran.
+                      {waInvoice.status === "Lunas"
+                        ? "Gambar kwitansi lunas resmi digital siap dikirim ke WhatsApp sebagai bukti transaksi sah dan konfirmasi unit siap diserahterimakan."
+                        : "Gambar invoice digital siap dikirim ke WhatsApp dengan pengantar singkat: pengerjaan selesai & instruksi pembayaran."}
                     </p>
                   </div>
                 </div>
@@ -978,7 +1016,7 @@ export function InvoicesScreen() {
               <div className="flex items-center justify-between text-xs font-semibold text-foreground">
                 <span className="flex items-center gap-1.5">
                   <ImageIcon className="size-3.5 text-primary" />
-                  <span>Gambar Invoice Digital</span>
+                  <span>{waInvoice.status === "Lunas" ? "Gambar Kwitansi Lunas Resmi" : "Gambar Invoice Digital"}</span>
                 </span>
                 <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary dark:bg-primary/25">
                   Format PNG HD
@@ -1038,7 +1076,7 @@ export function InvoicesScreen() {
                   onChange={(e) => {
                     setWaName(e.target.value)
                     if (waInvoice) {
-                      setWaMessage(generateInvoiceWaMessage(waInvoice, profile, e.target.value))
+                      setWaMessage(generateInvoiceWaMessage(waInvoice, profile, e.target.value, waRefId))
                     }
                   }}
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none dark:border-slate-700"
@@ -1152,27 +1190,23 @@ export function InvoicesScreen() {
                 ? "Kartu Debit/Kredit (Midtrans 3DS)"
                 : "Tunai di Kasir"
 
+            const updatedInvoice: Invoice = {
+              ...payFor,
+              status: "Lunas",
+              paidAmount: rawTotal,
+              method: method || "QRIS",
+            }
+
+            setPaidInvoice(updatedInvoice)
+            setPayFor(updatedInvoice)
+
             setInvoiceList((prev) =>
               prev.map((item) =>
-                item.id === payFor.id
-                  ? {
-                      ...item,
-                      status: "Lunas",
-                      paidAmount: rawTotal,
-                      method: method || "QRIS",
-                    }
-                  : item
+                item.id === payFor.id ? updatedInvoice : item
               )
             )
             setActive((prev) =>
-              prev && prev.id === payFor.id
-                ? {
-                    ...prev,
-                    status: "Lunas",
-                    paidAmount: rawTotal,
-                    method: method || "QRIS",
-                  }
-                : prev
+              prev && prev.id === payFor.id ? updatedInvoice : prev
             )
 
             addNotification({
@@ -1748,9 +1782,15 @@ export function InvoicesScreen() {
                     type="button"
                     className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 active:scale-98"
                     onClick={() => {
-                      const currentPay = payFor
+                      const invToShare: Invoice = paidInvoice || {
+                        ...payFor,
+                        status: "Lunas",
+                        paidAmount: rawTotal,
+                        method: method || "QRIS",
+                      }
                       setPayFor(null)
-                      if (currentPay) openWa(currentPay)
+                      setPaid(false)
+                      openWa(invToShare, paymentRefId)
                     }}
                   >
                     <WhatsAppIcon className="size-4 fill-white" />
