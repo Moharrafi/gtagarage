@@ -222,23 +222,23 @@ function AppShellInner() {
 
         {/* Main section */}
         <div className="relative flex flex-1 flex-col overflow-hidden min-w-0">
-          {/* Header */}
-          <header className="z-20 flex items-center gap-3 border-b border-border bg-card/80 px-4 md:px-6 py-3.5 backdrop-blur-md">
+          {/* Header - DANA 2-Tone Style */}
+          <header className="z-20 flex items-center gap-3 border-b border-primary/20 bg-brand-gradient px-4 md:px-6 py-3.5 text-white shadow-sm shadow-primary/20 shrink-0 dark:border-slate-800 dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900">
             {tab === "beranda" ? (
-              <span className="flex size-9 md:hidden items-center justify-center rounded-xl bg-brand-gradient text-primary-foreground shadow-sm shadow-primary/30">
+              <span className="flex size-9 md:hidden items-center justify-center rounded-xl bg-white/20 text-white shadow-sm ring-1 ring-white/30 backdrop-blur-xs">
                 <Wrench className="size-5" strokeWidth={2.4} />
               </span>
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="truncate text-base md:text-lg font-bold leading-tight text-foreground">{displayTitle}</h1>
+                <h1 className="truncate text-base md:text-lg font-bold leading-tight text-white tracking-tight">{displayTitle}</h1>
                 {currentUser.role === "Mekanik" && (
-                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold text-white border border-white/30">
                     Mode Mekanik
                   </span>
                 )}
               </div>
-              <p className="truncate text-xs text-muted-foreground">{head.subtitle}</p>
+              <p className="truncate text-xs text-blue-100/90 dark:text-slate-300">{head.subtitle}</p>
             </div>
 
             {/* Quick Actions in Header */}
@@ -247,11 +247,11 @@ function AppShellInner() {
                 type="button"
                 onClick={() => setNotifOpen(true)}
                 aria-label="Buka notifikasi"
-                className="relative flex size-9 items-center justify-center rounded-full text-foreground hover:bg-accent transition-colors"
+                className="relative flex size-9 items-center justify-center rounded-full text-white hover:bg-white/15 active:scale-95 transition-all"
               >
                 <Bell className="size-5" />
                 {unreadNotifCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-card animate-in zoom-in duration-200">
+                  <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white ring-2 ring-primary animate-in zoom-in duration-200">
                     {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
                   </span>
                 )}
@@ -261,21 +261,21 @@ function AppShellInner() {
                 onClick={() => setSettingsOpen(true)}
                 aria-label="Buka Pengaturan"
                 title={`Pengaturan Bengkel & Akun (${currentUser.name} - ${currentUser.role})`}
-                className="group relative flex size-9 items-center justify-center rounded-full transition-transform active:scale-95 hover:ring-2 hover:ring-primary/40 focus:outline-none"
+                className="group relative flex size-9 items-center justify-center rounded-full transition-transform active:scale-95 hover:ring-2 hover:ring-white/50 focus:outline-none"
               >
-                <Avatar className="size-9 ring-1 ring-border group-hover:ring-primary/60 transition-all">
-                  <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                <Avatar className="size-9 ring-2 ring-white/50 group-hover:ring-white transition-all shadow-sm">
+                  <AvatarFallback className="bg-white text-xs font-bold text-primary shadow-xs">
                     {currentUser.avatarInitials || initials(profile.owner || "GI")}
                   </AvatarFallback>
                 </Avatar>
                 <span
                   className={cn(
-                    "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background",
+                    "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-primary",
                     currentUser.role === "Owner"
-                      ? "bg-blue-500"
+                      ? "bg-sky-400"
                       : currentUser.role === "Admin"
-                      ? "bg-amber-500"
-                      : "bg-emerald-500"
+                      ? "bg-amber-400"
+                      : "bg-emerald-400"
                   )}
                   title={`Role: ${currentUser.role}`}
                 />
@@ -283,9 +283,11 @@ function AppShellInner() {
             </div>
           </header>
 
-          {/* Scrollable content */}
-          <main className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-24 md:pb-6 pt-4 no-scrollbar">
-            <div className="mx-auto w-full max-w-5xl">
+          {/* Scrollable content - DANA-style 2-tone clean canvas */}
+          <main className="relative flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-24 md:pb-6 pt-4 no-scrollbar bg-[#f4f7fb] dark:bg-background">
+            {/* DANA-style top subtle blue transition */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/10 via-primary/3 to-transparent dark:from-blue-500/10 dark:to-transparent" />
+            <div className="relative mx-auto w-full max-w-5xl">
               {tab === "beranda" && <DashboardScreen onNavigate={setTab} />}
               {tab === "pekerjaan" && <WorkOrdersScreen />}
               {tab === "stok" && <InventoryScreen />}

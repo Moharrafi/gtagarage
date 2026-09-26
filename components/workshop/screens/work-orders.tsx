@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye } from "lucide-react"
+import { useState, useMemo } from "react"
+import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye, Search, X } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -81,6 +81,7 @@ const selectCls =
 export function WorkOrdersScreen() {
   const { workOrders, parts, serviceRates, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
   const [filter, setFilter] = useState<JobFilter>("Aktif")
+  const [query, setQuery] = useState("")
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -89,10 +90,30 @@ export function WorkOrdersScreen() {
   const [waOpen, setWaOpen] = useState(false)
   const [waWoId, setWaWoId] = useState<string | undefined>(undefined)
 
-  const list =
-    filter === "Aktif"
-      ? workOrders.filter((w) => w.status !== "Selesai")
-      : workOrders.filter((w) => w.status === filter)
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return workOrders.filter((w) => {
+      const matchFilter = filter === "Aktif" ? w.status !== "Selesai" : w.status === filter
+      if (!matchFilter) return false
+      if (!q) return true
+
+      const searchStr = [
+        w.code,
+        w.vehicle.brand,
+        w.vehicle.model,
+        w.vehicle.plate,
+        w.customer.name,
+        w.customer.phone,
+        w.service,
+        w.complaint,
+        w.technician,
+      ]
+        .join(" ")
+        .toLowerCase()
+
+      return searchStr.includes(q)
+    })
+  }, [workOrders, filter, query])
 
   function openAdd() {
     setEditId(null)
@@ -123,7 +144,8 @@ export function WorkOrdersScreen() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
+      {/* Filter Tabs */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0 md:flex-wrap">
         {filters.map((f) => {
           const count =
@@ -154,6 +176,28 @@ export function WorkOrdersScreen() {
             </button>
           )
         })}
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Cari nopol, pelanggan, motor, atau WO..."
+          className="pl-9 pr-9 h-10 rounded-2xl bg-card border-border dark:border-slate-700/80 shadow-2xs text-xs md:text-sm"
+          aria-label="Cari data pekerjaan servis"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={() => setQuery("")}
+            aria-label="Hapus pencarian"
+            className="absolute top-1/2 right-2.5 -translate-y-1/2 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
       </div>
 
       {canEdit ? (
@@ -348,10 +392,27 @@ export function WorkOrdersScreen() {
         })}
 
         {list.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
-            {filter === "Selesai"
-              ? "Belum ada riwayat pekerjaan yang selesai."
-              : "Tidak ada pekerjaan aktif dalam status ini."}
+          <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center text-muted-foreground shadow-2xs">
+            <Wrench className="mx-auto size-9 stroke-[1.5] text-muted-foreground/50 mb-2" />
+            <p className="text-sm font-semibold text-foreground">
+              {query ? "Pekerjaan Tidak Ditemukan" : "Tidak Ada Pekerjaan"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground max-w-xs mx-auto">
+              {query
+                ? `Tidak ada data pekerjaan yang cocok dengan kata kunci "${query}".`
+                : filter === "Selesai"
+                ? "Belum ada riwayat pekerjaan yang selesai."
+                : `Tidak ada pekerjaan dalam status "${filter}".`}
+            </p>
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="mt-3 inline-flex items-center gap-1 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors"
+              >
+                Reset Pencarian
+              </button>
+            )}
           </div>
         )}
       </div>
