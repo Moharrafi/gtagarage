@@ -1938,54 +1938,20 @@ export function InvoicesScreen() {
                         </div>
                       </div>
 
-                      {/* Cashier simulation button & Sandbox Simulator link */}
-                      <div className="space-y-2">
-                        <button
-                          type="button"
-                          onClick={handleSimulatePayment}
-                          disabled={isSimulatingPayment}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-500/20 dark:text-blue-400 transition-colors shadow-xs"
-                        >
-                          <Sparkles className="size-3.5" />
-                          <span>
-                            {isSimulatingPayment
-                              ? "Memverifikasi notifikasi webhook Midtrans..."
-                              : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS (Sukses Lunas)"}
-                          </span>
-                        </button>
-
-                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 text-[11px] text-muted-foreground space-y-1">
-                          <p className="font-semibold text-foreground flex items-center gap-1">
-                            <Info className="size-3 text-blue-600 dark:text-blue-400 shrink-0" />
-                            <span>Mengapa Simulator Web Midtrans Meminta &quot;QR Code Image Url&quot;?</span>
-                          </p>
-                          <p className="leading-relaxed text-[10px]">
-                            Halaman simulator web Midtrans hanya menerima <strong>URL link gambar QR</strong> yang di-generate dari API server Midtrans (bukan teks biasa).
-                            {midtransQrUrl ? (
-                              <span className="block mt-1 text-blue-600 font-semibold dark:text-blue-400">
-                                ✓ Link URL gambar Midtrans API Anda aktif! Klik tombol &quot;Salin QR Image URL&quot; di atas untuk ditempel di simulator.
-                              </span>
-                            ) : (
-                              <span className="block mt-1">
-                                Anda cukup klik tombol <strong>⚡ Simulasi Kasir</strong> di atas untuk menyelesaikan invoice secara instan, atau scan langsung gambar QRIS dengan kamera HP / m-Banking Anda.
-                              </span>
-                            )}
-                          </p>
-                          {midtransQrUrl && (
-                            <div className="pt-1 flex justify-center">
-                              <a
-                                href="https://simulator.sandbox.midtrans.com/qris/index"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline dark:text-blue-400"
-                              >
-                                <span>Buka Simulator QRIS Resmi Midtrans Sandbox</span>
-                                <ExternalLink className="size-2.5" />
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      {/* Cashier simulation button */}
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-500/20 dark:text-blue-400 transition-colors shadow-xs"
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>
+                          {isSimulatingPayment
+                            ? "Memverifikasi notifikasi webhook Midtrans..."
+                            : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS (Sukses Lunas)"}
+                        </span>
+                      </button>
 
                       {/* Main Confirm Button */}
                       <Button
