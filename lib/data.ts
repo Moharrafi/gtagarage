@@ -87,6 +87,10 @@ export interface Invoice {
   discountType?: "none" | "voucher" | "manual"
   discountCode?: string
   discountAmount?: number
+  adminFee?: number
+  paymentRef?: string
+  paidAt?: string
+  bankName?: string
 }
 
 export type VoucherTargetService = "Semua Layanan" | ServiceType

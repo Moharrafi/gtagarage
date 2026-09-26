@@ -262,17 +262,64 @@ function ThermalReceipt({ invoice, isPrint = false }: { invoice: Invoice; isPrin
         )}
         <div className={cn("border-b border-dashed my-1.5", isPrint ? "border-black" : "border-slate-400")} />
         <div className={cn("flex justify-between font-bold text-xs", isPrint ? "text-black" : "text-slate-900")}>
-          <span>TOTAL:</span>
+          <span>TOTAL PENGERJAAN:</span>
           <span>Rp {formatNumber(total)}</span>
         </div>
+        {Boolean(invoice.adminFee && invoice.adminFee > 0) && (
+          <>
+            <div className="flex justify-between text-[10.5px]">
+              <span className={isPrint ? "text-black/80" : "text-slate-600"}>
+                Biaya Admin ({invoice.method || "Gateway"}):
+              </span>
+              <span className={cn("font-medium", isPrint ? "text-black" : "text-slate-900")}>
+                Rp {formatNumber(invoice.adminFee!)}
+              </span>
+            </div>
+            <div className={cn("flex justify-between font-bold text-xs pt-0.5", isPrint ? "text-black" : "text-slate-900")}>
+              <span>TOTAL PEMBAYARAN:</span>
+              <span>Rp {formatNumber(total + invoice.adminFee!)}</span>
+            </div>
+          </>
+        )}
         <div className="flex justify-between">
           <span>Bayar / DP:</span>
           <span>Rp {formatNumber(invoice.paidAmount)}</span>
         </div>
-        <div className="flex justify-between font-bold">
-          <span>STATUS: {isLunas ? "LUNAS" : invoice.status.toUpperCase()}</span>
-          <span>Rp {formatNumber(sisa)}</span>
+        <div className={cn("border-b border-dashed my-1.5", isPrint ? "border-black" : "border-slate-400")} />
+        <div className={cn("flex justify-between font-bold", isPrint ? "text-black" : "text-slate-900")}>
+          <span>STATUS:</span>
+          <span className={cn(isLunas ? (isPrint ? "text-black" : "text-emerald-600 dark:text-emerald-400") : "text-rose-600")}>
+            {isLunas ? "LUNAS ✓" : invoice.status.toUpperCase()}
+          </span>
         </div>
+        {isLunas && (
+          <div className="flex justify-between text-[10.5px]">
+            <span className={isPrint ? "text-black/80" : "text-slate-600"}>Metode Bayar:</span>
+            <span className={cn("font-semibold", isPrint ? "text-black" : "text-slate-900")}>
+              {invoice.method === "QRIS"
+                ? "QRIS Midtrans"
+                : invoice.method === "Transfer"
+                ? `Transfer VA ${invoice.bankName || ""}`.trim()
+                : invoice.method === "Kartu"
+                ? "Kartu Debit/Kredit"
+                : invoice.method === "Tunai"
+                ? "Tunai di Kasir"
+                : invoice.method || "Tunai"}
+            </span>
+          </div>
+        )}
+        {invoice.paymentRef && (
+          <div className="flex justify-between text-[10px]">
+            <span className={isPrint ? "text-black/70" : "text-slate-500"}>Ref Transaksi:</span>
+            <span className={cn("font-mono", isPrint ? "text-black" : "text-slate-700")}>{invoice.paymentRef}</span>
+          </div>
+        )}
+        {!isLunas && (
+          <div className="flex justify-between font-bold">
+            <span>Sisa Tagihan:</span>
+            <span>Rp {formatNumber(sisa)}</span>
+          </div>
+        )}
       </div>
 
       {/* Dashed Separator */}
@@ -330,9 +377,9 @@ Pembayaran untuk invoice *${inv.number}* telah berhasil kami terima dan tercatat
 • *Kendaraan/Unit:* *${motor}* (${inv.vehicle.plate})
 • *Layanan:* ${inv.service}
 • *Total Tagihan:* *${formatRupiah(total)}*
-• *Status Pembayaran:* *LUNAS* (Selesai & Lunas)
+${inv.adminFee && inv.adminFee > 0 ? `• *Biaya Admin (${inv.method || "Gateway"}):* ${formatRupiah(inv.adminFee)}\n• *Total Pembayaran:* *${formatRupiah(total + inv.adminFee)}*\n` : ""}• *Status Pembayaran:* *LUNAS* (Selesai & Lunas)
 • *Metode Bayar:* ${methodStr}
-${paymentRef ? `• *ID Transaksi:* \`${paymentRef}\`\n` : ""}${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
+${paymentRef || inv.paymentRef ? `• *ID Transaksi:* \`${paymentRef || inv.paymentRef}\`\n` : ""}${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
 Berikut kami lampirkan gambar kwitansi pembayaran resmi (*LUNAS*). Kendaraan/mesin Anda sudah selesai diuji dan siap diserahterimakan kapan saja di bengkel kami.
 
 ${profile.receiptWarranty ? `• *Garansi:* ${profile.receiptWarranty}\n` : ""}${profile.address ? `• *Alamat Bengkel:* ${profile.address}\n` : ""}${profile.phone ? `• *Telp/WA:* ${profile.phone}\n` : ""}${profile.receiptWebsite ? `• *Website:* ${profile.receiptWebsite}\n` : ""}
@@ -461,6 +508,19 @@ export function InvoicesScreen() {
   const [midtransQrUrl, setMidtransQrUrl] = useState<string | null>(null)
   const [isGeneratingMidtransQr, setIsGeneratingMidtransQr] = useState(false)
   const [copiedMidtransUrl, setCopiedMidtransUrl] = useState(false)
+  const [printTargetInvoice, setPrintTargetInvoice] = useState<Invoice | null>(null)
+
+  function handlePrintInvoice(inv?: Invoice | null) {
+    const target = inv || paidInvoice || payFor || active
+    if (!target) {
+      toast.error("Tidak Ada Data", "Pilih invoice yang ingin dicetak.")
+      return
+    }
+    setPrintTargetInvoice(target)
+    setTimeout(() => {
+      window.print()
+    }, 100)
+  }
 
   // Calculate live amount for QRIS API request
   const currentSisa = payFor ? Math.max(0, invoiceTotal(payFor) - payFor.paidAmount) : 0
@@ -1175,6 +1235,20 @@ export function InvoicesScreen() {
                     <span className="text-lg font-bold text-foreground">{formatRupiah(invoiceTotal(active))}</span>
                   </div>
 
+                  {Boolean(active.adminFee && active.adminFee > 0) && (
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Biaya Layanan / Admin ({active.method || "Gateway"})</span>
+                      <span className="font-medium text-foreground">{formatRupiah(active.adminFee!)}</span>
+                    </div>
+                  )}
+
+                  {Boolean(active.adminFee && active.adminFee > 0 && active.status === "Lunas") && (
+                    <div className="flex items-center justify-between text-xs font-semibold text-foreground pt-1 border-t border-dashed border-border/60">
+                      <span>Total Pembayaran Akhir</span>
+                      <span className="text-base font-bold text-foreground">{formatRupiah(invoiceTotal(active) + active.adminFee!)}</span>
+                    </div>
+                  )}
+
                   {active.paidAmount > 0 && active.status !== "Lunas" && (
                     <div className="flex items-center justify-between text-muted-foreground">
                       <span>Sudah dibayar (DP)</span>
@@ -1197,7 +1271,7 @@ export function InvoicesScreen() {
                   <div className="mt-4 pt-3 border-t border-dashed border-slate-300 text-center">
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={() => handlePrintInvoice(active)}
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:underline"
                     >
                       <Printer className="size-3.5" /> Cetak Kertas Thermal
@@ -1211,7 +1285,7 @@ export function InvoicesScreen() {
             {active.status === "Lunas" ? (
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-center gap-2 rounded-xl bg-success/15 py-2.5 text-sm font-medium text-success">
-                  <Check className="size-4" /> Lunas via {active.method || "Tunai"}
+                  <Check className="size-4" /> Lunas via {active.method || "Tunai"} {Boolean(active.adminFee && active.adminFee > 0) ? `(Admin: ${formatRupiah(active.adminFee!)})` : ""}
                 </div>
                 <div className="flex gap-2">
                   {canEdit && (
@@ -1223,7 +1297,7 @@ export function InvoicesScreen() {
                       <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim Kwitansi WA
                     </Button>
                   )}
-                  <Button variant="outline" className={cn("gap-2 bg-transparent", canEdit ? "flex-1" : "w-full")} onClick={() => window.print()}>
+                  <Button variant="outline" className={cn("gap-2 bg-transparent", canEdit ? "flex-1" : "w-full")} onClick={() => handlePrintInvoice(active)}>
                     <Printer className="size-4" /> Cetak Struk
                   </Button>
                 </div>
@@ -1244,7 +1318,7 @@ export function InvoicesScreen() {
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => window.print()}>
+                  <Button variant="outline" className="w-full gap-2" onClick={() => handlePrintInvoice(active)}>
                     <Printer className="size-4" /> Cetak Tagihan Thermal
                   </Button>
                 )}
@@ -1504,24 +1578,27 @@ export function InvoicesScreen() {
               status: "Lunas",
               paidAmount: rawTotal,
               method: method || "QRIS",
+              adminFee: adminFee > 0 ? adminFee : undefined,
+              paymentRef: paymentRefId,
+              bankName: method === "Transfer" ? selectedBank : undefined,
+              paidAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
             }
 
             setPaidInvoice(updatedInvoice)
             setPayFor(updatedInvoice)
+            setActive(updatedInvoice)
+            setPrintTargetInvoice(updatedInvoice)
 
             setInvoiceList((prev) =>
               prev.map((item) =>
                 item.id === payFor.id ? updatedInvoice : item
               )
             )
-            setActive((prev) =>
-              prev && prev.id === payFor.id ? updatedInvoice : prev
-            )
 
             addNotification({
               type: "push",
               title: "Pembayaran Lunas (Midtrans)",
-              body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(finalPayAmount)} telah diterima lunas via ${paidMethodLabel} (Ref: ${paymentRefId}).`,
+              body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(finalPayAmount)} telah diterima lunas via ${paidMethodLabel}${adminFee > 0 ? ` (termasuk biaya admin ${formatRupiah(adminFee)})` : ""} (Ref: ${paymentRefId}).`,
               channel: "Payment Gateway",
               status: "terkirim",
               linkTab: "invoice",
@@ -2305,6 +2382,7 @@ export function InvoicesScreen() {
         {payFor && paid && (() => {
           const rawSubtotal = invoiceSubtotal(payFor)
           const rawTotal = invoiceTotal(payFor)
+          const adminFee = paidInvoice?.adminFee ?? currentAdminFee
           const paidMethodLabel =
             method === "QRIS"
               ? "Midtrans QRIS (GoPay/ShopeePay)"
@@ -2329,9 +2407,27 @@ export function InvoicesScreen() {
               {/* Receipt Snapshot Box */}
               <div className="w-full rounded-2xl border border-border bg-muted/30 p-3.5 text-left text-xs space-y-2 dark:border-slate-800">
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Total Tagihan Lunas</span>
-                  <span className="font-bold text-base text-foreground">{formatRupiah(rawTotal)}</span>
+                  <span>Total Pengerjaan</span>
+                  <span className="font-semibold text-foreground">{formatRupiah(rawTotal)}</span>
                 </div>
+                {adminFee > 0 && (
+                  <>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Biaya Admin ({paidMethodLabel.split("(")[0].trim()})</span>
+                      <span className="font-medium text-foreground">{formatRupiah(adminFee)}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground pt-1 border-t border-dashed border-border/80">
+                      <span>Total Pembayaran Lunas</span>
+                      <span className="font-bold text-base text-foreground">{formatRupiah(rawTotal + adminFee)}</span>
+                    </div>
+                  </>
+                )}
+                {adminFee === 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Total Tagihan Lunas</span>
+                    <span className="font-bold text-base text-foreground">{formatRupiah(rawTotal)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-muted-foreground">
                   <span>Metode Pembayaran</span>
                   <span className="font-semibold text-foreground">{paidMethodLabel}</span>
@@ -2376,6 +2472,10 @@ export function InvoicesScreen() {
                         status: "Lunas",
                         paidAmount: rawTotal,
                         method: method || "QRIS",
+                        adminFee: adminFee > 0 ? adminFee : undefined,
+                        paymentRef: paymentRefId,
+                        bankName: method === "Transfer" ? selectedBank : undefined,
+                        paidAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
                       }
                       setPayFor(null)
                       setPaid(false)
@@ -2392,7 +2492,19 @@ export function InvoicesScreen() {
                     type="button"
                     variant="outline"
                     className="flex-1 gap-1.5 text-xs"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      const invToPrint: Invoice = paidInvoice || {
+                        ...payFor,
+                        status: "Lunas",
+                        paidAmount: rawTotal,
+                        method: method || "QRIS",
+                        adminFee: adminFee > 0 ? adminFee : undefined,
+                        paymentRef: paymentRefId,
+                        bankName: method === "Transfer" ? selectedBank : undefined,
+                        paidAt: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+                      }
+                      handlePrintInvoice(invToPrint)
+                    }}
                   >
                     <Printer className="size-3.5" />
                     Cetak Struk
@@ -2807,10 +2919,10 @@ export function InvoicesScreen() {
         )}
       </BottomSheet>
       {/* Printable Thermal Receipt View */}
-      {active && (
-        <div id="print-section" className="hidden print:block bg-white text-black font-mono">
+      {Boolean(printTargetInvoice || paidInvoice || payFor || active) && (
+        <div id="print-section" className="hidden print:flex bg-white text-black font-mono">
           <div className="w-[340px] mx-auto p-5 bg-white text-black border-2 border-black rounded-2xl">
-            <ThermalReceipt invoice={active} isPrint />
+            <ThermalReceipt invoice={(printTargetInvoice || paidInvoice || payFor || active)!} isPrint />
           </div>
         </div>
       )}

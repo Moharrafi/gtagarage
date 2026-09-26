@@ -49,9 +49,14 @@ export function drawInvoiceCanvas(invoice: Invoice, profile: WorkshopProfile): H
   const metaHeight = 85
   const itemRowHeight = 28
   const itemsHeight = 36 + items.length * itemRowHeight + 18
+  const hasAdminFee = Boolean(invoice.adminFee && invoice.adminFee > 0)
+  const hasMethodDetail = isLunas && Boolean(invoice.method)
+
   let summaryHeight = 76
   if (hasDiscount) summaryHeight += 38
   if (invoice.paidAmount > 0 && !isLunas) summaryHeight += 20
+  if (hasAdminFee) summaryHeight += 42
+  if (hasMethodDetail) summaryHeight += 16
   const bannerHeight = 60
   
   let footerHeight = 24
@@ -244,6 +249,41 @@ export function drawInvoiceCanvas(invoice: Invoice, profile: WorkshopProfile): H
   ctx.fillText(formatRupiah(total), width - 40, y)
   y += 20
 
+  // Biaya Layanan / Admin Gateway
+  if (invoice.adminFee && invoice.adminFee > 0) {
+    const feeLabel =
+      invoice.method === "QRIS"
+        ? "Biaya Layanan / Admin (QRIS Midtrans)"
+        : invoice.method === "Transfer"
+        ? `Biaya Layanan / Admin (VA ${invoice.bankName || "Bank"})`
+        : invoice.method === "Kartu"
+        ? "Biaya Layanan / Admin (Kartu Debit/Kredit)"
+        : "Biaya Layanan / Admin Transaksi"
+
+    ctx.textAlign = "left"
+    ctx.fillStyle = "#64748b"
+    ctx.font = "normal 11.5px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText(feeLabel, 40, y)
+
+    ctx.textAlign = "right"
+    ctx.fillStyle = "#0f172a"
+    ctx.font = "600 12px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText(formatRupiah(invoice.adminFee), width - 40, y)
+    y += 19
+
+    const grandTotal = total + invoice.adminFee
+    ctx.textAlign = "left"
+    ctx.fillStyle = "#0f172a"
+    ctx.font = "bold 12px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText("Total Pembayaran Akhir", 40, y)
+
+    ctx.textAlign = "right"
+    ctx.fillStyle = "#0f172a"
+    ctx.font = "bold 14px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText(formatRupiah(grandTotal), width - 40, y)
+    y += 21
+  }
+
   if (invoice.paidAmount > 0 && !isLunas) {
     ctx.textAlign = "left"
     ctx.fillStyle = "#64748b"
@@ -257,24 +297,56 @@ export function drawInvoiceCanvas(invoice: Invoice, profile: WorkshopProfile): H
     y += 20
   }
 
-  // Sisa Tagihan Box Highlight
+  // Sisa Tagihan / Status Box Highlight
+  const methodLabel =
+    invoice.method === "QRIS"
+      ? "QRIS Midtrans (GoPay/ShopeePay/BCA)"
+      : invoice.method === "Transfer"
+      ? `Virtual Account (${invoice.bankName || "Midtrans"})`
+      : invoice.method === "Kartu"
+      ? "Kartu Debit / Kredit (3D Secure)"
+      : invoice.method === "Tunai"
+      ? "Tunai di Kasir Bengkel"
+      : invoice.method || ""
+
+  const statusBoxHeight = hasMethodDetail ? 48 : 34
+
   ctx.fillStyle = isLunas ? "#f0fdf4" : "#fef2f2"
-  roundRect(ctx, 28, y - 4, width - 56, 32, 6)
+  roundRect(ctx, 28, y - 4, width - 56, statusBoxHeight, 6)
   ctx.fill()
   ctx.strokeStyle = isLunas ? "#bbf7d0" : "#fecaca"
   ctx.lineWidth = 1
   ctx.stroke()
 
-  ctx.textAlign = "left"
-  ctx.fillStyle = isLunas ? "#15803d" : "#b91c1c"
-  ctx.font = "bold 12.5px 'Segoe UI', system-ui, sans-serif"
-  ctx.fillText(isLunas ? "STATUS PEMBAYARAN" : "SISA PEMBAYARAN (SEGERA)", 40, y + 17)
+  if (isLunas) {
+    ctx.textAlign = "left"
+    ctx.fillStyle = "#15803d"
+    ctx.font = "bold 12px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText("STATUS PEMBAYARAN", 40, y + 14)
 
-  ctx.textAlign = "right"
-  ctx.fillStyle = isLunas ? "#15803d" : "#dc2626"
-  ctx.font = "bold 16px 'Segoe UI', system-ui, sans-serif"
-  ctx.fillText(isLunas ? "LUNAS ✓" : formatRupiah(sisa), width - 40, y + 17)
-  y += 38
+    if (hasMethodDetail) {
+      ctx.font = "500 10.5px 'Segoe UI', system-ui, sans-serif"
+      ctx.fillStyle = "#166534"
+      const subInfo = `Lunas via: ${methodLabel}${invoice.paymentRef ? ` • Ref: ${invoice.paymentRef}` : ""}`
+      ctx.fillText(subInfo, 40, y + 32)
+    }
+
+    ctx.textAlign = "right"
+    ctx.fillStyle = "#15803d"
+    ctx.font = "bold 16px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText("LUNAS ✓", width - 40, y + (hasMethodDetail ? 23 : 17))
+  } else {
+    ctx.textAlign = "left"
+    ctx.fillStyle = "#b91c1c"
+    ctx.font = "bold 12.5px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText("SISA PEMBAYARAN (SEGERA)", 40, y + 17)
+
+    ctx.textAlign = "right"
+    ctx.fillStyle = "#dc2626"
+    ctx.font = "bold 16px 'Segoe UI', system-ui, sans-serif"
+    ctx.fillText(formatRupiah(sisa), width - 40, y + 17)
+  }
+  y += statusBoxHeight + 8
 
   // 5. BANNER PEMBERITAHUAN SIAP DIAMBIL & PEMBAYARAN
   ctx.fillStyle = isLunas ? "#ecfdf5" : "#eff6ff"
@@ -284,12 +356,23 @@ export function drawInvoiceCanvas(invoice: Invoice, profile: WorkshopProfile): H
   ctx.lineWidth = 1
   ctx.stroke()
 
+  const methodShort =
+    invoice.method === "QRIS"
+      ? "QRIS MIDTRANS"
+      : invoice.method === "Transfer"
+      ? `VA ${invoice.bankName || "BANK"}`
+      : invoice.method === "Kartu"
+      ? "KARTU MIDTRANS"
+      : invoice.method === "Tunai"
+      ? "TUNAI KASIR"
+      : invoice.method || ""
+
   ctx.textAlign = "center"
   ctx.fillStyle = isLunas ? "#065f46" : "#1e40af"
   ctx.font = "bold 11px 'Segoe UI', system-ui, sans-serif"
   ctx.fillText(
     isLunas
-      ? "✓ UNIT SELESAI & SIAP DIAMBIL · PEMBAYARAN LUNAS"
+      ? `✓ UNIT SELESAI & SIAP DIAMBIL · LUNAS${methodShort ? ` VIA ${methodShort}` : ""}`
       : "● KENDARAAN / MESIN SELESAI & SIAP DIAMBIL · SEGERA DILUNASI",
     width / 2,
     y + 19,
@@ -299,7 +382,7 @@ export function drawInvoiceCanvas(invoice: Invoice, profile: WorkshopProfile): H
   ctx.fillStyle = isLunas ? "#047857" : "#2563eb"
   ctx.fillText(
     isLunas
-      ? "Kwitansi digital ini merupakan bukti transaksi sah bengkel kami"
+      ? `Kwitansi digital ini merupakan bukti transaksi sah bengkel kami${invoice.paymentRef ? ` • Ref: ${invoice.paymentRef}` : ""}`
       : "Bisa bayar terlebih dahulu via Transfer Bank / QRIS atau di kasir saat ambil unit",
     width / 2,
     y + 35,
