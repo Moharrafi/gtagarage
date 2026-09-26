@@ -113,7 +113,7 @@ export function PwaInstaller() {
       {/* Floating Prompt Banner (Bottom or Top) */}
       {showBanner && deferredPrompt && (
         <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-card/95 p-3.5 shadow-2xl backdrop-blur-md ring-1 ring-black/5 dark:ring-white/10">
+          <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-card p-3.5 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/20">
               <Smartphone className="size-5" />
             </div>
@@ -148,7 +148,7 @@ export function PwaInstaller() {
 
       {/* iOS Safari Installation Guide Modal */}
       {showIosGuide && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 animate-in fade-in duration-150">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl text-foreground space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

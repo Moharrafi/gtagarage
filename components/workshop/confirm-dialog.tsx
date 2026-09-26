@@ -133,7 +133,7 @@ export function ConfirmDialog() {
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       aria-describedby="confirm-dialog-desc"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/65 animate-in fade-in duration-150"
       onClick={() => handleAction(false)}
     >
       <div

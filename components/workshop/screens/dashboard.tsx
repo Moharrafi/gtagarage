@@ -12,15 +12,19 @@ import {
   ChevronRight,
   BarChart3,
 } from "lucide-react"
-import { Area, AreaChart, ResponsiveContainer } from "recharts"
+import dynamic from "next/dynamic"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ServiceIcon } from "@/components/workshop/service-icon"
 import { WorkStatusBadge } from "@/components/workshop/status-badge"
-import { WhatsAppModal } from "@/components/workshop/whatsapp-modal"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { useWorkshop } from "@/lib/store"
 import { cn } from "@/lib/utils"
+
+const WhatsAppModal = dynamic(
+  () => import("@/components/workshop/whatsapp-modal").then((m) => m.WhatsAppModal),
+  { ssr: false }
+)
 import {
   workOrders,
   parts,
@@ -67,6 +71,78 @@ const quickActions: QuickAction[] = [
 ]
 
 const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
+
+function SparklineArea({ data }: { data: { month: string; v: number }[] }) {
+  const width = 500
+  const height = 95
+  const padTop = 10
+  const padBottom = 8
+  const padLeft = 4
+  const padRight = 4
+
+  const values = data.map((d) => d.v)
+  const minVal = Math.min(...values) * 0.85
+  const maxVal = Math.max(...values) * 1.05
+  const range = maxVal - minVal || 1
+
+  const usableWidth = width - padLeft - padRight
+  const usableHeight = height - padTop - padBottom
+
+  const points = data.map((d, i) => {
+    const x = padLeft + (i / (data.length - 1)) * usableWidth
+    const y = padTop + usableHeight - ((d.v - minVal) / range) * usableHeight
+    return { x, y }
+  })
+
+  // Monotone cubic bezier path calculation
+  const linePath = points.reduce((acc, point, i, arr) => {
+    if (i === 0) return `M ${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+    const prev = arr[i - 1]
+    const cx1 = prev.x + (point.x - prev.x) * 0.5
+    const cy1 = prev.y
+    const cx2 = prev.x + (point.x - prev.x) * 0.5
+    const cy2 = point.y
+    return `${acc} C ${cx1.toFixed(1)} ${cy1.toFixed(1)}, ${cx2.toFixed(1)} ${cy2.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`
+  }, "")
+
+  const firstPoint = points[0]
+  const lastPoint = points[points.length - 1]
+  const areaPath = `${linePath} L ${lastPoint.x.toFixed(1)} ${height} L ${firstPoint.x.toFixed(1)} ${height} Z`
+
+  return (
+    <div className="w-full flex flex-col justify-end">
+      <div className="h-20 md:h-24 w-full relative">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
+          className="w-full h-full block"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id="dashboard-spark-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.45} />
+              <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0.01} />
+            </linearGradient>
+          </defs>
+          <path d={areaPath} fill="url(#dashboard-spark-grad)" />
+          <path
+            d={linePath}
+            fill="none"
+            stroke="var(--chart-1)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <div className="flex justify-between items-center px-1 pt-1.5 text-[11px] font-medium text-muted-foreground select-none">
+        {data.map((d) => (
+          <span key={d.month}>{d.month}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => void }) {
   const { canEdit } = useWorkshop()
@@ -129,7 +205,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
         </div>
       </section>
 
-      <Card className="gap-3 p-4 md:p-5">
+      <Card className="gap-2.5 p-4 md:p-5">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
@@ -139,25 +215,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <TrendingUp className="size-3.5" /> +6,8%
           </span>
         </div>
-        <div className="h-24 md:h-32 min-h-24 md:min-h-32 w-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.5} />
-                  <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="v"
-                stroke="var(--chart-1)"
-                strokeWidth={2.5}
-                fill="url(#rev)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        <SparklineArea data={chartData} />
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">

@@ -82,11 +82,11 @@ export function Toaster() {
             role="status"
             onClick={() => toast.dismiss(t.id)}
             className={cn(
-              "pointer-events-auto flex items-start gap-2.5 rounded-2xl border p-3 shadow-xl backdrop-blur-md transition-all duration-300 animate-in slide-in-from-top-3 fade-in cursor-pointer select-none active:scale-[0.98]",
-              t.type === "success" && "border-emerald-500/30 bg-card/95 text-foreground dark:border-emerald-500/25",
-              t.type === "error" && "border-destructive/30 bg-card/95 text-foreground dark:border-destructive/30",
-              t.type === "warning" && "border-amber-500/30 bg-card/95 text-foreground dark:border-amber-500/30",
-              t.type === "info" && "border-primary/30 bg-card/95 text-foreground dark:border-primary/30",
+              "pointer-events-auto flex items-start gap-2.5 rounded-2xl border p-3 shadow-xl transition-all duration-300 animate-in slide-in-from-top-3 fade-in cursor-pointer select-none active:scale-[0.98]",
+              t.type === "success" && "border-emerald-500/30 bg-card text-foreground dark:border-emerald-500/25",
+              t.type === "error" && "border-destructive/30 bg-card text-foreground dark:border-destructive/30",
+              t.type === "warning" && "border-amber-500/30 bg-card text-foreground dark:border-amber-500/30",
+              t.type === "info" && "border-primary/30 bg-card text-foreground dark:border-primary/30",
             )}
           >
             {/* Status Icon */}

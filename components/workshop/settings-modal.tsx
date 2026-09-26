@@ -1524,7 +1524,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
         {/* ================= MODAL SUB-FORM: TAMBAH/EDIT LAYANAN VAPOR/JASA ================= */}
         {serviceFormOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 animate-in fade-in duration-150">
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3.5 animate-in zoom-in-95 dark:border-slate-700/80 dark:bg-slate-900">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold">
@@ -1615,7 +1615,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
         {/* ================= MODAL SUB-FORM: TAMBAH/EDIT SUKU CADANG / BAHAN ================= */}
         {partFormOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 animate-in fade-in duration-150">
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3.5 animate-in zoom-in-95 dark:border-slate-700/80 dark:bg-slate-900">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold">
@@ -1724,7 +1724,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
         {/* ================= MODAL SUB-FORM: TAMBAH/EDIT VOUCHER ================= */}
         {voucherFormOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 animate-in fade-in duration-150">
             <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3.5 animate-in zoom-in-95 dark:border-slate-700/80 dark:bg-slate-900 max-h-[90vh] overflow-y-auto no-scrollbar">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
