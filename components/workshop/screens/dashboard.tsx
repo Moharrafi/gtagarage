@@ -214,7 +214,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
       </section>
 
       {/* ================= DANA STYLE WHITE BOTTOM SECTION ================= */}
-      <div className="relative -mt-4 rounded-t-[28px] md:rounded-t-3xl bg-background px-4 md:px-6 pt-5 pb-8 shadow-xl border-t border-border/40 space-y-4 md:space-y-5 -mx-4 md:-mx-6">
+      <div className="relative -mt-4 rounded-t-[28px] md:rounded-t-3xl bg-background px-4 md:px-6 pt-5 space-y-4 md:space-y-5 -mx-4 md:-mx-6">
         {/* KPI Stats Grid */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {stats.map((s) => (
