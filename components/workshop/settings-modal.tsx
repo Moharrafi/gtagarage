@@ -1120,7 +1120,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
                   <div>
                     <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      Biaya Layanan QRIS (Opsional)
+                      Biaya Layanan QRIS (Nominal Flat / Default Otomatis 0,7%)
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">Rp</span>
@@ -1132,7 +1132,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       />
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground">
-                      Disarankan Rp 0 (atau diserap bengkel) untuk mematuhi regulasi QRIS Bank Indonesia (MDR 0,7%).
+                      Jika diisi 0 (default), sistem otomatis menambahkan MDR standar Midtrans 0,7% ke total bayar pelanggan. Atau isi angka nominal flat (misal Rp 1.500) jika ingin biaya tetap.
                     </p>
                   </div>
                 </div>

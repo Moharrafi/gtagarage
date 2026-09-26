@@ -1399,7 +1399,10 @@ export function InvoicesScreen() {
             if (method === "Transfer") {
               adminFee = midtransConfig.vaAdminFee || 4000
             } else if (method === "QRIS") {
-              adminFee = midtransConfig.qrisAdminFee || 0
+              adminFee =
+                midtransConfig.qrisAdminFee && midtransConfig.qrisAdminFee > 0
+                  ? midtransConfig.qrisAdminFee
+                  : Math.round(rawSisa * 0.007)
             } else if (method === "Kartu") {
               adminFee = Math.round(rawSisa * 0.02)
             }
@@ -1563,7 +1566,13 @@ export function InvoicesScreen() {
                         <span className="flex items-center gap-1">
                           <span>Biaya Admin Midtrans</span>
                           <span className="rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">
-                            {method === "Transfer" ? "VA Flat" : method === "Kartu" ? "2% MDR" : "Gateway"}
+                            {method === "Transfer"
+                              ? "VA Flat"
+                              : method === "Kartu"
+                              ? "2% MDR"
+                              : midtransConfig?.qrisAdminFee && midtransConfig.qrisAdminFee > 0
+                              ? "QRIS Flat"
+                              : "QRIS 0,7%"}
                           </span>
                         </span>
                         <span className="font-semibold text-foreground">+ {formatRupiah(adminFee)}</span>

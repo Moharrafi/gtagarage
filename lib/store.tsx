@@ -77,7 +77,7 @@ export const defaultMidtransConfig: MidtransConfig = {
   environment: "sandbox",
   clientKey: "SB-Mid-client-GTA-GARAGE-DEMO",
   merchantId: "G123456789",
-  chargeAdminFeeToCustomer: false,
+  chargeAdminFeeToCustomer: true,
   vaAdminFee: 4000,
   qrisAdminFee: 0,
 }
@@ -382,7 +382,14 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     try {
       const saved = localStorage.getItem("bengkel_midtrans")
       if (saved) {
-        setMidtransConfig((prev) => ({ ...prev, ...JSON.parse(saved) }))
+        const parsed = JSON.parse(saved)
+        setMidtransConfig((prev) => ({
+          ...prev,
+          ...parsed,
+          chargeAdminFeeToCustomer: parsed.chargeAdminFeeToCustomer ?? true,
+        }))
+      } else {
+        localStorage.setItem("bengkel_midtrans", JSON.stringify(defaultMidtransConfig))
       }
     } catch (e) {
       console.error("Failed to load bengkel_midtrans", e)
