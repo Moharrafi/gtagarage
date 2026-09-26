@@ -13,6 +13,7 @@ import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { WhatsAppModal } from "@/components/workshop/whatsapp-modal"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { toast } from "@/components/workshop/toast"
+import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { formatRupiah, workOrderTotal, technicians, type WorkStatus, type ServiceType, type WorkOrder } from "@/lib/data"
 import { useWorkshop, type WorkOrderInput } from "@/lib/store"
 
@@ -321,8 +322,16 @@ export function WorkOrdersScreen() {
                       {canEdit && (
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm(`Apakah Anda yakin ingin menghapus order pekerjaan untuk ${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate})?`)) {
+                          onClick={async () => {
+                            const ok = await confirmModal({
+                              title: "Hapus Order Pekerjaan?",
+                              description: `Apakah Anda yakin ingin menghapus order pekerjaan untuk ${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate})? Data pengerjaan tidak dapat dikembalikan.`,
+                              confirmText: "Hapus Order",
+                              cancelText: "Batal",
+                              variant: "destructive",
+                              icon: "trash",
+                            })
+                            if (ok) {
                               deleteWorkOrder(w.id)
                               if (openId === w.id) setOpenId(null)
                               toast.success("Pekerjaan Dihapus", `Order ${w.code} (${w.vehicle.plate}) berhasil dihapus.`)

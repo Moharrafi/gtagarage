@@ -7,6 +7,7 @@ import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
 import { NotificationsPanel } from "@/components/workshop/notifications-panel"
 import { SettingsModal } from "@/components/workshop/settings-modal"
 import { Toaster } from "@/components/workshop/toast"
+import { ConfirmDialog } from "@/components/workshop/confirm-dialog"
 import { cn } from "@/lib/utils"
 import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
 import { LoginScreen } from "@/components/workshop/login-screen"
@@ -123,6 +124,7 @@ function AppShellInner() {
         <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <Toaster />
+        <ConfirmDialog />
       </div>
     </div>
   )

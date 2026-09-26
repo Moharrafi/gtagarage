@@ -32,6 +32,7 @@ import { PaymentStatusBadge } from "@/components/workshop/status-badge"
 import { ServiceIcon } from "@/components/workshop/service-icon"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { toast } from "@/components/workshop/toast"
+import { confirmModal } from "@/components/workshop/confirm-dialog"
 import {
   invoices,
   formatRupiah,
@@ -745,7 +746,19 @@ export function InvoicesScreen() {
                         {active.status !== "Lunas" && canEdit && (
                           <button
                             type="button"
-                            onClick={() => handleRemoveDiscount(active.id)}
+                            onClick={async () => {
+                              const ok = await confirmModal({
+                                title: "Hapus Potongan Diskon?",
+                                description: "Apakah Anda yakin ingin membatalkan diskon pada invoice ini? Tagihan akan kembali ke subtotal awal.",
+                                confirmText: "Hapus Diskon",
+                                cancelText: "Batal",
+                                variant: "warning",
+                                icon: "alert",
+                              })
+                              if (ok) {
+                                handleRemoveDiscount(active.id)
+                              }
+                            }}
                             className="rounded p-0.5 text-muted-foreground hover:bg-emerald-500/20 hover:text-foreground"
                             title="Hapus diskon"
                           >
@@ -1560,9 +1573,19 @@ export function InvoicesScreen() {
                   type="button"
                   variant="outline"
                   className="w-full text-destructive border-destructive/30 hover:bg-destructive/10 text-xs"
-                  onClick={() => {
-                    handleRemoveDiscount(discountFor.id)
-                    setDiscountFor(null)
+                  onClick={async () => {
+                    const ok = await confirmModal({
+                      title: "Hapus Potongan Diskon?",
+                      description: "Apakah Anda yakin ingin membatalkan diskon pada invoice ini? Tagihan akan kembali ke subtotal awal.",
+                      confirmText: "Hapus Diskon",
+                      cancelText: "Batal",
+                      variant: "warning",
+                      icon: "alert",
+                    })
+                    if (ok) {
+                      handleRemoveDiscount(discountFor.id)
+                      setDiscountFor(null)
+                    }
                   }}
                 >
                   <X className="size-3.5 mr-1" />

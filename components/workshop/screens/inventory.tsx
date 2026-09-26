@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { formatRupiah, generatePartSKU, workshopCategoryPillars, type Part } from "@/lib/data"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { toast } from "@/components/workshop/toast"
+import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { useWorkshop, type PartInput } from "@/lib/store"
 
 const emptyForm: PartInput = { name: "", sku: "", category: "Vapor Blasting", stock: 0, minStock: 0, price: 0 }
@@ -337,8 +338,16 @@ export function InventoryScreen() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm(`Apakah Anda yakin ingin menghapus "${p.name}" dari inventaris?`)) {
+                          onClick={async () => {
+                            const ok = await confirmModal({
+                              title: "Hapus Suku Cadang?",
+                              description: `Apakah Anda yakin ingin menghapus "${p.name}" (${p.sku}) dari inventaris bengkel?`,
+                              confirmText: "Hapus Suku Cadang",
+                              cancelText: "Batal",
+                              variant: "destructive",
+                              icon: "trash",
+                            })
+                            if (ok) {
                               deletePart(p.id)
                               if (openId === p.id) setOpenId(null)
                               toast.success("Suku Cadang Dihapus", `Item "${p.name}" berhasil dihapus.`)

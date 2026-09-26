@@ -33,6 +33,7 @@ import { useWorkshop, initials, type PartInput, type ServiceRateInput, type Work
 import { formatRupiah, generatePartSKU, type ServiceType, type Part, type ServiceRate, type Voucher, type VoucherTargetService } from "@/lib/data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "@/components/workshop/toast"
+import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { cn } from "@/lib/utils"
 
 interface SettingsModalProps {
@@ -73,7 +74,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("harga")
   const [catalogSubTab, setCatalogSubTab] = useState<CatalogSubTab>("layanan")
-  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
   // Dark mode state
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light")
@@ -367,8 +367,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setTimeout(() => setProfileSaved(false), 2500)
   }
 
-  const handleResetDemo = () => {
-    if (confirm("Apakah Anda yakin ingin mereset seluruh data order, stok, dan tarif ke kondisi awal demo?")) {
+  const handleResetDemo = async () => {
+    const ok = await confirmModal({
+      title: "Reset Seluruh Data Demo?",
+      description: "Seluruh data order pekerjaan, stok sparepart, dan tarif akan dikembalikan ke kondisi awal demo.",
+      confirmText: "Reset Data",
+      cancelText: "Batal",
+      variant: "destructive",
+      icon: "reset",
+    })
+    if (ok) {
       resetDemoData()
       toast.info("Data Direset", "Seluruh data bengkel telah dikembalikan ke kondisi awal demo.")
     }
@@ -406,7 +414,21 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           {/* Icon Power Off untuk Logout (di sebelah kanan nama akun) */}
           <button
             type="button"
-            onClick={() => setConfirmLogoutOpen(true)}
+            onClick={async () => {
+              const ok = await confirmModal({
+                title: "Konfirmasi Logout",
+                description: `Apakah Anda yakin ingin keluar dari akun ${currentUser?.name || "pengguna"} (${currentUser?.role})? Anda dapat login kembali kapan saja.`,
+                confirmText: "Ya, Logout",
+                cancelText: "Batal",
+                variant: "destructive",
+                icon: "power",
+              })
+              if (ok) {
+                onClose()
+                logout()
+                toast.info("Berhasil Logout", `Sampai jumpa kembali, ${currentUser?.name || "Pengguna"}`)
+              }
+            }}
             title="Keluar dari akun (Logout)"
             aria-label="Logout"
             className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-500/25 text-rose-500 hover:bg-rose-500/15 hover:text-rose-600 active:scale-95 transition-all dark:border-rose-500/35 dark:text-rose-400 dark:hover:bg-rose-950/50"
@@ -615,8 +637,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`Hapus tarif layanan "${s.name}"?`)) {
+                            onClick={async () => {
+                              const ok = await confirmModal({
+                                title: "Hapus Tarif Layanan?",
+                                description: `Apakah Anda yakin ingin menghapus tarif layanan "${s.name}" (${formatRupiah(s.price)})?`,
+                                confirmText: "Hapus Tarif",
+                                cancelText: "Batal",
+                                variant: "destructive",
+                                icon: "trash",
+                              })
+                              if (ok) {
                                 deleteServiceRate(s.id)
                                 toast.success("Tarif Dihapus", `Tarif "${s.name}" telah dihapus.`)
                               }
@@ -682,8 +712,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`Hapus item "${p.name}" dari katalog?`)) {
+                            onClick={async () => {
+                              const ok = await confirmModal({
+                                title: "Hapus Item Katalog?",
+                                description: `Apakah Anda yakin ingin menghapus item "${p.name}" (${p.sku}) dari katalog?`,
+                                confirmText: "Hapus Item",
+                                cancelText: "Batal",
+                                variant: "destructive",
+                                icon: "trash",
+                              })
+                              if (ok) {
                                 deletePart(p.id)
                                 toast.success("Item Dihapus", `Item "${p.name}" telah dihapus dari katalog.`)
                               }
@@ -836,8 +874,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm(`Hapus voucher promo ${v.code}?`)) {
+                            onClick={async () => {
+                              const ok = await confirmModal({
+                                title: "Hapus Voucher Promo?",
+                                description: `Apakah Anda yakin ingin menghapus voucher promo ${v.code} (${v.title})? Kode ini tidak dapat digunakan lagi.`,
+                                confirmText: "Hapus Voucher",
+                                cancelText: "Batal",
+                                variant: "destructive",
+                                icon: "trash",
+                              })
+                              if (ok) {
                                 deleteVoucher(v.id)
                                 toast.info("Voucher Dihapus", `Kode ${v.code} telah dihapus.`)
                               }
@@ -1621,50 +1667,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             )}
           </div>
         </div>
-
-        {/* Modal Konfirmasi Logout */}
-        {confirmLogoutOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-            <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-600 ring-4 ring-rose-500/10 dark:text-rose-400">
-                  <Power className="size-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-bold text-foreground">Konfirmasi Logout</h3>
-                  <p className="text-xs text-muted-foreground">Sesi akun Anda akan diakhiri</p>
-                </div>
-              </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Apakah Anda yakin ingin keluar dari akun <strong className="text-foreground">{currentUser?.name}</strong> ({currentUser?.role})? Anda dapat login kembali kapan saja.
-              </p>
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setConfirmLogoutOpen(false)}
-                  className="flex-1 rounded-xl border border-border bg-muted/60 py-2.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors dark:border-slate-700"
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setConfirmLogoutOpen(false)
-                    onClose()
-                    logout()
-                    toast.info("Berhasil Logout", `Sampai jumpa kembali, ${currentUser?.name || "Pengguna"}`)
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-destructive py-2.5 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 shadow-sm transition-all"
-                >
-                  <Power className="size-3.5" />
-                  Ya, Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </BottomSheet>
   )
