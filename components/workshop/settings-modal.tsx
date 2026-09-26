@@ -89,26 +89,39 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   }, [midtransConfig])
   const [catalogSubTab, setCatalogSubTab] = useState<CatalogSubTab>("layanan")
 
-  // Dark mode state
-  const [theme, setTheme] = useState<"light" | "dark" | "system">("light")
+  // Dark mode state - default to "system" so initial view matches device setting
+  const [theme, setTheme] = useState<"light" | "dark" | "system">("system")
+
+  const applyTheme = (t: "light" | "dark" | "system") => {
+    const isDark =
+      t === "dark" ||
+      (t === "system" &&
+        (typeof window !== "undefined"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          : false))
+    document.documentElement.classList.toggle("dark", isDark)
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem("bengkel_theme") as "light" | "dark" | "system" | null
-    if (saved) {
+    if (saved === "light" || saved === "dark" || saved === "system") {
       setTheme(saved)
       applyTheme(saved)
     } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-      const init = prefersDark ? "dark" : "light"
-      setTheme("light")
-      applyTheme(init)
+      setTheme("system")
+      applyTheme("system")
     }
-  }, [])
 
-  const applyTheme = (t: "light" | "dark" | "system") => {
-    const isDark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
-    document.documentElement.classList.toggle("dark", isDark)
-  }
+    const mql = window.matchMedia("(prefers-color-scheme: dark)")
+    const handleSystemChange = () => {
+      const current = localStorage.getItem("bengkel_theme")
+      if (!current || current === "system") {
+        applyTheme("system")
+      }
+    }
+    mql.addEventListener("change", handleSystemChange)
+    return () => mql.removeEventListener("change", handleSystemChange)
+  }, [])
 
   const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
     setTheme(newTheme)
@@ -1264,6 +1277,24 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <span className="text-xs">Sistem</span>
                   {theme === "system" && <Check className="size-3 text-primary dark:text-blue-400" />}
                 </button>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground">
+                <p>
+                  Status tema saat ini:{" "}
+                  <strong className="text-foreground">
+                    {theme === "system"
+                      ? "Otomatis Mengikuti Sistem Perangkat"
+                      : theme === "dark"
+                      ? "Mode Gelap (Dark)"
+                      : "Mode Terang (Light)"}
+                  </strong>
+                </p>
+                <p className="mt-0.5 text-[11px] opacity-80">
+                  {theme === "system"
+                    ? "Tampilan otomatis menyesuaikan mode terang / gelap pada pengaturan HP, tablet, atau laptop Anda."
+                    : "Pilihan tema ini disimpan secara permanen di perangkat ini."}
+                </p>
               </div>
             </div>
           </div>
