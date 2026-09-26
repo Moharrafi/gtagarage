@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -78,7 +78,7 @@ const selectCls =
   "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
 
 export function WorkOrdersScreen() {
-  const { workOrders, parts, serviceRates, addWorkOrder, updateWorkOrder, deleteWorkOrder } = useWorkshop()
+  const { workOrders, parts, serviceRates, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
   const [filter, setFilter] = useState<JobFilter>("Aktif")
   const [openId, setOpenId] = useState<string | null>(null)
 
@@ -155,14 +155,21 @@ export function WorkOrdersScreen() {
         })}
       </div>
 
-      <button
-        type="button"
-        onClick={openAdd}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.99]"
-      >
-        <Plus className="size-4" strokeWidth={2.6} />
-        Tambah Kendaraan Masuk
-      </button>
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={openAdd}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.99]"
+        >
+          <Plus className="size-4" strokeWidth={2.6} />
+          Tambah Kendaraan Masuk
+        </button>
+      ) : (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>Mode Mekanik: Akses baca saja (melihat daftar &amp; progres pekerjaan).</span>
+        </div>
+      )}
 
       <div className="space-y-3">
         {list.map((w) => {
@@ -287,13 +294,15 @@ export function WorkOrdersScreen() {
                     </div>
 
                     <div className="flex gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(w)}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:-translate-y-0.5 hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
-                      >
-                        <Pencil className="size-3.5" /> Edit
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => openEdit(w)}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:-translate-y-0.5 hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
+                        >
+                          <Pencil className="size-3.5" /> Edit
+                        </button>
+                      )}
                       {w.status === "Siap Diambil" && (
                         <button
                           type="button"
@@ -301,24 +310,29 @@ export function WorkOrdersScreen() {
                             setWaWoId(w.id)
                             setWaOpen(true)
                           }}
-                          className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          className={cn(
+                            "flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+                            !canEdit && "flex-1"
+                          )}
                         >
                           <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`Apakah Anda yakin ingin menghapus order pekerjaan untuk ${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate})?`)) {
-                            deleteWorkOrder(w.id)
-                            if (openId === w.id) setOpenId(null)
-                            toast.success("Pekerjaan Dihapus", `Order ${w.code} (${w.vehicle.plate}) berhasil dihapus.`)
-                          }
-                        }}
-                        className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-xs font-semibold text-destructive transition-all hover:-translate-y-0.5 hover:bg-destructive/15"
-                      >
-                        <Trash2 className="size-3.5" /> Hapus
-                      </button>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Apakah Anda yakin ingin menghapus order pekerjaan untuk ${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate})?`)) {
+                              deleteWorkOrder(w.id)
+                              if (openId === w.id) setOpenId(null)
+                              toast.success("Pekerjaan Dihapus", `Order ${w.code} (${w.vehicle.plate}) berhasil dihapus.`)
+                            }
+                          }}
+                          className="flex items-center justify-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-xs font-semibold text-destructive transition-all hover:-translate-y-0.5 hover:bg-destructive/15"
+                        >
+                          <Trash2 className="size-3.5" /> Hapus
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

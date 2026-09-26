@@ -7,7 +7,9 @@ import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
 import { NotificationsPanel } from "@/components/workshop/notifications-panel"
 import { SettingsModal } from "@/components/workshop/settings-modal"
 import { Toaster } from "@/components/workshop/toast"
+import { cn } from "@/lib/utils"
 import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
+import { LoginScreen } from "@/components/workshop/login-screen"
 import { DashboardScreen } from "@/components/workshop/screens/dashboard"
 import { WorkOrdersScreen } from "@/components/workshop/screens/work-orders"
 import { InventoryScreen } from "@/components/workshop/screens/inventory"
@@ -15,7 +17,7 @@ import { InvoicesScreen } from "@/components/workshop/screens/invoices"
 import { AnalyticsScreen } from "@/components/workshop/screens/analytics"
 
 const titles: Record<TabKey, { title: string; subtitle: string }> = {
-  beranda: { title: "BengkelPro", subtitle: "Kamis, 25 September 2026" },
+  beranda: { title: "GTA GARAGE", subtitle: "Kamis, 25 September 2026" },
   pekerjaan: { title: "Pekerjaan", subtitle: "Order servis & perbaikan" },
   stok: { title: "Stok Suku Cadang", subtitle: "Inventaris & riwayat pakai" },
   invoice: { title: "Invoice & Pembayaran", subtitle: "Tagihan & transaksi digital" },
@@ -26,9 +28,31 @@ function AppShellInner() {
   const [tab, setTab] = useState<TabKey>("beranda")
   const [notifOpen, setNotifOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { profile } = useWorkshop()
+  const { profile, currentUser, authLoaded } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
+
+  if (!authLoaded) {
+    return (
+      <div className="flex min-h-dvh w-full items-center justify-center bg-slate-950 text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-primary/30 animate-pulse">
+            <Wrench className="size-6" />
+          </div>
+          <p className="text-xs text-slate-400">Memuat sesi GTA GARAGE...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <LoginScreen />
+        <Toaster />
+      </>
+    )
+  }
 
   return (
     <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-6">
@@ -41,7 +65,14 @@ function AppShellInner() {
             </span>
           ) : null}
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-semibold leading-tight">{displayTitle}</h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="truncate text-base font-semibold leading-tight">{displayTitle}</h1>
+              {currentUser.role === "Mekanik" && (
+                <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                  Mekanik
+                </span>
+              )}
+            </div>
             <p className="truncate text-xs text-muted-foreground">{head.subtitle}</p>
           </div>
           <button
@@ -57,14 +88,25 @@ function AppShellInner() {
             type="button"
             onClick={() => setSettingsOpen(true)}
             aria-label="Buka Pengaturan"
-            title="Pengaturan Bengkel & Tarif"
+            title={`Pengaturan Bengkel & Akun (${currentUser.name} - ${currentUser.role})`}
             className="group relative flex size-9 items-center justify-center rounded-full transition-transform active:scale-95 hover:ring-2 hover:ring-primary/40 focus:outline-none"
           >
             <Avatar className="size-9 ring-1 ring-border group-hover:ring-primary/60 transition-all">
-              <AvatarFallback className="bg-accent text-xs font-bold text-accent-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                {initials(profile.owner || "RM")}
+              <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                {currentUser.avatarInitials || initials(profile.owner || "GI")}
               </AvatarFallback>
             </Avatar>
+            <span
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background",
+                currentUser.role === "Owner"
+                  ? "bg-blue-500"
+                  : currentUser.role === "Admin"
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"
+              )}
+              title={`Role: ${currentUser.role}`}
+            />
           </button>
         </header>
 

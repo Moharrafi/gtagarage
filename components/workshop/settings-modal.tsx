@@ -25,6 +25,8 @@ import {
   Tag,
   Calendar,
   Percent,
+  Power,
+  Eye,
 } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { useWorkshop, initials, type PartInput, type ServiceRateInput, type WorkshopProfile } from "@/lib/store"
@@ -44,6 +46,10 @@ type CatalogSubTab = "layanan" | "sparepart"
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const {
     profile,
+    currentUser,
+    canEdit,
+    isMekanik,
+    logout,
     updateProfile,
     parts,
     categories,
@@ -67,6 +73,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("harga")
   const [catalogSubTab, setCatalogSubTab] = useState<CatalogSubTab>("layanan")
+  const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false)
 
   // Dark mode state
   const [theme, setTheme] = useState<"light" | "dark" | "system">("light")
@@ -374,18 +381,38 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         <div className="flex items-center gap-3 rounded-2xl bg-muted/40 p-3 border border-border dark:bg-slate-900/60 dark:border-slate-700/80">
           <Avatar className="size-11 ring-2 ring-primary/30">
             <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
-              {initials(workshopProfile.owner || "RM")}
+              {currentUser?.avatarInitials || initials(workshopProfile.owner || "GI")}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-semibold">{workshopProfile.owner}</p>
-              <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[0.65rem] font-bold text-primary dark:bg-primary/25 dark:text-blue-300">
-                Owner
+              <p className="truncate text-sm font-semibold">{currentUser?.name || workshopProfile.owner}</p>
+              <span
+                className={cn(
+                  "rounded-md px-1.5 py-0.5 text-[0.65rem] font-bold",
+                  currentUser?.role === "Owner"
+                    ? "bg-primary/10 text-primary dark:bg-primary/25 dark:text-blue-300"
+                    : currentUser?.role === "Admin"
+                    ? "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300"
+                    : "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300"
+                )}
+              >
+                {currentUser?.role || "Owner"}
               </span>
             </div>
             <p className="truncate text-xs text-muted-foreground">{workshopProfile.name}</p>
           </div>
+
+          {/* Icon Power Off untuk Logout (di sebelah kanan nama akun) */}
+          <button
+            type="button"
+            onClick={() => setConfirmLogoutOpen(true)}
+            title="Keluar dari akun (Logout)"
+            aria-label="Logout"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-500/25 text-rose-500 hover:bg-rose-500/15 hover:text-rose-600 active:scale-95 transition-all dark:border-rose-500/35 dark:text-rose-400 dark:hover:bg-rose-950/50"
+          >
+            <Power className="size-4" strokeWidth={2.2} />
+          </button>
         </div>
 
         {/* Tab Navigation */}
@@ -520,24 +547,31 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 />
               </div>
 
-              {catalogSubTab === "layanan" ? (
-                <button
-                  type="button"
-                  onClick={handleOpenAddService}
-                  className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Tambah</span>
-                </button>
+              {canEdit ? (
+                catalogSubTab === "layanan" ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddService}
+                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Tambah</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPart}
+                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Tambah</span>
+                  </button>
+                )
               ) : (
-                <button
-                  type="button"
-                  onClick={handleOpenAddPart}
-                  className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Tambah</span>
-                </button>
+                <div className="flex items-center gap-1 shrink-0 rounded-xl bg-muted px-2.5 py-2 text-[11px] font-semibold text-muted-foreground border border-border dark:bg-slate-800">
+                  <Eye className="size-3" />
+                  <span>Baca Saja</span>
+                </div>
               )}
             </div>
 
@@ -569,29 +603,31 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         <p className="text-xs font-bold text-primary dark:text-blue-400 mt-1">{formatRupiah(s.price)}</p>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditService(s)}
-                          className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
-                          title="Edit Tarif"
-                        >
-                          <Pencil className="size-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Hapus tarif layanan "${s.name}"?`)) {
-                              deleteServiceRate(s.id)
-                              toast.success("Tarif Dihapus", `Tarif "${s.name}" telah dihapus.`)
-                            }
-                          }}
-                          className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
-                          title="Hapus Tarif"
-                        >
-                          <Trash2 className="size-3" />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditService(s)}
+                            className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
+                            title="Edit Tarif"
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Hapus tarif layanan "${s.name}"?`)) {
+                                deleteServiceRate(s.id)
+                                toast.success("Tarif Dihapus", `Tarif "${s.name}" telah dihapus.`)
+                              }
+                            }}
+                            className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
+                            title="Hapus Tarif"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
 
@@ -634,29 +670,31 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         <p className="text-xs font-bold text-primary dark:text-blue-400 mt-1">{formatRupiah(p.price)}</p>
                       </div>
 
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditPart(p)}
-                          className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
-                          title="Edit Part"
-                        >
-                          <Pencil className="size-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Hapus item "${p.name}" dari katalog?`)) {
-                              deletePart(p.id)
-                              toast.success("Item Dihapus", `Item "${p.name}" telah dihapus dari katalog.`)
-                            }
-                          }}
-                          className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
-                          title="Hapus Part"
-                        >
-                          <Trash2 className="size-3" />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditPart(p)}
+                            className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
+                            title="Edit Part"
+                          >
+                            <Pencil className="size-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Hapus item "${p.name}" dari katalog?`)) {
+                                deletePart(p.id)
+                                toast.success("Item Dihapus", `Item "${p.name}" telah dihapus dari katalog.`)
+                              }
+                            }}
+                            className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
+                            title="Hapus Part"
+                          >
+                            <Trash2 className="size-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
 
@@ -715,14 +753,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs font-medium focus:border-primary focus:outline-none"
                 />
               </div>
-              <button
-                type="button"
-                onClick={handleOpenAddVoucher}
-                className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all"
-              >
-                <Plus className="size-3.5" />
-                <span>Buat Voucher</span>
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={handleOpenAddVoucher}
+                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Buat Voucher</span>
+                </button>
+              )}
             </div>
 
             {/* Voucher List */}
@@ -772,41 +812,43 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleVoucherStatus(v.id)}
-                          className={cn(
-                            "rounded-lg px-2 py-1 text-[10px] font-semibold border transition-all",
-                            v.isActive
-                              ? "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
-                              : "border-muted-foreground/30 text-muted-foreground hover:bg-muted"
-                          )}
-                        >
-                          {v.isActive ? "Aktif" : "Mati"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditVoucher(v)}
-                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                          title="Edit Voucher"
-                        >
-                          <Pencil className="size-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Hapus voucher promo ${v.code}?`)) {
-                              deleteVoucher(v.id)
-                              toast.info("Voucher Dihapus", `Kode ${v.code} telah dihapus.`)
-                            }
-                          }}
-                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                          title="Hapus Voucher"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleVoucherStatus(v.id)}
+                            className={cn(
+                              "rounded-lg px-2 py-1 text-[10px] font-semibold border transition-all",
+                              v.isActive
+                                ? "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                                : "border-muted-foreground/30 text-muted-foreground hover:bg-muted"
+                            )}
+                          >
+                            {v.isActive ? "Aktif" : "Mati"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditVoucher(v)}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            title="Edit Voucher"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Hapus voucher promo ${v.code}?`)) {
+                                deleteVoucher(v.id)
+                                toast.info("Voucher Dihapus", `Kode ${v.code} telah dihapus.`)
+                              }
+                            }}
+                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            title="Hapus Voucher"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-0.5">
@@ -1112,19 +1154,26 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-98"
-            >
-              {profileSaved ? (
-                <>
-                  <Check className="size-4" />
-                  <span>Profil &amp; Format Struk Berhasil Disimpan!</span>
-                </>
-              ) : (
-                <span>Simpan Informasi Bengkel &amp; Format Struk</span>
-              )}
-            </button>
+            {canEdit ? (
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-98"
+              >
+                {profileSaved ? (
+                  <>
+                    <Check className="size-4" />
+                    <span>Profil &amp; Format Struk Berhasil Disimpan!</span>
+                  </>
+                ) : (
+                  <span>Simpan Informasi Bengkel &amp; Format Struk</span>
+                )}
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-amber-500/10 p-3 text-xs font-medium text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                <Eye className="size-4 shrink-0" />
+                <span>Mode Mekanik: Hanya dapat melihat data profil bengkel (Akses Baca Saja)</span>
+              </div>
+            )}
           </form>
         )}
 
@@ -1560,16 +1609,62 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             >
               Pulihkan Tips Info
             </button>
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              className="flex items-center gap-1 text-destructive/80 hover:text-destructive hover:underline"
-            >
-              <RotateCcw className="size-3" />
-              <span>Reset Data Demo</span>
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleResetDemo}
+                className="flex items-center gap-1 text-destructive/80 hover:text-destructive hover:underline"
+              >
+                <RotateCcw className="size-3" />
+                <span>Reset Data Demo</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Modal Konfirmasi Logout */}
+        {confirmLogoutOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-3">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-600 ring-4 ring-rose-500/10 dark:text-rose-400">
+                  <Power className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-bold text-foreground">Konfirmasi Logout</h3>
+                  <p className="text-xs text-muted-foreground">Sesi akun Anda akan diakhiri</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Apakah Anda yakin ingin keluar dari akun <strong className="text-foreground">{currentUser?.name}</strong> ({currentUser?.role})? Anda dapat login kembali kapan saja.
+              </p>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setConfirmLogoutOpen(false)}
+                  className="flex-1 rounded-xl border border-border bg-muted/60 py-2.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors dark:border-slate-700"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmLogoutOpen(false)
+                    onClose()
+                    logout()
+                    toast.info("Berhasil Logout", `Sampai jumpa kembali, ${currentUser?.name || "Pengguna"}`)
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-destructive py-2.5 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 shadow-sm transition-all"
+                >
+                  <Power className="size-3.5" />
+                  Ya, Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </BottomSheet>
   )

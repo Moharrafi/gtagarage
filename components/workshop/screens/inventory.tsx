@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, AlertTriangle, History, Boxes, TrendingDown, Plus, Pencil, Trash2, PackagePlus, ChevronDown, Sparkles, RefreshCw } from "lucide-react"
+import { Search, AlertTriangle, History, Boxes, TrendingDown, Plus, Pencil, Trash2, PackagePlus, ChevronDown, Sparkles, RefreshCw, Eye } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -37,7 +37,7 @@ function matchesPillar(p: Part, pillarId: string): boolean {
 const labelCls = "mb-1 block text-xs font-medium text-muted-foreground"
 
 export function InventoryScreen() {
-  const { parts, categories, addPart, updatePart, deletePart, stockIn } = useWorkshop()
+  const { parts, categories, addPart, updatePart, deletePart, stockIn, canEdit } = useWorkshop()
   const [query, setQuery] = useState("")
   const [lowOnly, setLowOnly] = useState(false)
   const [selectedPillar, setSelectedPillar] = useState<string>("all")
@@ -151,14 +151,21 @@ export function InventoryScreen() {
         </Card>
       </div>
 
-      <button
-        type="button"
-        onClick={openAdd}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.99]"
-      >
-        <Plus className="size-4" strokeWidth={2.6} />
-        Tambah Suku Cadang
-      </button>
+      {canEdit ? (
+        <button
+          type="button"
+          onClick={openAdd}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-4 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.99]"
+        >
+          <Plus className="size-4" strokeWidth={2.6} />
+          Tambah Suku Cadang
+        </button>
+      ) : (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>Mode Mekanik: Akses baca saja (melihat katalog &amp; stok sparepart).</span>
+        </div>
+      )}
 
       {/* 4 Focus Pillar Filter Bar */}
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 no-scrollbar">
@@ -308,39 +315,41 @@ export function InventoryScreen() {
                       Terpakai pada {p.usedInOrders.length} perbaikan terakhir.
                     </p>
 
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStockSheetId(p.id)
-                          setStockQty(1)
-                        }}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-brand-2-foreground shadow-sm transition-transform active:scale-98"
-                        style={{ backgroundColor: "var(--brand-2)" }}
-                      >
-                        <PackagePlus className="size-3.5" /> Barang Masuk
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(p)}
-                        className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
-                      >
-                        <Pencil className="size-3.5" /> Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`Apakah Anda yakin ingin menghapus "${p.name}" dari inventaris?`)) {
-                            deletePart(p.id)
-                            if (openId === p.id) setOpenId(null)
-                            toast.success("Suku Cadang Dihapus", `Item "${p.name}" berhasil dihapus.`)
-                          }
-                        }}
-                        className="flex items-center justify-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
+                    {canEdit && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStockSheetId(p.id)
+                            setStockQty(1)
+                          }}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-brand-2-foreground shadow-sm transition-transform active:scale-98"
+                          style={{ backgroundColor: "var(--brand-2)" }}
+                        >
+                          <PackagePlus className="size-3.5" /> Barang Masuk
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEdit(p)}
+                          className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
+                        >
+                          <Pencil className="size-3.5" /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Apakah Anda yakin ingin menghapus "${p.name}" dari inventaris?`)) {
+                              deletePart(p.id)
+                              if (openId === p.id) setOpenId(null)
+                              toast.success("Suku Cadang Dihapus", `Item "${p.name}" berhasil dihapus.`)
+                            }
+                          }}
+                          className="flex items-center justify-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

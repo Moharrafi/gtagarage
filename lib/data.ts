@@ -771,3 +771,51 @@ export const monthlyReport = {
   rataTransaksi: 378061,
   piutang: 3495000,
 }
+
+// User Accounts & Role-Based Access Control
+export type UserRole = "Owner" | "Admin" | "Mekanik"
+
+export interface UserAccount {
+  id: string
+  name: string
+  username: string
+  role: UserRole
+  avatarInitials: string
+  phone?: string
+  password?: string
+  description: string
+}
+
+export const defaultUsers: UserAccount[] = [
+  {
+    id: "usr-owner",
+    name: "GITA",
+    username: "owner",
+    role: "Owner",
+    avatarInitials: "GI",
+    phone: "0812-8888-9102",
+    password: "owner",
+    description: "Pemilik Bengkel · Akses Penuh ke Finansial, Tarif, Pengaturan, & Operasional",
+  },
+  {
+    id: "usr-admin",
+    name: "Rian Pratama",
+    username: "admin",
+    role: "Admin",
+    avatarInitials: "RP",
+    phone: "0813-2233-4455",
+    password: "admin",
+    description: "Admin & Kasir · Akses Penuh ke Kasir, Order, Stok, Voucher, & WhatsApp",
+  },
+  {
+    id: "usr-mekanik",
+    name: "Bayu Saputra",
+    username: "mekanik",
+    role: "Mekanik",
+    avatarInitials: "BS",
+    phone: "0857-1122-3344",
+    password: "mekanik",
+    description: "Mekanik Lapangan · Akses Lihat Saja (Read-Only: Status Order & Stok)",
+  },
+]
+

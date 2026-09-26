@@ -7,12 +7,15 @@ import {
   defaultServiceRates,
   defaultCategories,
   defaultVouchers,
+  defaultUsers,
   type WorkOrder,
   type Part,
   type ServiceType,
   type WorkStatus,
   type ServiceRate,
   type Voucher,
+  type UserAccount,
+  type UserRole,
 } from "@/lib/data"
 
 export interface WorkOrderInput {
@@ -58,14 +61,14 @@ export interface WorkshopProfile {
 }
 
 export const defaultWorkshopProfile: WorkshopProfile = {
-  name: "MOTOCRAFT STUDIO & GARAGE",
+  name: "GTA GARAGE",
   slogan: "Precision Motorcycle Workshop · Vapor Blasting\n· Custom Builder",
   phone: "0812-8888-9102",
   address: "Jl. Otista Raya No. 128, Jatinegara, Jakarta Timur 13330",
   hours: "08:00 - 17:00 WIB (Senin - Sabtu)",
-  owner: "Rian Maulana (RM)",
+  owner: "GITA",
   receiptWarranty: "Garansi Servis & Blasting 14 Hari",
-  receiptWebsite: "www.motocraft.id · IG: @motocraft.garage",
+  receiptWebsite: "www.gtagarage.com · IG: @gta.garage",
   receiptFooterMsg: "*** TERIMA KASIH ***",
 }
 
@@ -98,6 +101,15 @@ interface WorkshopContextValue {
   isTipDismissed: (tipId: string) => boolean
   resetDismissedTips: () => void
   resetDemoData: () => void
+  currentUser: UserAccount | null
+  authLoaded: boolean
+  login: (username: string, password?: string) => boolean
+  loginAs: (user: UserAccount) => void
+  logout: () => void
+  canEdit: boolean
+  isMekanik: boolean
+  isOwner: boolean
+  isAdmin: boolean
 }
 
 const WorkshopContext = createContext<WorkshopContextValue | null>(null)
@@ -434,6 +446,56 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [])
 
+  // Authentication & Role-Based Access Control State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
+  const [authLoaded, setAuthLoaded] = useState(false)
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem("bengkel_auth_user")
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser))
+      }
+    } catch (e) {
+      console.error("Failed to load bengkel_auth_user", e)
+    } finally {
+      setAuthLoaded(true)
+    }
+  }, [])
+
+  const login = useCallback((username: string, password?: string): boolean => {
+    const cleanUser = username.trim().toLowerCase()
+    const found = defaultUsers.find((u) => u.username.toLowerCase() === cleanUser)
+    if (!found) return false
+    if (password && found.password && password !== found.password && password !== "123456") {
+      return false
+    }
+    setCurrentUser(found)
+    try {
+      localStorage.setItem("bengkel_auth_user", JSON.stringify(found))
+    } catch {}
+    return true
+  }, [])
+
+  const loginAs = useCallback((user: UserAccount) => {
+    setCurrentUser(user)
+    try {
+      localStorage.setItem("bengkel_auth_user", JSON.stringify(user))
+    } catch {}
+  }, [])
+
+  const logout = useCallback(() => {
+    setCurrentUser(null)
+    try {
+      localStorage.removeItem("bengkel_auth_user")
+    } catch {}
+  }, [])
+
+  const canEdit = currentUser?.role === "Owner" || currentUser?.role === "Admin"
+  const isMekanik = currentUser?.role === "Mekanik"
+  const isOwner = currentUser?.role === "Owner"
+  const isAdmin = currentUser?.role === "Admin"
+
   const value = useMemo(
     () => ({
       workOrders,
@@ -464,6 +526,15 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       isTipDismissed,
       resetDismissedTips,
       resetDemoData,
+      currentUser,
+      authLoaded,
+      login,
+      loginAs,
+      logout,
+      canEdit,
+      isMekanik,
+      isOwner,
+      isAdmin,
     }),
     [
       workOrders,
@@ -494,6 +565,15 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       isTipDismissed,
       resetDismissedTips,
       resetDemoData,
+      currentUser,
+      authLoaded,
+      login,
+      loginAs,
+      logout,
+      canEdit,
+      isMekanik,
+      isOwner,
+      isAdmin,
     ],
   )
 

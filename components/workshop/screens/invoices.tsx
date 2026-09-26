@@ -21,6 +21,7 @@ import {
   Plus,
   X,
   Search,
+  Eye,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -293,7 +294,7 @@ Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
 }
 
 export function InvoicesScreen() {
-  const { profile, vouchers, dismissTip, isTipDismissed } = useWorkshop()
+  const { profile, vouchers, dismissTip, isTipDismissed, canEdit } = useWorkshop()
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
   const [active, setActive] = useState<Invoice | null>(null)
@@ -603,6 +604,13 @@ export function InvoicesScreen() {
         })}
       </div>
 
+      {!canEdit && (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+          <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <span>Mode Mekanik: Akses baca saja (melihat rincian tagihan &amp; cetak struk).</span>
+        </div>
+      )}
+
       <div className="space-y-2.5">
         {list.length === 0 ? (
           <Card className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground dark:border-slate-800">
@@ -734,7 +742,7 @@ export function InvoicesScreen() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className="font-bold">- {formatRupiah(active.discountAmount)}</span>
-                        {active.status !== "Lunas" && (
+                        {active.status !== "Lunas" && canEdit && (
                           <button
                             type="button"
                             onClick={() => handleRemoveDiscount(active.id)}
@@ -746,7 +754,7 @@ export function InvoicesScreen() {
                         )}
                       </div>
                     </div>
-                  ) : active.status !== "Lunas" ? (
+                  ) : active.status !== "Lunas" && canEdit ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -822,14 +830,19 @@ export function InvoicesScreen() {
               <div className="flex gap-2 pt-1">
                 <Button
                   variant="outline"
-                  className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
+                  className={cn(
+                    "gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold",
+                    canEdit ? "flex-1" : "w-full"
+                  )}
                   onClick={() => openWa(active)}
                 >
                   <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim ke WA
                 </Button>
-                <Button className="flex-1 gap-2" onClick={() => openPay(active)}>
-                  <Wallet className="size-4" /> Bayar Sekarang
-                </Button>
+                {canEdit && (
+                  <Button className="flex-1 gap-2" onClick={() => openPay(active)}>
+                    <Wallet className="size-4" /> Bayar Sekarang
+                  </Button>
+                )}
               </div>
             )}
           </div>
