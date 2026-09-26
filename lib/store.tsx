@@ -66,6 +66,7 @@ export interface MidtransConfig {
   enabled: boolean
   environment: "sandbox" | "production"
   clientKey: string
+  serverKey?: string
   merchantId: string
   chargeAdminFeeToCustomer: boolean
   vaAdminFee: number
@@ -76,6 +77,7 @@ export const defaultMidtransConfig: MidtransConfig = {
   enabled: true,
   environment: "sandbox",
   clientKey: "SB-Mid-client-GTA-GARAGE-DEMO",
+  serverKey: "",
   merchantId: "G123456789",
   chargeAdminFeeToCustomer: true,
   vaAdminFee: 4000,

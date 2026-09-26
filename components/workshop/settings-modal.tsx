@@ -82,6 +82,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("harga")
   const [localMidtrans, setLocalMidtrans] = useState<MidtransConfig>(midtransConfig)
   const [showMidtransKey, setShowMidtransKey] = useState(false)
+  const [showMidtransServerKey, setShowMidtransServerKey] = useState(false)
 
   useEffect(() => {
     setLocalMidtrans(midtransConfig)
@@ -1090,6 +1091,32 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
                 <p className="mt-1 text-[10px] text-muted-foreground">
                   Didapatkan dari menu <em>Settings &gt; Access Keys &gt; Client Key</em> di Dashboard Midtrans Anda.
+                </p>
+              </div>
+
+              {/* Server Key */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Midtrans Server Key <span className="text-[10px] text-muted-foreground">(Untuk API QRIS Otomatis &amp; Simulator)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showMidtransServerKey ? "text" : "password"}
+                    value={localMidtrans.serverKey || ""}
+                    onChange={(e) => setLocalMidtrans({ ...localMidtrans, serverKey: e.target.value })}
+                    placeholder="mis. SB-Mid-server-xxxx atau Mid-server-xxxx"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono focus:border-primary focus:outline-none dark:border-slate-700 pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMidtransServerKey(!showMidtransServerKey)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showMidtransServerKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Didapatkan dari menu <em>Settings &gt; Access Keys &gt; Server Key</em> di Dashboard Midtrans Anda.
                 </p>
               </div>
 

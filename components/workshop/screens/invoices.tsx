@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   QrCode,
   Landmark,
@@ -29,6 +29,7 @@ import {
   Sparkles,
   RefreshCw,
   ArrowRight,
+  Info,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -457,7 +458,53 @@ export function InvoicesScreen() {
   const [cardExp, setCardExp] = useState("12/28")
   const [cardCvv, setCardCvv] = useState("888")
   const [copiedQrisString, setCopiedQrisString] = useState(false)
+  const [midtransQrUrl, setMidtransQrUrl] = useState<string | null>(null)
+  const [isGeneratingMidtransQr, setIsGeneratingMidtransQr] = useState(false)
+  const [copiedMidtransUrl, setCopiedMidtransUrl] = useState(false)
 
+  // Calculate live amount for QRIS API request
+  const currentSisa = payFor ? Math.max(0, invoiceTotal(payFor) - payFor.paidAmount) : 0
+  const currentAdminFee = useMemo(() => {
+    if (!payFor || !midtransConfig?.chargeAdminFeeToCustomer) return 0
+    if (method === "Transfer") return midtransConfig.vaAdminFee || 4000
+    if (method === "QRIS") {
+      return midtransConfig.qrisAdminFee && midtransConfig.qrisAdminFee > 0
+        ? midtransConfig.qrisAdminFee
+        : Math.round(currentSisa * 0.007)
+    }
+    if (method === "Kartu") return Math.round(currentSisa * 0.02)
+    return 0
+  }, [payFor, midtransConfig, method, currentSisa])
+  const calculatedPayAmount = currentSisa + currentAdminFee
+
+  // Automatically request Midtrans Charge API if serverKey is configured
+  useEffect(() => {
+    if (payStep === "pay_action" && method === "QRIS" && payFor && midtransConfig?.serverKey) {
+      setIsGeneratingMidtransQr(true)
+      fetch("/api/midtrans/charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: payFor.number,
+          amount: calculatedPayAmount,
+          customerName: payFor.customer.name,
+          customerPhone: payFor.customer.phone,
+          serverKey: midtransConfig.serverKey,
+          environment: midtransConfig.environment || "sandbox",
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.qrImageUrl) {
+            setMidtransQrUrl(data.qrImageUrl)
+          }
+        })
+        .catch((e) => console.error("Midtrans API charge fetch error:", e))
+        .finally(() => setIsGeneratingMidtransQr(false))
+    } else {
+      setMidtransQrUrl(null)
+    }
+  }, [payStep, method, payFor, midtransConfig?.serverKey, midtransConfig?.environment, calculatedPayAmount])
 
   // Discount Modal State
   const [discountFor, setDiscountFor] = useState<Invoice | null>(null)
@@ -1804,20 +1851,25 @@ export function InvoicesScreen() {
                             <p className="font-semibold text-slate-700">BCA · Livin&apos; · BRImo · GoPay · OVO · Dana</p>
                             <p className="text-[8.5px] text-slate-400">Ref: {paymentRefId} · Exp: 15 Menit</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!qrisPayload) return
-                              navigator.clipboard.writeText(qrisPayload)
-                              setCopiedQrisString(true)
-                              toast.success("String QRIS Disalin", "String payload EMVCo QRIS berhasil disalin untuk simulator!")
-                              setTimeout(() => setCopiedQrisString(false), 2000)
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-                          >
-                            {copiedQrisString ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
-                            <span>{copiedQrisString ? "Tersalin!" : "Salin String QRIS"}</span>
-                          </button>
+                          {midtransQrUrl ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(midtransQrUrl)
+                                setCopiedMidtransUrl(true)
+                                toast.success("URL Gambar QR Disalin", "Link image URL resmi Midtrans disalin. Siap ditempel di simulator!")
+                                setTimeout(() => setCopiedMidtransUrl(false), 2000)
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100 transition-colors shrink-0"
+                            >
+                              {copiedMidtransUrl ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                              <span>{copiedMidtransUrl ? "URL Tersalin!" : "Salin QR Image URL"}</span>
+                            </button>
+                          ) : (
+                            <div className="text-[9.5px] text-slate-400 font-medium">
+                              Mode Uji Coba (Sandbox)
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1898,30 +1950,51 @@ export function InvoicesScreen() {
                       </div>
 
                       {/* Cashier simulation button & Sandbox Simulator link */}
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         <button
                           type="button"
                           onClick={handleSimulatePayment}
                           disabled={isSimulatingPayment}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-500/20 dark:text-blue-400 transition-colors shadow-xs"
                         >
                           <Sparkles className="size-3.5" />
                           <span>
                             {isSimulatingPayment
                               ? "Memverifikasi notifikasi webhook Midtrans..."
-                              : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS"}
+                              : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS (Sukses Lunas)"}
                           </span>
                         </button>
-                        <div className="flex items-center justify-center text-center">
-                          <a
-                            href="https://simulator.sandbox.midtrans.com/qris/index"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                          >
-                            <span>Buka Simulator QRIS Resmi Midtrans Sandbox</span>
-                            <ExternalLink className="size-2.5" />
-                          </a>
+
+                        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 text-[11px] text-muted-foreground space-y-1">
+                          <p className="font-semibold text-foreground flex items-center gap-1">
+                            <Info className="size-3 text-blue-600 dark:text-blue-400 shrink-0" />
+                            <span>Mengapa Simulator Web Midtrans Meminta &quot;QR Code Image Url&quot;?</span>
+                          </p>
+                          <p className="leading-relaxed text-[10px]">
+                            Halaman simulator web Midtrans hanya menerima <strong>URL link gambar QR</strong> yang di-generate dari API server Midtrans (bukan teks biasa).
+                            {midtransQrUrl ? (
+                              <span className="block mt-1 text-blue-600 font-semibold dark:text-blue-400">
+                                ✓ Link URL gambar Midtrans API Anda aktif! Klik tombol &quot;Salin QR Image URL&quot; di atas untuk ditempel di simulator.
+                              </span>
+                            ) : (
+                              <span className="block mt-1">
+                                Anda cukup klik tombol <strong>⚡ Simulasi Kasir</strong> di atas untuk menyelesaikan invoice secara instan, atau scan langsung gambar QRIS dengan kamera HP / m-Banking Anda.
+                              </span>
+                            )}
+                          </p>
+                          {midtransQrUrl && (
+                            <div className="pt-1 flex justify-center">
+                              <a
+                                href="https://simulator.sandbox.midtrans.com/qris/index"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline dark:text-blue-400"
+                              >
+                                <span>Buka Simulator QRIS Resmi Midtrans Sandbox</span>
+                                <ExternalLink className="size-2.5" />
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
 
