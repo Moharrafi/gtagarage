@@ -159,22 +159,33 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
       ]
 
   return (
-    <div className="space-y-4 md:space-y-5">
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="gap-0 p-3.5 md:p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">{s.label}</span>
-              <s.icon className={`size-4 ${s.tint}`} />
+    <div className="space-y-0">
+      {/* ================= DANA STYLE BLUE TOP HERO SECTION ================= */}
+      <section className="-mx-4 md:-mx-6 -mt-4 bg-brand-gradient px-4 md:px-6 pt-1 pb-9 text-white shadow-xs dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900">
+        {/* Today's Revenue Highlight & Shop Status */}
+        <div className="flex items-center justify-between pb-3 pt-1">
+          <div>
+            <p className="text-[11px] font-medium text-blue-100/90 uppercase tracking-wider">
+              Pendapatan Hari Ini
+            </p>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                {formatRupiah(todayRevenue || 248000)}
+              </span>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+                <TrendingUp className="size-3" /> +12%
+              </span>
             </div>
-            <p className="mt-2 text-xl md:text-2xl font-semibold tracking-tight text-balance">{s.value}</p>
-            <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{s.sub}</p>
-          </Card>
-        ))}
-      </section>
+          </div>
 
-      <section>
-        <div className="grid grid-cols-4 gap-2 md:gap-3.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-1 text-xs font-semibold text-emerald-100 border border-emerald-300/30">
+            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            Bengkel Buka
+          </span>
+        </div>
+
+        {/* 4 Quick Actions directly on the BLUE background (DANA Style) */}
+        <div className="grid grid-cols-4 gap-2 pt-2 pb-1">
           {activeQuickActions.map((a) => (
             <button
               key={a.label}
@@ -187,36 +198,48 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
                   onNavigate(a.go)
                 }
               }}
-              className="flex flex-col items-center gap-1.5 rounded-2xl bg-card p-3 md:p-3.5 text-xs font-medium border border-border dark:border-slate-700/80 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-muted/50 dark:hover:bg-slate-800"
+              className="group flex flex-col items-center gap-1.5 transition-transform active:scale-95"
             >
-              <span
-                className={cn(
-                  "flex size-10 md:size-11 items-center justify-center rounded-full transition-colors",
-                  a.action === "wa"
-                    ? "bg-[#25D366]/15 text-[#25D366] dark:bg-[#25D366]/20 dark:text-[#25D366]"
-                    : "bg-primary/15 text-primary"
-                )}
-              >
-                <a.icon className="size-5 md:size-5.5" />
+              <span className="flex size-12 md:size-14 items-center justify-center rounded-2xl bg-white/20 hover:bg-white/30 text-white ring-1 ring-white/30 shadow-xs transition-all group-hover:scale-105 group-hover:bg-white/30">
+                <a.icon className="size-6 text-white" />
               </span>
-              <span className="truncate">{a.label}</span>
+              <span className="truncate text-xs font-semibold text-white tracking-tight drop-shadow-xs">
+                {a.label}
+              </span>
             </button>
           ))}
         </div>
       </section>
 
-      <Card className="gap-2.5 p-4 md:p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
-            <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
+      {/* ================= DANA STYLE WHITE BOTTOM SECTION ================= */}
+      <div className="relative -mt-4 rounded-t-[28px] md:rounded-t-3xl bg-background px-4 md:px-6 pt-5 pb-8 shadow-xl border-t border-border/40 space-y-4 md:space-y-5 -mx-4 md:-mx-6">
+        {/* KPI Stats Grid */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {stats.map((s) => (
+            <Card key={s.label} className="gap-0 p-3.5 md:p-4 bg-card border-border shadow-xs hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{s.label}</span>
+                <s.icon className={`size-4 ${s.tint}`} />
+              </div>
+              <p className="mt-2 text-xl md:text-2xl font-semibold tracking-tight text-balance">{s.value}</p>
+              <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{s.sub}</p>
+            </Card>
+          ))}
+        </section>
+
+        {/* Monthly Revenue Chart Card */}
+        <Card className="gap-2.5 p-4 md:p-5 bg-card border-border shadow-xs">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
+              <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
+            </div>
+            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
+              <TrendingUp className="size-3.5" /> +6,8%
+            </span>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-            <TrendingUp className="size-3.5" /> +6,8%
-          </span>
-        </div>
-        <SparklineArea data={chartData} />
-      </Card>
+          <SparklineArea data={chartData} />
+        </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
         <section className="space-y-2">
@@ -289,6 +312,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             ))}
           </Card>
         </section>
+      </div>
+
       </div>
 
       {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} />}

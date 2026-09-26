@@ -223,7 +223,13 @@ function AppShellInner() {
         {/* Main section */}
         <div className="relative flex flex-1 flex-col overflow-hidden min-w-0">
           {/* Header - DANA 2-Tone Style */}
-          <header className="z-20 flex items-center gap-3 border-b border-primary/20 bg-brand-gradient px-4 md:px-6 py-3.5 text-white shadow-sm shadow-primary/20 shrink-0 dark:border-slate-800 dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900">
+          <header
+            className={cn(
+              "z-20 flex items-center gap-3 bg-brand-gradient px-4 md:px-6 text-white shrink-0 shadow-xs",
+              tab === "beranda" ? "border-b-0 pt-3.5 pb-2" : "border-b border-primary/20 py-3.5 shadow-sm shadow-primary/20",
+              "dark:border-slate-800 dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900"
+            )}
+          >
             {tab === "beranda" ? (
               <span className="flex size-9 md:hidden items-center justify-center rounded-xl bg-white/20 text-white shadow-sm ring-1 ring-white/30 backdrop-blur-xs">
                 <Wrench className="size-5" strokeWidth={2.4} />
