@@ -11,6 +11,7 @@ import {
   Package,
   ChevronRight,
   BarChart3,
+  Clock,
 } from "lucide-react"
 import dynamic from "next/dynamic"
 import { Card } from "@/components/ui/card"
@@ -39,20 +40,21 @@ const todayRevenue = invoices
   .filter((i) => i.status === "Lunas" && i.date === "25 Sep 2026")
   .reduce((s, i) => s + i.paidAmount, 0)
 
+const queuedJobs = workOrders.filter((w) => w.status === "Antrian")
 const activeJobs = workOrders.filter((w) => w.status === "Dikerjakan" || w.status === "Antrian" || w.status === "Menunggu Sparepart")
 const readyJobs = workOrders.filter((w) => w.status === "Siap Diambil")
 const lowStock = parts.filter((p) => p.stock <= p.minStock)
 
 const stats = [
   {
-    label: "Pendapatan Hari Ini",
-    value: formatRupiah(todayRevenue || 248000),
-    icon: TrendingUp,
-    tint: "text-success",
-    sub: "+12% vs kemarin",
+    label: "Antrian Masuk",
+    value: `${queuedJobs.length}`,
+    icon: Clock,
+    tint: "text-amber-500 dark:text-amber-400",
+    sub: "Menunggu giliran",
   },
   { label: "Pekerjaan Aktif", value: `${activeJobs.length}`, icon: Wrench, tint: "text-primary", sub: "Sedang berjalan" },
-  { label: "Siap Diambil", value: `${readyJobs.length}`, icon: PackageCheck, tint: "text-chart-2", sub: "Menunggu pelanggan" },
+  { label: "Siap Diambil", value: `${readyJobs.length}`, icon: PackageCheck, tint: "text-emerald-600 dark:text-emerald-400", sub: "Menunggu pelanggan" },
   { label: "Stok Menipis", value: `${lowStock.length}`, icon: AlertTriangle, tint: "text-destructive", sub: "Perlu restock" },
 ]
 
