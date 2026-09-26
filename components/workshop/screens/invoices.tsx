@@ -8,6 +8,7 @@ import {
   Wallet,
   Check,
   FileText,
+  ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Wrench,
@@ -345,6 +346,87 @@ ${profile.address ? `• *Alamat:* ${profile.address}\n` : ""}${profile.phone ? 
 Terima kasih banyak atas perhatian dan kerja sama Anda.`
 }
 
+function generatePaymentInstructionWaMessage(
+  inv: Invoice,
+  profile: WorkshopProfile,
+  methodKey: "QRIS" | "Transfer" | "Kartu" | "Tunai",
+  bankName: string,
+  vaNumber: string,
+  payAmount: number,
+  paymentRef: string
+): string {
+  const nama = inv.customer.name
+  const bengkel = profile.name || "GTA GARAGE"
+  const motor = [inv.vehicle.brand, inv.vehicle.model].filter(Boolean).join(" ") || "Kendaraan Pelanggan"
+
+  if (methodKey === "QRIS") {
+    return `Halo Bpk/Ibu *${nama}*,
+
+Pemberitahuan tagihan dari *${bengkel}*:
+Pengerjaan kendaraan/unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
+
+Berikut informasi rincian pembayaran via *QRIS Dynamic*:
+• *No. Invoice:* ${inv.number}
+• *Total Pembayaran:* *${formatRupiah(payAmount)}*
+• *Metode Bayar:* QRIS Midtrans (GoPay, OVO, Dana, ShopeePay, BCA, Livin', BRImo)
+• *Batas Waktu:* 15 Menit
+• *Ref ID Transaksi:* \`${paymentRef}\`
+
+*Petunjuk Pembayaran:*
+1. Buka aplikasi e-Wallet atau m-Banking pilihan Anda.
+2. Scan kode QRIS yang kami lampirkan.
+3. Pastikan nama penerima *${bengkel}* & nominal pas sebesar *${formatRupiah(payAmount)}*.
+4. Konfirmasi pembayaran Anda.
+
+Jika sudah berhasil membayar, mohon kabari kami agar status tagihan langsung kami perbarui menjadi LUNAS.
+Terima kasih!`
+  }
+
+  if (methodKey === "Transfer") {
+    return `Halo Bpk/Ibu *${nama}*,
+
+Pemberitahuan tagihan dari *${bengkel}*:
+Pengerjaan kendaraan/unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
+
+Berikut petunjuk transfer via *Virtual Account ${bankName}*:
+• *No. Invoice:* ${inv.number}
+• *Bank Tujuan:* *${bankName} Virtual Account*
+• *Nomor VA:* *${vaNumber}*
+• *Atas Nama:* MIDTRANS / ${nama.toUpperCase()}
+• *Total Transfer Pas:* *${formatRupiah(payAmount)}*
+• *Masa Berlaku:* 24 Jam
+• *Ref ID Transaksi:* \`${paymentRef}\`
+
+*Cara Transfer di m-Banking / ATM:*
+1. Masuk ke aplikasi m-Banking atau ATM ${bankName} (atau transfer antar-bank).
+2. Pilih menu Transfer > Virtual Account.
+3. Masukkan nomor VA: *${vaNumber.replace(/\s/g, "")}*.
+4. Pastikan nama penerima & nominal transfer pas: *${formatRupiah(payAmount)}*.
+5. Selesaikan transaksi.
+
+Jika sudah berhasil transfer, mohon informasikan kembali ke kami ya. Terima kasih banyak!`
+  }
+
+  if (methodKey === "Kartu") {
+    return `Halo Bpk/Ibu *${nama}*,
+
+Pemberitahuan tagihan dari *${bengkel}*:
+Tagihan invoice *${inv.number}* an. *${nama}* sebesar *${formatRupiah(payAmount)}* via Kartu Debit / Kredit (Midtrans 3D Secure).
+
+Silakan hubungi kasir kami jika ingin melakukan konfirmasi transaksi online. Terima kasih!`
+  }
+
+  return `Halo Bpk/Ibu *${nama}*,
+
+Pemberitahuan dari *${bengkel}*:
+Pengerjaan unit *${motor}* (${inv.vehicle.plate}) telah selesai.
+• *No. Invoice:* ${inv.number}
+• *Total Tagihan:* *${formatRupiah(payAmount)}*
+• *Metode:* Tunai di Kasir saat serah terima unit kendaraan.
+
+Terima kasih!`
+}
+
 export function InvoicesScreen() {
   const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig } = useWorkshop()
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
@@ -352,6 +434,7 @@ export function InvoicesScreen() {
   const [active, setActive] = useState<Invoice | null>(null)
   const [sheetTab, setSheetTab] = useState<"detail" | "struk">("detail")
   const [payFor, setPayFor] = useState<Invoice | null>(null)
+  const [payStep, setPayStep] = useState<"select_method" | "pay_action">("select_method")
   const [method, setMethod] = useState<(typeof methods)[number]["key"] | null>(null)
   const [paid, setPaid] = useState(false)
 
@@ -606,7 +689,8 @@ export function InvoicesScreen() {
     setActive(null)
     setPayFor(inv)
     setPaidInvoice(null)
-    setMethod("QRIS")
+    setPayStep("select_method")
+    setMethod(null)
     setPaid(false)
     setSelectedBank("BCA")
     setCashReceived("")
@@ -635,6 +719,64 @@ export function InvoicesScreen() {
         return `8528 ${phoneSuffix} ${seed}`
       default:
         return `70012 ${phoneSuffix} ${seed}`
+    }
+  }
+
+  async function handleSendPaymentInstructionToWa(
+    inv: Invoice,
+    methodKey: (typeof methods)[number]["key"] | null,
+    bank: string,
+    amount: number
+  ) {
+    if (!methodKey) return
+    let clean = (inv.customer.phone || "").replace(/[^0-9]/g, "")
+    if (clean.startsWith("0")) clean = "62" + clean.slice(1)
+    else if (clean.startsWith("8")) clean = "62" + clean
+
+    const vaNum = methodKey === "Transfer" ? getVaNumber(bank, inv) : ""
+    const msg = generatePaymentInstructionWaMessage(
+      inv,
+      profile,
+      methodKey,
+      bank,
+      vaNum,
+      amount,
+      paymentRefId
+    )
+
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(msg)
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const blob = await getInvoiceImageBlob(inv, profile)
+      if (blob && navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+      }
+    } catch {
+      // ignore
+    }
+
+    addNotification({
+      type: "whatsapp",
+      title: `Instruksi ${methodKey} Dikirim ke WA`,
+      body: `Petunjuk pembayaran ${methodKey} invoice ${inv.number} an. ${inv.customer.name} disiapkan & dikirim ke WhatsApp (${clean || "Customer"}). Status: Menunggu konfirmasi bayar.`,
+      channel: clean || "WhatsApp",
+      status: "terkirim",
+      linkTab: "invoice",
+    })
+
+    const encoded = encodeURIComponent(msg)
+    if (clean) {
+      window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encoded}`, "_blank")
+      toast.success("Membuka WhatsApp", "Petunjuk pembayaran dikirim. Tinggal tunggu konfirmasi pembayaran dari customer!")
+    } else {
+      window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank")
+      toast.info("WhatsApp Terbuka", "Pesan telah disalin ke clipboard. Silakan pilih kontak di WhatsApp.")
     }
   }
 
@@ -1141,7 +1283,19 @@ export function InvoicesScreen() {
       <BottomSheet
         open={!!payFor}
         onClose={() => setPayFor(null)}
-        title={paid ? undefined : "Metode Pembayaran"}
+        title={
+          paid
+            ? undefined
+            : payStep === "select_method"
+            ? "Pilih Metode Pembayaran"
+            : method === "QRIS"
+            ? "Pembayaran QRIS Dynamic"
+            : method === "Transfer"
+            ? `Virtual Account (${selectedBank})`
+            : method === "Kartu"
+            ? "Kartu Debit / Kredit"
+            : "Tunai di Kasir"
+        }
       >
         {payFor && !paid && (() => {
           const rawSubtotal = invoiceSubtotal(payFor)
@@ -1232,482 +1386,670 @@ export function InvoicesScreen() {
 
           return (
             <div className="space-y-4 max-h-[82vh] overflow-y-auto pr-0.5 no-scrollbar">
-              {/* Midtrans Status Pill Header */}
-              <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2 dark:border-slate-800">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-foreground">Midtrans Gateway</span>
-                  <span className="text-[10px] text-muted-foreground">· Otomatis &amp; Realtime</span>
-                </div>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
-                    midtransConfig?.environment === "production"
-                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
-                      : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full animate-pulse",
-                      midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
-                    )}
-                  />
-                  Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
-                </span>
-              </div>
-
-              {/* Financial summary card */}
-              <div className="rounded-2xl border border-border bg-muted/40 p-3.5 space-y-2.5 dark:border-slate-800">
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Subtotal ({payFor.items.length} item)</span>
-                  <span className="font-medium text-foreground">{formatRupiah(rawSubtotal)}</span>
-                </div>
-
-                {payFor.discountAmount && payFor.discountAmount > 0 ? (
-                  <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <Tag className="size-3.5 shrink-0" />
-                      <span className="font-semibold truncate">{payFor.discountCode || "Diskon"}</span>
-                      <span className="text-[10px] opacity-75 shrink-0">
-                        ({payFor.discountType === "voucher" ? "Voucher" : "Manual"})
-                      </span>
+              {/* ================= STEP 1: PILIH METODE PEMBAYARAN ================= */}
+              {payStep === "select_method" && (
+                <>
+                  {/* Midtrans Status Pill Header */}
+                  <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-foreground">Midtrans Gateway</span>
+                      <span className="text-[10px] text-muted-foreground">· Otomatis &amp; Realtime</span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="font-bold">- {formatRupiah(payFor.discountAmount)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDiscount(payFor.id)}
-                        className="rounded p-0.5 text-muted-foreground hover:bg-emerald-500/20 hover:text-foreground"
-                        title="Hapus diskon"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDiscountFor(payFor)
-                      setVoucherInput("")
-                      setManualAmount(0)
-                      setManualNote("")
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Tag className="size-3.5" /> Ada Voucher Promo atau Diskon Khusus?
-                    </span>
-                    <span className="text-[11px] underline">Gunakan</span>
-                  </button>
-                )}
-
-                {payFor.paidAmount > 0 && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Sudah Dibayar (DP)</span>
-                    <span>{formatRupiah(payFor.paidAmount)}</span>
-                  </div>
-                )}
-
-                {/* Tagihan Pokok Bengkel vs Admin Fee Gateway */}
-                {adminFee > 0 && (
-                  <div className="flex justify-between text-xs text-muted-foreground pt-0.5">
-                    <span className="flex items-center gap-1">
-                      <span>Biaya Admin Midtrans</span>
-                      <span className="rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">
-                        {method === "Transfer" ? "VA Flat" : method === "Kartu" ? "2% MDR" : "Gateway"}
-                      </span>
-                    </span>
-                    <span className="font-semibold text-foreground">+ {formatRupiah(adminFee)}</span>
-                  </div>
-                )}
-
-                <div className="border-t border-dashed border-border pt-2 flex items-baseline justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-foreground">Total Tagihan Bayar</span>
-                    {adminFee > 0 ? (
-                      <p className="text-[10px] text-muted-foreground">Termasuk biaya admin penanganan gateway</p>
-                    ) : (
-                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Bebas biaya admin transfer</p>
-                    )}
-                  </div>
-                  <span className="text-xl font-black tracking-tight text-primary">
-                    {formatRupiah(finalPayAmount)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment Methods Selector */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-foreground">Pilih Kanal Pembayaran:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {methods.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      onClick={() => setMethod(m.key)}
+                    <span
                       className={cn(
-                        "flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all",
-                        method === m.key
-                          ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
-                          : "border-border bg-card hover:bg-muted/50 dark:border-slate-800"
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                        midtransConfig?.environment === "production"
+                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
+                          : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
                       )}
                     >
                       <span
                         className={cn(
-                          "flex size-8 shrink-0 items-center justify-center rounded-lg mt-0.5",
-                          method === m.key ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                          "size-1.5 rounded-full animate-pulse",
+                          midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
                         )}
-                      >
-                        <m.icon className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-bold truncate">{m.label}</p>
-                          <span
-                            className={cn(
-                              "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                              method === m.key
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-muted-foreground/30"
-                            )}
-                          >
-                            {method === m.key && <Check className="size-2.5" />}
+                      />
+                      Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
+                    </span>
+                  </div>
+
+                  {/* Financial summary card */}
+                  <div className="rounded-2xl border border-border bg-muted/40 p-3.5 space-y-2.5 dark:border-slate-800">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Subtotal ({payFor.items.length} item)</span>
+                      <span className="font-medium text-foreground">{formatRupiah(rawSubtotal)}</span>
+                    </div>
+
+                    {payFor.discountAmount && payFor.discountAmount > 0 ? (
+                      <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Tag className="size-3.5 shrink-0" />
+                          <span className="font-semibold truncate">{payFor.discountCode || "Diskon"}</span>
+                          <span className="text-[10px] opacity-75 shrink-0">
+                            ({payFor.discountType === "voucher" ? "Voucher" : "Manual"})
                           </span>
                         </div>
-                        <p className="text-[10.5px] text-muted-foreground leading-tight mt-0.5 line-clamp-1">{m.desc}</p>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold">- {formatRupiah(payFor.discountAmount)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDiscount(payFor.id)}
+                            className="rounded p-0.5 text-muted-foreground hover:bg-emerald-500/20 hover:text-foreground"
+                            title="Hapus diskon"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </div>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountFor(payFor)
+                          setVoucherInput("")
+                          setManualAmount(0)
+                          setManualNote("")
+                        }}
+                        className="flex w-full items-center justify-between rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Tag className="size-3.5" /> Ada Voucher Promo atau Diskon Khusus?
+                        </span>
+                        <span className="text-[11px] underline">Gunakan</span>
+                      </button>
+                    )}
 
-              {/* ================= INTERACTIVE VIEW PER METHOD ================= */}
+                    {payFor.paidAmount > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Sudah Dibayar (DP)</span>
+                        <span>{formatRupiah(payFor.paidAmount)}</span>
+                      </div>
+                    )}
 
-              {/* 1. QRIS DYNAMIC VIEW */}
-              {method === "QRIS" && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
-                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-black text-xs tracking-wider text-rose-600 dark:text-rose-400">QRIS</span>
-                      <span className="text-[10px] text-muted-foreground">· Midtrans Snap QR Dynamic</span>
+                    {/* Tagihan Pokok Bengkel vs Admin Fee Gateway */}
+                    {adminFee > 0 && (
+                      <div className="flex justify-between text-xs text-muted-foreground pt-0.5">
+                        <span className="flex items-center gap-1">
+                          <span>Biaya Admin Midtrans</span>
+                          <span className="rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">
+                            {method === "Transfer" ? "VA Flat" : method === "Kartu" ? "2% MDR" : "Gateway"}
+                          </span>
+                        </span>
+                        <span className="font-semibold text-foreground">+ {formatRupiah(adminFee)}</span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-dashed border-border pt-2 flex items-baseline justify-between">
+                      <div>
+                        <span className="text-xs font-semibold text-foreground">Total Tagihan Bayar</span>
+                        {adminFee > 0 ? (
+                          <p className="text-[10px] text-muted-foreground">Termasuk biaya admin penanganan gateway</p>
+                        ) : (
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Bebas biaya admin transfer</p>
+                        )}
+                      </div>
+                      <span className="text-xl font-black tracking-tight text-primary">
+                        {formatRupiah(finalPayAmount)}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                      <Clock className="size-3" />
-                      Berlaku 15 Menit
-                    </span>
                   </div>
 
-                  <div className="flex flex-col items-center justify-center gap-2.5 py-1">
-                    {/* Simulated High-Resolution Styled QRIS Box */}
-                    <div className="relative rounded-2xl bg-white p-3.5 shadow-md border-2 border-slate-200">
-                      <div className="size-44 rounded-xl border border-slate-300 p-2 flex flex-col justify-between bg-white">
-                        {/* QR Corners styling */}
-                        <div className="flex justify-between">
-                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                            <div className="size-3 bg-slate-900 rounded-xs" />
-                          </div>
-                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                            <div className="size-3 bg-slate-900 rounded-xs" />
-                          </div>
-                        </div>
-
-                        {/* QR Matrix body simulation */}
-                        <div className="grid grid-cols-11 gap-1 my-1 px-1">
-                          {Array.from({ length: 77 }).map((_, i) => (
+                  {/* Payment Methods Selector Cards */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-foreground">Pilih Kanal Pembayaran:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {methods.map((m) => {
+                        const isSelected = method === m.key
+                        return (
+                          <button
+                            key={m.key}
+                            type="button"
+                            onClick={() => setMethod(m.key)}
+                            className={cn(
+                              "flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all active:scale-[0.99]",
+                              isSelected
+                                ? "border-primary bg-primary/10 shadow-xs ring-2 ring-primary/40 dark:bg-primary/20"
+                                : "border-border bg-card hover:bg-muted/50 dark:border-slate-800"
+                            )}
+                          >
                             <span
-                              key={i}
                               className={cn(
-                                "size-1.5 rounded-[1px]",
-                                (i * 13 + ((i * i) % 7)) % 3 !== 1 ? "bg-slate-900" : "bg-transparent"
+                                "flex size-8 shrink-0 items-center justify-center rounded-lg mt-0.5",
+                                isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                               )}
-                            />
-                          ))}
-                        </div>
-
-                        {/* Center Midtrans / Logo Badge */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="rounded-lg bg-blue-600 px-2 py-0.5 text-[8.5px] font-black text-white shadow-sm border border-white">
-                            MIDTRANS
-                          </div>
-                        </div>
-
-                        {/* Bottom Corners */}
-                        <div className="flex justify-between items-end">
-                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
-                            <div className="size-3 bg-slate-900 rounded-xs" />
-                          </div>
-                          <span className="text-[7.5px] font-mono text-slate-500 font-bold">NMID: ID1020260925</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="text-center space-y-0.5">
-                      <p className="text-xs font-bold text-foreground">{profile.name || "GTA GARAGE"}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Scan dengan e-Wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking (BCA, Livin&apos;, BRImo)
-                      </p>
+                            >
+                              <m.icon className="size-4" />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between gap-1">
+                                <p className="text-xs font-bold truncate">{m.label}</p>
+                                <span
+                                  className={cn(
+                                    "flex size-4 shrink-0 items-center justify-center rounded-full border",
+                                    isSelected
+                                      ? "border-primary bg-primary text-primary-foreground"
+                                      : "border-muted-foreground/30"
+                                  )}
+                                >
+                                  {isSelected && <Check className="size-2.5" />}
+                                </span>
+                              </div>
+                              <p className="text-[10.5px] text-muted-foreground leading-tight mt-0.5 line-clamp-1">{m.desc}</p>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
 
-                  {/* Cashier simulation button */}
-                  <button
-                    type="button"
-                    onClick={handleSimulatePayment}
-                    disabled={isSimulatingPayment}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>
-                      {isSimulatingPayment
-                        ? "Memverifikasi notifikasi webhook Midtrans..."
-                        : "⚡ Simulasi: Pelanggan Selesai Scan QRIS"}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {/* 2. TRANSFER BANK / VIRTUAL ACCOUNT VIEW */}
-              {method === "Transfer" && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
-                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
-                    <span className="text-xs font-bold text-foreground">Pilih Bank Virtual Account</span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Cek Otomatis 24 Jam</span>
-                  </div>
-
-                  {/* Bank selector chips */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["BCA", "Mandiri", "BRI", "BNI", "Permata"] as const).map((b) => (
-                      <button
-                        key={b}
-                        type="button"
-                        onClick={() => {
-                          setSelectedBank(b)
-                          setCopiedVa(false)
-                        }}
-                        className={cn(
-                          "rounded-xl border py-1.5 px-3 text-xs font-bold transition-all",
-                          selectedBank === b
-                            ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                            : "border-border bg-background hover:bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {b}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* VA Number & Details Card */}
-                  <div className="rounded-xl border border-border bg-background p-3.5 space-y-2 dark:border-slate-700/80">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-muted-foreground">
-                        {selectedBank} Virtual Account
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const num = getVaNumber(selectedBank, payFor).replace(/\s/g, "")
-                          navigator.clipboard?.writeText(num)
-                          setCopiedVa(true)
-                          toast.success("Nomor VA Disalin", `${num} (${selectedBank})`)
-                          setTimeout(() => setCopiedVa(false), 2000)
-                        }}
-                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold hover:bg-muted transition-colors"
-                      >
-                        {copiedVa ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
-                        <span>{copiedVa ? "Tersalin!" : "Salin VA"}</span>
-                      </button>
-                    </div>
-
-                    <p className="font-mono text-lg font-black tracking-wider text-foreground">
-                      {getVaNumber(selectedBank, payFor)}
-                    </p>
-
-                    <div className="border-t border-dashed border-border pt-2 text-[11px] space-y-1 text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>Atas Nama:</span>
-                        <strong className="text-foreground">MIDTRANS / {payFor.customer.name.toUpperCase()}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Jumlah Transfer:</span>
-                        <strong className="text-primary font-bold">{formatRupiah(finalPayAmount)}</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cashier simulation button */}
-                  <button
-                    type="button"
-                    onClick={handleSimulatePayment}
-                    disabled={isSimulatingPayment}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>
-                      {isSimulatingPayment
-                        ? "Menerima notifikasi settlement VA..."
-                        : "⚡ Simulasi: Pelanggan Selesai Transfer VA"}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {/* 3. KARTU DEBIT / KREDIT VIEW */}
-              {method === "Kartu" && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
-                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
-                    <span className="text-xs font-bold text-foreground">Midtrans 3D Secure Card Gateway</span>
-                    <span className="text-[10px] text-muted-foreground font-mono">Visa · Master · JCB</span>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Nomor Kartu</label>
-                      <input
-                        type="text"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="4111 2222 3333 4444"
-                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Masa Berlaku</label>
-                        <input
-                          type="text"
-                          value={cardExp}
-                          onChange={(e) => setCardExp(e.target.value)}
-                          placeholder="MM/YY"
-                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">CVV / CVC</label>
-                        <input
-                          type="password"
-                          maxLength={4}
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="•••"
-                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/40 p-2 rounded-xl">
-                    <Lock className="size-3 shrink-0 text-blue-600 dark:text-blue-400" />
-                    <span>Diproteksi dengan Fraud Detection System Aegis &amp; One Time Password (OTP).</span>
-                  </div>
-
-                  {/* Cashier simulation button */}
-                  <button
-                    type="button"
-                    onClick={handleSimulatePayment}
-                    disabled={isSimulatingPayment}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                  >
-                    <Sparkles className="size-3.5" />
-                    <span>
-                      {isSimulatingPayment
-                        ? "Memvalidasi OTP 3DS Midtrans..."
-                        : "⚡ Simulasi: Transaksi Kartu 3D Secure Berhasil"}
-                    </span>
-                  </button>
-                </div>
-              )}
-
-              {/* 4. TUNAI DI KASIR VIEW */}
-              {method === "Tunai" && (
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
-                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
-                    <span className="text-xs font-bold text-foreground">Kalkulator Kasir Tunai</span>
-                    <span className="text-[10px] text-muted-foreground">Hitung Kembalian Otomatis</span>
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                      Uang Diterima dari Pelanggan (Rp)
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">Rp</span>
-                      <input
-                        type="number"
-                        value={cashReceived}
-                        onChange={(e) => setCashReceived(e.target.value === "" ? "" : Number(e.target.value))}
-                        placeholder={finalPayAmount.toString()}
-                        className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm font-bold focus:border-primary focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Quick suggestion chips */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {activeCashOptions.map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setCashReceived(opt)}
-                        className={cn(
-                          "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all",
-                          cashReceived === opt
-                            ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
-                            : "border-border bg-background hover:bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {opt === finalPayAmount ? "Uang Pas" : formatRupiah(opt)}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Kembalian / Kurang Banner */}
-                  {typeof cashReceived === "number" && (
-                    <div
-                      className={cn(
-                        "rounded-xl p-3 border text-xs font-semibold flex items-center justify-between",
-                        cashReceived >= finalPayAmount
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                          : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400"
-                      )}
+                  {/* Next Step Button */}
+                  <div className="pt-1">
+                    <Button
+                      type="button"
+                      disabled={!method}
+                      onClick={() => setPayStep("pay_action")}
+                      className="w-full gap-2 py-3 text-xs font-bold shadow-md h-11"
                     >
-                      <span>{cashReceived >= finalPayAmount ? "Uang Kembalian Kasir:" : "Uang Masih Kurang:"}</span>
-                      <span className="text-sm font-bold">
-                        {cashReceived >= finalPayAmount
-                          ? formatRupiah(cashReceived - finalPayAmount)
-                          : formatRupiah(finalPayAmount - cashReceived)}
+                      <span>
+                        {method
+                          ? `Lanjutkan Pembayaran via ${methods.find((m) => m.key === method)?.label.split(" (")[0]} →`
+                          : "Pilih Salah Satu Kanal Pembayaran di Atas"}
                       </span>
+                      {method && <ArrowRight className="size-4" />}
+                    </Button>
+                  </div>
+
+                  {/* Midtrans Trust Footer */}
+                  <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                    <Lock className="size-3 text-muted-foreground/70" />
+                    <span>
+                      Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {/* ================= STEP 2: DETAIL METODE & AKSI PEMBAYARAN ================= */}
+              {payStep === "pay_action" && (
+                <>
+                  {/* Top Bar: Back to Step 1 & Summary */}
+                  <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2.5 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setPayStep("select_method")}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline transition-all"
+                    >
+                      <ChevronLeft className="size-4" />
+                      <span>Ubah Metode</span>
+                    </button>
+                    <div className="text-right">
+                      <span className="text-[10px] text-muted-foreground block">Total Tagihan:</span>
+                      <span className="text-sm font-black text-foreground">{formatRupiah(finalPayAmount)}</span>
+                    </div>
+                  </div>
+
+                  {/* 1. QRIS DYNAMIC VIEW */}
+                  {method === "QRIS" && (
+                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-black text-xs tracking-wider text-rose-600 dark:text-rose-400">QRIS</span>
+                          <span className="text-[10px] text-muted-foreground">· Midtrans Snap QR Dynamic</span>
+                        </div>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                          <Clock className="size-3" />
+                          Berlaku 15 Menit
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col items-center justify-center gap-2.5 py-1">
+                        {/* High-Resolution Styled QRIS Box */}
+                        <div className="relative rounded-2xl bg-white p-3.5 shadow-md border-2 border-slate-200">
+                          <div className="size-44 rounded-xl border border-slate-300 p-2 flex flex-col justify-between bg-white">
+                            {/* QR Corners styling */}
+                            <div className="flex justify-between">
+                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                                <div className="size-3 bg-slate-900 rounded-xs" />
+                              </div>
+                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                                <div className="size-3 bg-slate-900 rounded-xs" />
+                              </div>
+                            </div>
+
+                            {/* QR Matrix body simulation */}
+                            <div className="grid grid-cols-11 gap-1 my-1 px-1">
+                              {Array.from({ length: 77 }).map((_, i) => (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    "size-1.5 rounded-[1px]",
+                                    (i * 13 + ((i * i) % 7)) % 3 !== 1 ? "bg-slate-900" : "bg-transparent"
+                                  )}
+                                />
+                              ))}
+                            </div>
+
+                            {/* Center Midtrans / Logo Badge */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="rounded-lg bg-blue-600 px-2 py-0.5 text-[8.5px] font-black text-white shadow-sm border border-white">
+                                MIDTRANS
+                              </div>
+                            </div>
+
+                            {/* Bottom Corners */}
+                            <div className="flex justify-between items-end">
+                              <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                                <div className="size-3 bg-slate-900 rounded-xs" />
+                              </div>
+                              <span className="text-[7.5px] font-mono text-slate-500 font-bold">NMID: ID1020260925</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-center space-y-0.5">
+                          <p className="text-xs font-bold text-foreground">{profile.name || "GTA GARAGE"}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Scan dengan e-Wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking (BCA, Livin&apos;, BRImo)
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* WhatsApp Remote Share Card */}
+                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5 dark:border-emerald-500/20 dark:bg-emerald-950/20">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <WhatsAppIcon className="size-4 fill-emerald-600 dark:fill-emerald-400" />
+                            <span>Customer Tidak di Tempat?</span>
+                          </span>
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Bagikan ke WA
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Kirim instruksi tagihan &amp; kode QRIS langsung ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
+                        </p>
+                        <div className="flex gap-2 pt-0.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const msg = generatePaymentInstructionWaMessage(payFor, profile, "QRIS", "", "", finalPayAmount, paymentRefId)
+                              await navigator.clipboard.writeText(msg)
+                              toast.success("Pesan Disalin", "Teks petunjuk QRIS berhasil disalin ke clipboard.")
+                            }}
+                            className="flex-1 text-xs border-border bg-background hover:bg-muted font-medium"
+                          >
+                            <Copy className="size-3.5 mr-1.5" />
+                            Salin Pesan
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSendPaymentInstructionToWa(payFor, "QRIS", "", finalPayAmount)}
+                            className="flex-[1.5] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20"
+                          >
+                            <WhatsAppIcon className="size-3.5 fill-white" />
+                            Kirim ke WA Customer
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Waiting Status Banner */}
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="size-2 rounded-full bg-amber-500 mt-1.5 animate-ping shrink-0" />
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-xs">⏳ Menunggu Pembayaran dari Customer...</p>
+                            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-medium">Pending Scan</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800/90 dark:text-amber-300/80 leading-relaxed">
+                            Customer sedang memindai QRIS. Setelah pembayaran masuk, klik tombol konfirmasi di bawah untuk menyelesaikan invoice.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Cashier simulation button */}
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>
+                          {isSimulatingPayment
+                            ? "Memverifikasi notifikasi webhook Midtrans..."
+                            : "⚡ Simulasi: Pelanggan Selesai Scan QRIS"}
+                        </span>
+                      </button>
+
+                      {/* Main Confirm Button */}
+                      <Button
+                        type="button"
+                        className="w-full gap-2 py-3 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={handleExecutePayment}
+                        disabled={isSimulatingPayment}
+                      >
+                        <ShieldCheck className="size-4" />
+                        <span>Konfirmasi Pembayaran (Customer Sudah Bayar)</span>
+                      </Button>
                     </div>
                   )}
-                </div>
+
+                  {/* 2. TRANSFER BANK / VIRTUAL ACCOUNT VIEW */}
+                  {method === "Transfer" && (
+                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                        <span className="text-xs font-bold text-foreground">Pilih Bank Virtual Account</span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Cek Otomatis 24 Jam</span>
+                      </div>
+
+                      {/* Bank selector chips */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {(["BCA", "Mandiri", "BRI", "BNI", "Permata"] as const).map((b) => (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBank(b)
+                              setCopiedVa(false)
+                            }}
+                            className={cn(
+                              "rounded-xl border py-1.5 px-3 text-xs font-bold transition-all",
+                              selectedBank === b
+                                ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                                : "border-border bg-background hover:bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {b}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* VA Number & Details Card */}
+                      <div className="rounded-xl border border-border bg-background p-3.5 space-y-2 dark:border-slate-700/80">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-muted-foreground">
+                            {selectedBank} Virtual Account
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const num = getVaNumber(selectedBank, payFor).replace(/\s/g, "")
+                              navigator.clipboard?.writeText(num)
+                              setCopiedVa(true)
+                              toast.success("Nomor VA Disalin", `${num} (${selectedBank})`)
+                              setTimeout(() => setCopiedVa(false), 2000)
+                            }}
+                            className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold hover:bg-muted transition-colors"
+                          >
+                            {copiedVa ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                            <span>{copiedVa ? "Tersalin!" : "Salin VA"}</span>
+                          </button>
+                        </div>
+
+                        <p className="font-mono text-lg font-black tracking-wider text-foreground">
+                          {getVaNumber(selectedBank, payFor)}
+                        </p>
+
+                        <div className="border-t border-dashed border-border pt-2 text-[11px] space-y-1 text-muted-foreground">
+                          <div className="flex justify-between">
+                            <span>Atas Nama:</span>
+                            <strong className="text-foreground">MIDTRANS / {payFor.customer.name.toUpperCase()}</strong>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Jumlah Transfer:</span>
+                            <strong className="text-primary font-bold">{formatRupiah(finalPayAmount)}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* WhatsApp Remote Share Card */}
+                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5 dark:border-emerald-500/20 dark:bg-emerald-950/20">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <WhatsAppIcon className="size-4 fill-emerald-600 dark:fill-emerald-400" />
+                            <span>Customer Tidak di Tempat?</span>
+                          </span>
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Bagikan ke WA
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Kirim nomor <strong>{selectedBank} Virtual Account</strong> &amp; instruksi transfer ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
+                        </p>
+                        <div className="flex gap-2 pt-0.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              const vaNum = getVaNumber(selectedBank, payFor)
+                              const msg = generatePaymentInstructionWaMessage(payFor, profile, "Transfer", selectedBank, vaNum, finalPayAmount, paymentRefId)
+                              await navigator.clipboard.writeText(msg)
+                              toast.success("Pesan Disalin", "Teks instruksi transfer VA berhasil disalin ke clipboard.")
+                            }}
+                            className="flex-1 text-xs border-border bg-background hover:bg-muted font-medium"
+                          >
+                            <Copy className="size-3.5 mr-1.5" />
+                            Salin Pesan
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSendPaymentInstructionToWa(payFor, "Transfer", selectedBank, finalPayAmount)}
+                            className="flex-[1.5] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20"
+                          >
+                            <WhatsAppIcon className="size-3.5 fill-white" />
+                            Kirim ke WA Customer
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Waiting Status Banner */}
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                        <div className="size-2 rounded-full bg-amber-500 mt-1.5 animate-ping shrink-0" />
+                        <div className="space-y-0.5 min-w-0 flex-1">
+                          <div className="flex items-center justify-between">
+                            <p className="font-bold text-xs">⏳ Menunggu Transfer Masuk dari Customer...</p>
+                            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-medium">Pending Transfer</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800/90 dark:text-amber-300/80 leading-relaxed">
+                            Customer mentransfer ke nomor Virtual Account di atas. Setelah dana masuk, klik tombol konfirmasi di bawah untuk menyelesaikan invoice.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Cashier simulation button */}
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>
+                          {isSimulatingPayment
+                            ? "Menerima notifikasi settlement VA..."
+                            : "⚡ Simulasi: Pelanggan Selesai Transfer VA"}
+                        </span>
+                      </button>
+
+                      {/* Main Confirm Button */}
+                      <Button
+                        type="button"
+                        className="w-full gap-2 py-3 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                        onClick={handleExecutePayment}
+                        disabled={isSimulatingPayment}
+                      >
+                        <ShieldCheck className="size-4" />
+                        <span>Konfirmasi Pembayaran (Customer Sudah Bayar)</span>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* 3. KARTU DEBIT / KREDIT VIEW */}
+                  {method === "Kartu" && (
+                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                        <span className="text-xs font-bold text-foreground">Midtrans 3D Secure Card Gateway</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">Visa · Master · JCB</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Nomor Kartu</label>
+                          <input
+                            type="text"
+                            value={cardNumber}
+                            onChange={(e) => setCardNumber(e.target.value)}
+                            placeholder="4111 2222 3333 4444"
+                            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Masa Berlaku</label>
+                            <input
+                              type="text"
+                              value={cardExp}
+                              onChange={(e) => setCardExp(e.target.value)}
+                              placeholder="MM/YY"
+                              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium text-muted-foreground">CVV / CVC</label>
+                            <input
+                              type="password"
+                              maxLength={4}
+                              value={cardCvv}
+                              onChange={(e) => setCardCvv(e.target.value)}
+                              placeholder="•••"
+                              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/40 p-2 rounded-xl">
+                        <Lock className="size-3 shrink-0 text-blue-600 dark:text-blue-400" />
+                        <span>Diproteksi dengan Fraud Detection System Aegis &amp; One Time Password (OTP).</span>
+                      </div>
+
+                      {/* Cashier simulation button */}
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                      >
+                        <Sparkles className="size-3.5" />
+                        <span>
+                          {isSimulatingPayment
+                            ? "Memvalidasi OTP 3DS Midtrans..."
+                            : "⚡ Simulasi: Transaksi Kartu 3D Secure Berhasil"}
+                        </span>
+                      </button>
+
+                      {/* Main Confirm Button */}
+                      <Button
+                        type="button"
+                        className="w-full gap-2 py-3 text-xs font-bold shadow-md"
+                        onClick={handleExecutePayment}
+                        disabled={isSimulatingPayment}
+                      >
+                        <ShieldCheck className="size-4" />
+                        <span>Proses &amp; Konfirmasi Pembayaran Kartu</span>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* 4. TUNAI DI KASIR VIEW */}
+                  {method === "Tunai" && (
+                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                        <span className="text-xs font-bold text-foreground">Kalkulator Kasir Tunai</span>
+                        <span className="text-[10px] text-muted-foreground">Hitung Kembalian Otomatis</span>
+                      </div>
+
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                          Uang Diterima dari Pelanggan (Rp)
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">Rp</span>
+                          <input
+                            type="number"
+                            value={cashReceived}
+                            onChange={(e) => setCashReceived(e.target.value === "" ? "" : Number(e.target.value))}
+                            placeholder={finalPayAmount.toString()}
+                            className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm font-bold focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Quick suggestion chips */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {activeCashOptions.map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setCashReceived(opt)}
+                            className={cn(
+                              "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all",
+                              cashReceived === opt
+                                ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
+                                : "border-border bg-background hover:bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {opt === finalPayAmount ? "Uang Pas" : formatRupiah(opt)}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Kembalian / Kurang Banner */}
+                      {typeof cashReceived === "number" && (
+                        <div
+                          className={cn(
+                            "rounded-xl p-3 border text-xs font-semibold flex items-center justify-between",
+                            cashReceived >= finalPayAmount
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                              : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                          )}
+                        >
+                          <span>{cashReceived >= finalPayAmount ? "Uang Kembalian Kasir:" : "Uang Masih Kurang:"}</span>
+                          <span className="text-sm font-bold">
+                            {cashReceived >= finalPayAmount
+                              ? formatRupiah(cashReceived - finalPayAmount)
+                              : formatRupiah(finalPayAmount - cashReceived)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Main Confirm Button */}
+                      <Button
+                        type="button"
+                        className="w-full gap-2 py-3 text-xs font-bold shadow-md"
+                        disabled={cashReceived !== "" && Number(cashReceived) < finalPayAmount}
+                        onClick={handleExecutePayment}
+                      >
+                        <ShieldCheck className="size-4" />
+                        <span>Terima Pembayaran Tunai &amp; Selesaikan</span>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Midtrans Trust Footer */}
+                  <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                    <Lock className="size-3 text-muted-foreground/70" />
+                    <span>
+                      Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
+                    </span>
+                  </div>
+                </>
               )}
-
-              {/* Main Confirm Button */}
-              <Button
-                type="button"
-                className="w-full gap-2 py-3 text-xs font-bold shadow-md"
-                disabled={
-                  !method ||
-                  (method === "Tunai" && cashReceived !== "" && Number(cashReceived) < finalPayAmount) ||
-                  isSimulatingPayment
-                }
-                onClick={handleExecutePayment}
-              >
-                <ShieldCheck className="size-4" />
-                <span>
-                  {method === "Tunai"
-                    ? "Terima Pembayaran Tunai & Selesaikan"
-                    : `Konfirmasi Pembayaran (${method})`}
-                </span>
-              </Button>
-
-              {/* Midtrans Trust Footer */}
-              <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
-                <Lock className="size-3 text-muted-foreground/70" />
-                <span>
-                  Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
-                </span>
-              </div>
             </div>
           )
         })()}
