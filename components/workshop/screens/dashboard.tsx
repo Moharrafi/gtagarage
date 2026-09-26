@@ -163,7 +163,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
   return (
     <div className="space-y-0">
       {/* ================= DANA STYLE BLUE TOP HERO SECTION ================= */}
-      <section className="-mx-4 md:-mx-6 -mt-4 bg-brand-gradient px-4 md:px-6 pt-1 pb-9 text-white shadow-xs dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900">
+      <section className="-mx-4 md:-mx-6 -mt-4 bg-primary px-4 md:px-6 pt-1 pb-9 text-white shadow-xs dark:bg-slate-900">
         {/* Today's Revenue Highlight & Shop Status */}
         <div className="flex items-center justify-between pb-3 pt-1">
           <div>

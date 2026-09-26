@@ -225,9 +225,9 @@ function AppShellInner() {
           {/* Header - DANA 2-Tone Style */}
           <header
             className={cn(
-              "z-20 flex items-center gap-3 bg-brand-gradient px-4 md:px-6 text-white shrink-0 shadow-xs",
+              "z-20 flex items-center gap-3 bg-primary px-4 md:px-6 text-white shrink-0 shadow-xs",
               tab === "beranda" ? "border-b-0 pt-3.5 pb-2" : "border-b border-primary/20 py-3.5 shadow-sm shadow-primary/20",
-              "dark:border-slate-800 dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-950/80 dark:to-slate-900"
+              "dark:border-slate-800 dark:bg-slate-900"
             )}
           >
             {tab === "beranda" ? (
@@ -291,8 +291,6 @@ function AppShellInner() {
 
           {/* Scrollable content - DANA-style 2-tone clean canvas */}
           <main className="relative flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-24 md:pb-6 pt-4 no-scrollbar bg-[#f4f7fb] dark:bg-background">
-            {/* DANA-style top subtle blue transition */}
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-primary/10 via-primary/3 to-transparent dark:from-blue-500/10 dark:to-transparent" />
             <div className="relative mx-auto w-full max-w-5xl">
               {tab === "beranda" && <DashboardScreen onNavigate={setTab} />}
               {tab === "pekerjaan" && <WorkOrdersScreen />}
