@@ -17,8 +17,10 @@ interface WhatsAppModalProps {
 }
 
 export function WhatsAppModal({ open, onClose, initialWorkOrderId }: WhatsAppModalProps) {
-  const { workOrders, profile, dismissTip, isTipDismissed } = useWorkshop()
+  const { workOrders, profile, dismissTip, isTipDismissed, canEdit } = useWorkshop()
   const [selectedWoId, setSelectedWoId] = useState<string>("")
+
+  if (!canEdit) return null
   const [phone, setPhone] = useState("")
   const [customerName, setCustomerName] = useState("")
   const [message, setMessage] = useState("")

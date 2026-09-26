@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Package,
   ChevronRight,
+  BarChart3,
 } from "lucide-react"
 import { Area, AreaChart, ResponsiveContainer } from "recharts"
 import { Card } from "@/components/ui/card"
@@ -18,6 +19,7 @@ import { ServiceIcon } from "@/components/workshop/service-icon"
 import { WorkStatusBadge } from "@/components/workshop/status-badge"
 import { WhatsAppModal } from "@/components/workshop/whatsapp-modal"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
+import { useWorkshop } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import {
   workOrders,
@@ -67,8 +69,18 @@ const quickActions: QuickAction[] = [
 const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
 
 export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => void }) {
+  const { canEdit } = useWorkshop()
   const [waOpen, setWaOpen] = useState(false)
   const monthRevenue = revenueTrend[revenueTrend.length - 1].pendapatan
+
+  const activeQuickActions: QuickAction[] = canEdit
+    ? quickActions
+    : [
+        { label: "Pekerjaan", icon: Plus, go: "pekerjaan" },
+        { label: "Invoice", icon: ReceiptText, go: "invoice" },
+        { label: "Stok", icon: Package, go: "stok" },
+        { label: "Laporan", icon: BarChart3, go: "analitik" },
+      ]
 
   return (
     <div className="space-y-5">
@@ -87,7 +99,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
 
       <section>
         <div className="grid grid-cols-4 gap-2">
-          {quickActions.map((a) => (
+          {activeQuickActions.map((a) => (
             <button
               key={a.label}
               type="button"
@@ -200,7 +212,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
         </Card>
       </section>
 
-      <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} />
+      {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} />}
     </div>
   )
 }

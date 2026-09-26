@@ -435,6 +435,7 @@ export function InvoicesScreen() {
   const [waImageDataUrl, setWaImageDataUrl] = useState<string>("")
 
   function openWa(inv: Invoice) {
+    if (!canEdit) return
     setWaInvoice(inv)
     setWaName(inv.customer.name)
     setWaPhone(inv.customer.phone || "")
@@ -827,33 +828,38 @@ export function InvoicesScreen() {
                   <Check className="size-4" /> Lunas via {active.method || "Tunai"}
                 </div>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
-                    onClick={() => openWa(active)}
-                  >
-                    <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim Kwitansi WA
-                  </Button>
-                  <Button variant="outline" className="flex-1 gap-2 bg-transparent" onClick={() => window.print()}>
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
+                      onClick={() => openWa(active)}
+                    >
+                      <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim Kwitansi WA
+                    </Button>
+                  )}
+                  <Button variant="outline" className={cn("gap-2 bg-transparent", canEdit ? "flex-1" : "w-full")} onClick={() => window.print()}>
                     <Printer className="size-4" /> Cetak Struk
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="flex gap-2 pt-1">
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold",
-                    canEdit ? "flex-1" : "w-full"
-                  )}
-                  onClick={() => openWa(active)}
-                >
-                  <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim ke WA
-                </Button>
-                {canEdit && (
-                  <Button className="flex-1 gap-2" onClick={() => openPay(active)}>
-                    <Wallet className="size-4" /> Bayar Sekarang
+                {canEdit ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
+                      onClick={() => openWa(active)}
+                    >
+                      <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim ke WA
+                    </Button>
+                    <Button className="flex-1 gap-2" onClick={() => openPay(active)}>
+                      <Wallet className="size-4" /> Bayar Sekarang
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" className="w-full gap-2" onClick={() => window.print()}>
+                    <Printer className="size-4" /> Cetak Tagihan Thermal
                   </Button>
                 )}
               </div>
@@ -863,7 +869,7 @@ export function InvoicesScreen() {
       </BottomSheet>
 
       {/* WhatsApp Invoice BottomSheet */}
-      <BottomSheet open={!!waInvoice} onClose={() => setWaInvoice(null)} title="Kirim Gambar Invoice via WhatsApp">
+      <BottomSheet open={!!waInvoice && canEdit} onClose={() => setWaInvoice(null)} title="Kirim Gambar Invoice via WhatsApp">
         {waInvoice && (
           <div className="space-y-3.5 max-h-[82vh] overflow-y-auto pr-0.5 no-scrollbar">
             {/* Info Banner */}

@@ -304,17 +304,14 @@ export function WorkOrdersScreen() {
                           <Pencil className="size-3.5" /> Edit
                         </button>
                       )}
-                      {w.status === "Siap Diambil" && (
+                      {w.status === "Siap Diambil" && canEdit && (
                         <button
                           type="button"
                           onClick={() => {
                             setWaWoId(w.id)
                             setWaOpen(true)
                           }}
-                          className={cn(
-                            "flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-                            !canEdit && "flex-1"
-                          )}
+                          className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                         >
                           <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap
                         </button>
@@ -537,7 +534,7 @@ export function WorkOrdersScreen() {
         </form>
       </BottomSheet>
 
-      <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} initialWorkOrderId={waWoId} />
+      {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} initialWorkOrderId={waWoId} />}
     </div>
   )
 }
