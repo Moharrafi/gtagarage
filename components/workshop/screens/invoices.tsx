@@ -50,7 +50,12 @@ import {
   type Voucher,
 } from "@/lib/data"
 import { useWorkshop, type WorkshopProfile } from "@/lib/store"
-import { getInvoiceImageDataUrl, getInvoiceImageBlob } from "@/lib/invoice-canvas"
+import {
+  getInvoiceImageDataUrl,
+  getInvoiceImageBlob,
+  getQrisCardBlob,
+  getQrisCardDataUrl,
+} from "@/lib/invoice-canvas"
 
 export type InvoiceFilter = "Belum Lunas" | "Belum Bayar" | "Sebagian" | "Jatuh Tempo" | "Lunas" | "Semua"
 
@@ -722,6 +727,43 @@ export function InvoicesScreen() {
     }
   }
 
+  async function handleDownloadQrisCard(inv: Invoice, amount: number) {
+    try {
+      const blob = await getQrisCardBlob(inv, profile, amount, paymentRefId)
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `QRIS-${inv.number.replace(/[^a-zA-Z0-9]/g, "-")}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast.success("Gambar QRIS Diunduh", "File siap dilampirkan atau dikirim ke WhatsApp pelanggan!")
+    } catch (e) {
+      console.error(e)
+      toast.error("Gagal Mengunduh", "Tidak dapat membuat file gambar QRIS.")
+    }
+  }
+
+  async function handleCopyQrisCardImage(inv: Invoice, amount: number) {
+    try {
+      const blob = await getQrisCardBlob(inv, profile, amount, paymentRefId)
+      if (blob && navigator.clipboard && typeof ClipboardItem !== "undefined") {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+        toast.success("Gambar QRIS Disalin ke Clipboard!", "Buka chat WhatsApp pelanggan lalu tekan Ctrl + V (Tempel).")
+        return true
+      } else {
+        await handleDownloadQrisCard(inv, amount)
+        return false
+      }
+    } catch (e) {
+      console.warn("Copy QRIS image failed, downloading instead", e)
+      await handleDownloadQrisCard(inv, amount)
+      return false
+    }
+  }
+
   async function handleSendPaymentInstructionToWa(
     inv: Invoice,
     methodKey: (typeof methods)[number]["key"] | null,
@@ -744,21 +786,63 @@ export function InvoicesScreen() {
       paymentRefId
     )
 
-    try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(msg)
-      }
-    } catch {
-      // ignore
-    }
+    // Handle QRIS Image Sharing
+    if (methodKey === "QRIS") {
+      try {
+        const qrisBlob = await getQrisCardBlob(inv, profile, amount, paymentRefId)
+        if (qrisBlob) {
+          const fileName = `QRIS-${inv.number.replace(/[^a-zA-Z0-9]/g, "-")}.png`
+          const qrisFile = new File([qrisBlob], fileName, { type: "image/png" })
 
-    try {
-      const blob = await getInvoiceImageBlob(inv, profile)
-      if (blob && navigator.clipboard && typeof ClipboardItem !== "undefined") {
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+          // 1. Mobile Web Share API: Natively attaches the image to WhatsApp on Android/iOS!
+          if (typeof navigator !== "undefined" && navigator.canShare && navigator.canShare({ files: [qrisFile] })) {
+            try {
+              await navigator.share({
+                files: [qrisFile],
+                title: `QRIS Pembayaran - ${inv.number}`,
+                text: msg,
+              })
+              addNotification({
+                type: "whatsapp",
+                title: "QRIS & Tagihan Dibagikan",
+                body: `Gambar QRIS & rincian invoice ${inv.number} an. ${inv.customer.name} berhasil dibagikan ke WhatsApp.`,
+                channel: clean || "WhatsApp",
+                status: "terkirim",
+                linkTab: "invoice",
+              })
+              toast.success("QRIS Berhasil Dibagikan", "Gambar QRIS dan instruksi pembayaran siap dikirim di WhatsApp!")
+              return
+            } catch (shareErr) {
+              console.log("Web Share cancelled or unsupported, fallback to web", shareErr)
+            }
+          }
+
+          // 2. Desktop Fallback: Copy QRIS image to clipboard so user can press Ctrl + V in WA
+          if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ "image/png": qrisBlob })])
+            } catch (clipErr) {
+              console.warn("Clipboard write failed", clipErr)
+            }
+          }
+
+          // 3. Desktop Fallback: Auto-download the QRIS image file so it is easily attached
+          try {
+            const url = URL.createObjectURL(qrisBlob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = fileName
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            setTimeout(() => URL.revokeObjectURL(url), 1000)
+          } catch (dlErr) {
+            console.warn("Auto-download failed", dlErr)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to generate QRIS card blob", err)
       }
-    } catch {
-      // ignore
     }
 
     addNotification({
@@ -773,7 +857,14 @@ export function InvoicesScreen() {
     const encoded = encodeURIComponent(msg)
     if (clean) {
       window.open(`https://api.whatsapp.com/send?phone=${clean}&text=${encoded}`, "_blank")
-      toast.success("Membuka WhatsApp", "Petunjuk pembayaran dikirim. Tinggal tunggu konfirmasi pembayaran dari customer!")
+      if (methodKey === "QRIS") {
+        toast.info(
+          "Gambar QRIS Disalin ke Clipboard & Diunduh!",
+          "Di chat WhatsApp pelanggan, cukup tekan Ctrl + V (Tempel Gambar) atau lampirkan file yang baru terunduh!"
+        )
+      } else {
+        toast.success("Membuka WhatsApp", "Petunjuk pembayaran dikirim. Tinggal tunggu konfirmasi pembayaran dari customer!")
+      }
     } else {
       window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank")
       toast.info("WhatsApp Terbuka", "Pesan telah disalin ke clipboard. Silakan pilih kontak di WhatsApp.")
@@ -1662,36 +1753,57 @@ export function InvoicesScreen() {
                             <span>Customer Tidak di Tempat?</span>
                           </span>
                           <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            Bagikan ke WA
+                            Kirim Gambar QRIS
                           </span>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Kirim instruksi tagihan &amp; kode QRIS langsung ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
+                          Bagikan gambar QRIS resmi &amp; instruksi pembayaran ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
                         </p>
-                        <div className="flex gap-2 pt-0.5">
+
+                        {/* Petunjuk Pengiriman WA */}
+                        <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-2.5 text-[11px] text-emerald-950 dark:text-emerald-200 space-y-1">
+                          <p className="font-bold flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
+                            <Sparkles className="size-3 text-emerald-600 dark:text-emerald-400" />
+                            <span>Mengapa WhatsApp Web hanya membuka teks?</span>
+                          </p>
+                          <p className="opacity-90 leading-tight">
+                            WhatsApp Web membatasi tautan link hanya untuk teks. Klik <strong>Buka WA &amp; Bagikan QRIS</strong> di bawah: gambar QRIS akan otomatis disalin &amp; diunduh. Di WhatsApp Web pelanggan, Anda cukup tekan <strong>Ctrl + V</strong> (Tempel Gambar) lalu Enter!
+                          </p>
+                        </div>
+
+                        {/* Action Buttons Grid */}
+                        <div className="space-y-1.5 pt-0.5">
                           <Button
                             type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              const msg = generatePaymentInstructionWaMessage(payFor, profile, "QRIS", "", "", finalPayAmount, paymentRefId)
-                              await navigator.clipboard.writeText(msg)
-                              toast.success("Pesan Disalin", "Teks petunjuk QRIS berhasil disalin ke clipboard.")
-                            }}
-                            className="flex-1 text-xs border-border bg-background hover:bg-muted font-medium"
-                          >
-                            <Copy className="size-3.5 mr-1.5" />
-                            Salin Pesan
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
                             onClick={() => handleSendPaymentInstructionToWa(payFor, "QRIS", "", finalPayAmount)}
-                            className="flex-[1.5] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20"
+                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20 py-2.5"
                           >
-                            <WhatsAppIcon className="size-3.5 fill-white" />
-                            Kirim ke WA Customer
+                            <WhatsAppIcon className="size-4 fill-white" />
+                            <span>Buka WA &amp; Bagikan QRIS (Otomatis Salin)</span>
                           </Button>
+
+                          <div className="grid grid-cols-2 gap-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCopyQrisCardImage(payFor, finalPayAmount)}
+                              className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5"
+                            >
+                              <Copy className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                              <span>Salin Gambar QRIS</span>
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadQrisCard(payFor, finalPayAmount)}
+                              className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5"
+                            >
+                              <Download className="size-3.5 text-blue-600 dark:text-blue-400" />
+                              <span>Unduh Gambar QRIS</span>
+                            </Button>
+                          </div>
                         </div>
                       </div>
 

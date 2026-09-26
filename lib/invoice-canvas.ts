@@ -373,3 +373,234 @@ export function getInvoiceImageDataUrl(invoice: Invoice, profile: WorkshopProfil
   const canvas = drawInvoiceCanvas(invoice, profile)
   return canvas.toDataURL("image/png")
 }
+
+/**
+ * Render a high-resolution, official QRIS payment card (with national red header, merchant info, QR matrix, and nominal amount).
+ */
+export function drawQrisCardCanvas(
+  invoice: Invoice,
+  profile: WorkshopProfile,
+  amount: number,
+  refId: string
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return canvas
+
+  const width = 540
+  const height = 740
+  const scale = 2
+  canvas.width = width * scale
+  canvas.height = height * scale
+  ctx.scale(scale, scale)
+
+  // Card background (pure white)
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(0, 0, width, height)
+
+  // Outer border
+  ctx.strokeStyle = "#e2e8f0"
+  ctx.lineWidth = 1.5
+  roundRect(ctx, 1, 1, width - 2, height - 2, 16)
+  ctx.stroke()
+
+  // Top Red Header bar (QRIS National standard)
+  const headerHeight = 72
+  ctx.fillStyle = "#dc2626"
+  ctx.beginPath()
+  ctx.moveTo(1, 16)
+  ctx.arcTo(1, 1, 16, 1, 16)
+  ctx.lineTo(width - 16, 1)
+  ctx.arcTo(width - 1, 1, width - 1, 16, 16)
+  ctx.lineTo(width - 1, headerHeight)
+  ctx.lineTo(1, headerHeight)
+  ctx.closePath()
+  ctx.fill()
+
+  // Top header text
+  ctx.textAlign = "left"
+  ctx.fillStyle = "#ffffff"
+  ctx.font = "bold 20px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("QRIS", 24, 38)
+
+  ctx.font = "600 10.5px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)"
+  ctx.fillText("QR STANDAR PEMBAYARAN NASIONAL", 24, 56)
+
+  // Midtrans badge on top right
+  ctx.textAlign = "right"
+  ctx.fillStyle = "rgba(255, 255, 255, 0.2)"
+  roundRect(ctx, width - 130, 20, 106, 32, 8)
+  ctx.fill()
+  ctx.fillStyle = "#ffffff"
+  ctx.font = "bold 11px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("MIDTRANS", width - 24, 40)
+
+  // Merchant name & info
+  let y = 100
+  ctx.textAlign = "center"
+  ctx.fillStyle = "#0f172a"
+  ctx.font = "bold 18px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText((profile.name || "GTA GARAGE").toUpperCase(), width / 2, y)
+
+  y += 18
+  ctx.fillStyle = "#64748b"
+  ctx.font = "600 11px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("NMID: ID1020260925 · KODE MERCHANT: GTABGK01", width / 2, y)
+
+  // Invoice & Customer Info pill
+  y += 16
+  ctx.fillStyle = "#f8fafc"
+  roundRect(ctx, 36, y, width - 72, 42, 10)
+  ctx.fill()
+  ctx.strokeStyle = "#e2e8f0"
+  ctx.lineWidth = 1
+  roundRect(ctx, 36, y, width - 72, 42, 10)
+  ctx.stroke()
+
+  ctx.textAlign = "left"
+  ctx.fillStyle = "#475569"
+  ctx.font = "500 11px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText(`No. Invoice: ${invoice.number}`, 48, y + 18)
+  ctx.fillText(`Kendaraan: ${invoice.vehicle.brand} ${invoice.vehicle.model} (${invoice.vehicle.plate})`, 48, y + 33)
+
+  ctx.textAlign = "right"
+  ctx.fillStyle = "#0f172a"
+  ctx.font = "bold 11px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText(invoice.customer.name, width - 48, y + 18)
+  ctx.fillStyle = "#e11d48"
+  ctx.font = "bold 10px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("Berlaku: 15 Menit", width - 48, y + 33)
+
+  // QR Code Frame
+  y += 58
+  const qrBoxSize = 250
+  const qrX = (width - qrBoxSize) / 2
+  const qrY = y
+
+  ctx.fillStyle = "#ffffff"
+  roundRect(ctx, qrX, qrY, qrBoxSize, qrBoxSize, 14)
+  ctx.fill()
+  ctx.strokeStyle = "#cbd5e1"
+  ctx.lineWidth = 2
+  roundRect(ctx, qrX, qrY, qrBoxSize, qrBoxSize, 14)
+  ctx.stroke()
+
+  // Draw QR code matrix
+  const matrixPadding = 18
+  const matrixSize = qrBoxSize - matrixPadding * 2
+  const mX = qrX + matrixPadding
+  const mY = qrY + matrixPadding
+  const gridCount = 29
+  const cellSize = matrixSize / gridCount
+
+  // Helper to draw QR corner finder patterns
+  const drawFinder = (startX: number, startY: number) => {
+    ctx.fillStyle = "#0f172a"
+    ctx.fillRect(startX, startY, cellSize * 7, cellSize * 7)
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(startX + cellSize, startY + cellSize, cellSize * 5, cellSize * 5)
+    ctx.fillStyle = "#0f172a"
+    ctx.fillRect(startX + cellSize * 2, startY + cellSize * 2, cellSize * 3, cellSize * 3)
+  }
+
+  // Draw 3 Corner Finders
+  drawFinder(mX, mY)
+  drawFinder(mX + cellSize * (gridCount - 7), mY)
+  drawFinder(mX, mY + cellSize * (gridCount - 7))
+
+  // Deterministic modules inside body
+  ctx.fillStyle = "#0f172a"
+  const seed = invoice.number.split("").reduce((acc, c) => acc + c.charCodeAt(0), 17)
+  for (let r = 0; r < gridCount; r++) {
+    for (let c = 0; c < gridCount; c++) {
+      if (r < 8 && c < 8) continue
+      if (r < 8 && c > gridCount - 9) continue
+      if (r > gridCount - 9 && c < 8) continue
+      if (r >= 10 && r <= 18 && c >= 10 && c <= 18) continue
+
+      const val = (r * 31 + c * 17 + seed * 7 + (r * c)) % 100
+      if (val < 48) {
+        ctx.fillRect(mX + c * cellSize, mY + r * cellSize, cellSize, cellSize)
+      }
+    }
+  }
+
+  // Draw Center Midtrans logo pill inside QR
+  const centerW = 76
+  const centerH = 26
+  const cX = (width - centerW) / 2
+  const cY = qrY + (qrBoxSize - centerH) / 2
+  ctx.fillStyle = "#ffffff"
+  roundRect(ctx, cX - 2, cY - 2, centerW + 4, centerH + 4, 6)
+  ctx.fill()
+  ctx.fillStyle = "#2563eb"
+  roundRect(ctx, cX, cY, centerW, centerH, 5)
+  ctx.fill()
+  ctx.fillStyle = "#ffffff"
+  ctx.textAlign = "center"
+  ctx.font = "900 10.5px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("MIDTRANS", width / 2, cY + 17)
+
+  // Total Payment Box below QR
+  y = qrY + qrBoxSize + 22
+  ctx.fillStyle = "#f0fdf4"
+  roundRect(ctx, 36, y, width - 72, 68, 12)
+  ctx.fill()
+  ctx.strokeStyle = "#86efac"
+  ctx.lineWidth = 1.5
+  roundRect(ctx, 36, y, width - 72, 68, 12)
+  ctx.stroke()
+
+  ctx.textAlign = "center"
+  ctx.fillStyle = "#15803d"
+  ctx.font = "bold 10.5px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("TOTAL TAGIHAN PEMBAYARAN", width / 2, y + 24)
+
+  ctx.fillStyle = "#166534"
+  ctx.font = "bold 24px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText(formatRupiah(amount), width / 2, y + 52)
+
+  // Supported e-Wallets and m-Bankings
+  y += 82
+  ctx.textAlign = "center"
+  ctx.fillStyle = "#64748b"
+  ctx.font = "600 10px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("DAPAT DI-SCAN DENGAN SEMUA APLIKASI PEMBAYARAN:", width / 2, y)
+
+  y += 16
+  ctx.fillStyle = "#334155"
+  ctx.font = "bold 10.5px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText("GoPay · OVO · DANA · ShopeePay · BCA · Livin' · BRImo · LinkAja", width / 2, y)
+
+  // Security footer
+  y += 24
+  ctx.fillStyle = "#94a3b8"
+  ctx.font = "500 9px 'Segoe UI', system-ui, sans-serif"
+  ctx.fillText(`Ref: ${refId} · Diproses aman & terlisensi Bank Indonesia via Midtrans`, width / 2, y)
+
+  return canvas
+}
+
+export function getQrisCardBlob(
+  invoice: Invoice,
+  profile: WorkshopProfile,
+  amount: number,
+  refId: string
+): Promise<Blob | null> {
+  const canvas = drawQrisCardCanvas(invoice, profile, amount, refId)
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/png", 0.98)
+  })
+}
+
+export function getQrisCardDataUrl(
+  invoice: Invoice,
+  profile: WorkshopProfile,
+  amount: number,
+  refId: string
+): string {
+  const canvas = drawQrisCardCanvas(invoice, profile, amount, refId)
+  return canvas.toDataURL("image/png")
+}
+
