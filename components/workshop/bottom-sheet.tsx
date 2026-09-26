@@ -32,16 +32,17 @@ export function BottomSheet({
     <div className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center overflow-hidden p-0 md:p-6">
       <button
         type="button"
-        aria-label="Tutup"
+        aria-label="Tutup dialog"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] animate-in fade-in"
+        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={title || "Panel Dialog"}
         className={cn(
-          "relative mx-auto flex w-full flex-col bg-card shadow-2xl animate-in duration-300 md:animate-in md:zoom-in-95",
+          "relative mx-auto flex w-full flex-col bg-card shadow-2xl transition-all",
+          "animate-in fade-in duration-300 ease-out slide-in-from-bottom md:slide-in-from-bottom-6 md:zoom-in-95",
           "max-w-[440px] md:max-w-[640px] lg:max-w-[720px]",
           full
             ? "h-full max-h-dvh md:max-h-[90dvh] rounded-none md:rounded-3xl border-0 md:border md:border-border"

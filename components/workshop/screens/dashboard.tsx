@@ -103,6 +103,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <button
               key={a.label}
               type="button"
+              aria-label={`Menu cepat ${a.label}`}
               onClick={() => {
                 if (a.action === "wa") {
                   setWaOpen(true)
@@ -138,8 +139,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <TrendingUp className="size-3.5" /> +6,8%
           </span>
         </div>
-        <div className="h-24 md:h-32 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-24 md:h-32 min-h-24 md:min-h-32 w-full">
+          <ResponsiveContainer width="100%" height="100%" minHeight={96}>
             <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">

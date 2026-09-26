@@ -724,8 +724,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Authentication & Role-Based Access Control State
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null)
-  const [authLoaded, setAuthLoaded] = useState(false)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(defaultUsers[0])
+  const [authLoaded, setAuthLoaded] = useState(true)
 
   useEffect(() => {
     try {
@@ -735,8 +735,6 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("Failed to load bengkel_auth_user", e)
-    } finally {
-      setAuthLoaded(true)
     }
   }, [])
 

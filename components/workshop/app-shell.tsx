@@ -44,19 +44,6 @@ function AppShellInner() {
   const activeJobsCount = workOrders.filter((w) => w.status !== "Selesai").length
   const lowStockCount = parts.filter((p) => p.stock <= p.minStock).length
 
-  if (!authLoaded) {
-    return (
-      <div className="flex min-h-dvh w-full items-center justify-center bg-slate-950 text-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-lg shadow-primary/30 animate-pulse">
-            <Wrench className="size-6" />
-          </div>
-          <p className="text-xs text-slate-400">Memuat sesi GTA GARAGE...</p>
-        </div>
-      </div>
-    )
-  }
-
   if (!currentUser) {
     return (
       <>
@@ -92,7 +79,7 @@ function AppShellInner() {
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto no-scrollbar">
+          <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto no-scrollbar" aria-label="Navigasi Menu Utama">
             <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
               Menu Utama
             </p>
@@ -103,6 +90,8 @@ function AppShellInner() {
                   key={key}
                   type="button"
                   onClick={() => setTab(key)}
+                  aria-label={label}
+                  aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition-all text-left group",
                     isActive
