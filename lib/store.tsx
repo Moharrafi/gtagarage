@@ -62,6 +62,26 @@ export interface WorkshopProfile {
   receiptFooterMsg: string
 }
 
+export interface MidtransConfig {
+  enabled: boolean
+  environment: "sandbox" | "production"
+  clientKey: string
+  merchantId: string
+  chargeAdminFeeToCustomer: boolean
+  vaAdminFee: number
+  qrisAdminFee: number
+}
+
+export const defaultMidtransConfig: MidtransConfig = {
+  enabled: true,
+  environment: "sandbox",
+  clientKey: "SB-Mid-client-GTA-GARAGE-DEMO",
+  merchantId: "G123456789",
+  chargeAdminFeeToCustomer: false,
+  vaAdminFee: 4000,
+  qrisAdminFee: 0,
+}
+
 export const defaultWorkshopProfile: WorkshopProfile = {
   name: "GTA GARAGE",
   slogan: "Precision Motorcycle Workshop · Vapor Blasting\n· Custom Builder",
@@ -82,6 +102,8 @@ interface WorkshopContextValue {
   vouchers: Voucher[]
   profile: WorkshopProfile
   updateProfile: (profile: Partial<WorkshopProfile>) => void
+  midtransConfig: MidtransConfig
+  updateMidtransConfig: (config: Partial<MidtransConfig>) => void
   addWorkOrder: (input: WorkOrderInput) => void
   updateWorkOrder: (id: string, input: WorkOrderInput) => void
   deleteWorkOrder: (id: string) => void
@@ -348,6 +370,32 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         localStorage.setItem("bengkel_profile", JSON.stringify(next))
       } catch (e) {
         console.error("Failed to save bengkel_profile", e)
+      }
+      return next
+    })
+  }, [])
+
+  // Midtrans Payment Gateway Configuration
+  const [midtransConfig, setMidtransConfig] = useState<MidtransConfig>(defaultMidtransConfig)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bengkel_midtrans")
+      if (saved) {
+        setMidtransConfig((prev) => ({ ...prev, ...JSON.parse(saved) }))
+      }
+    } catch (e) {
+      console.error("Failed to load bengkel_midtrans", e)
+    }
+  }, [])
+
+  const updateMidtransConfig = useCallback((patch: Partial<MidtransConfig>) => {
+    setMidtransConfig((prev) => {
+      const next = { ...prev, ...patch }
+      try {
+        localStorage.setItem("bengkel_midtrans", JSON.stringify(next))
+      } catch (e) {
+        console.error("Failed to save bengkel_midtrans", e)
       }
       return next
     })
@@ -757,6 +805,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       markNotifAsRead,
       clearNotifications,
       deleteNotification,
+      midtransConfig,
+      updateMidtransConfig,
     }),
     [
       workOrders,
@@ -803,6 +853,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       markNotifAsRead,
       clearNotifications,
       deleteNotification,
+      midtransConfig,
+      updateMidtransConfig,
     ],
   )
 

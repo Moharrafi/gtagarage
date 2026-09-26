@@ -27,13 +27,18 @@ import {
   Percent,
   Power,
   Eye,
+  EyeOff,
+  CreditCard,
+  ExternalLink,
+  Lock,
 } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
-import { useWorkshop, initials, type PartInput, type ServiceRateInput, type WorkshopProfile } from "@/lib/store"
+import { useWorkshop, initials, type PartInput, type ServiceRateInput, type WorkshopProfile, type MidtransConfig } from "@/lib/store"
 import { formatRupiah, generatePartSKU, type ServiceType, type Part, type ServiceRate, type Voucher, type VoucherTargetService } from "@/lib/data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface SettingsModalProps {
@@ -41,7 +46,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = "harga" | "voucher" | "profil" | "tema" | "sistem"
+type SettingsTab = "harga" | "voucher" | "midtrans" | "profil" | "tema" | "sistem"
 type CatalogSubTab = "layanan" | "sparepart"
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
@@ -70,9 +75,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     isTipDismissed,
     resetDismissedTips,
     resetDemoData,
+    midtransConfig,
+    updateMidtransConfig,
   } = useWorkshop()
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("harga")
+  const [localMidtrans, setLocalMidtrans] = useState<MidtransConfig>(midtransConfig)
+  const [showMidtransKey, setShowMidtransKey] = useState(false)
+
+  useEffect(() => {
+    setLocalMidtrans(midtransConfig)
+  }, [midtransConfig])
   const [catalogSubTab, setCatalogSubTab] = useState<CatalogSubTab>("layanan")
 
   // Dark mode state
@@ -438,7 +451,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="grid grid-cols-4 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
+        <div className="grid grid-cols-5 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
           <button
             type="button"
             onClick={() => setActiveTab("harga")}
@@ -465,6 +478,20 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           >
             <Ticket className={cn("size-3.5 shrink-0 transition-colors", activeTab === "voucher" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground dark:text-slate-400")} />
             <span className="truncate">Voucher</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("midtrans")}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              activeTab === "midtrans"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
+            )}
+          >
+            <CreditCard className={cn("size-3.5 shrink-0 transition-colors", activeTab === "midtrans" ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
+            <span className="truncate">Midtrans</span>
           </button>
 
           <button
@@ -935,6 +962,197 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ================= TAB: INTEGRASI MIDTRANS GATEWAY ================= */}
+        {activeTab === "midtrans" && (
+          <div className="space-y-4">
+            {/* Status & Banner */}
+            <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-4 space-y-2 dark:border-blue-500/30 dark:bg-blue-950/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-7 items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs">
+                    M
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-foreground">Midtrans Payment Gateway</h3>
+                    <p className="text-[10px] text-muted-foreground">GoTo Financial • QRIS Dinamis, Virtual Account, &amp; Kartu</p>
+                  </div>
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-bold border",
+                    localMidtrans.enabled
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30 dark:text-emerald-400"
+                      : "bg-muted text-muted-foreground border-border"
+                  )}
+                >
+                  {localMidtrans.enabled ? (localMidtrans.environment === "production" ? "● Mode Live" : "● Mode Sandbox") : "Nonaktif"}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Sistem pembayaran resmi Indonesia untuk kasir bengkel &amp; link invoice WhatsApp. Mendukung QRIS (GoPay, OVO, Dana, BCA, dll) dan Virtual Account (BCA, Mandiri, BRI, BNI, Permata).
+              </p>
+            </div>
+
+            {/* Pengaturan Kredensial */}
+            <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3 dark:border-slate-800">
+              <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                <span className="text-xs font-bold text-foreground">Kredensial Gateway</span>
+                <a
+                  href={localMidtrans.environment === "production" ? "https://dashboard.midtrans.com" : "https://dashboard.sandbox.midtrans.com"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                >
+                  <span>Buka Dashboard Midtrans</span>
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
+
+              {/* Environment selector */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Lingkungan Sistem (Environment)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLocalMidtrans({ ...localMidtrans, environment: "sandbox" })}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all",
+                      localMidtrans.environment === "sandbox"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs"
+                        : "border-border text-muted-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    <span className="text-xs">Sandbox (Testing)</span>
+                    <span className="text-[10px] opacity-75 font-normal">Uji coba simulasi bayar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocalMidtrans({ ...localMidtrans, environment: "production" })}
+                    className={cn(
+                      "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all",
+                      localMidtrans.environment === "production"
+                        ? "border-emerald-600 bg-emerald-500/10 text-emerald-600 font-bold shadow-xs dark:text-emerald-400"
+                        : "border-border text-muted-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    <span className="text-xs">Production (Live)</span>
+                    <span className="text-[10px] opacity-75 font-normal">Transaksi uang nyata</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Client Key */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Midtrans Client Key <span className="text-[10px] text-muted-foreground">(Untuk Popup Snap &amp; QRIS)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showMidtransKey ? "text" : "password"}
+                    value={localMidtrans.clientKey}
+                    onChange={(e) => setLocalMidtrans({ ...localMidtrans, clientKey: e.target.value })}
+                    placeholder="mis. SB-Mid-client-xxxx atau Mid-client-xxxx"
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono focus:border-primary focus:outline-none dark:border-slate-700 pr-9"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowMidtransKey(!showMidtransKey)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showMidtransKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Didapatkan dari menu <em>Settings &gt; Access Keys &gt; Client Key</em> di Dashboard Midtrans Anda.
+                </p>
+              </div>
+
+              {/* Merchant ID */}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">Merchant ID (Opsional)</label>
+                <input
+                  type="text"
+                  value={localMidtrans.merchantId || ""}
+                  onChange={(e) => setLocalMidtrans({ ...localMidtrans, merchantId: e.target.value })}
+                  placeholder="mis. G123456789"
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono focus:border-primary focus:outline-none dark:border-slate-700"
+                />
+              </div>
+            </div>
+
+            {/* Pengaturan Biaya Admin (Surcharge) */}
+            <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3 dark:border-slate-800">
+              <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                <div>
+                  <span className="text-xs font-bold text-foreground">Bebankan Biaya Admin ke Pelanggan</span>
+                  <p className="text-[10px] text-muted-foreground">Menambahkan biaya penanganan otomatis pada nota invoice</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={localMidtrans.chargeAdminFeeToCustomer}
+                  onChange={(e) => setLocalMidtrans({ ...localMidtrans, chargeAdminFeeToCustomer: e.target.checked })}
+                  className="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                />
+              </div>
+
+              {localMidtrans.chargeAdminFeeToCustomer && (
+                <div className="space-y-3 animate-in fade-in duration-150 pt-1">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Biaya Admin Virtual Account (Bank Transfer)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">Rp</span>
+                      <input
+                        type="number"
+                        value={localMidtrans.vaAdminFee}
+                        onChange={(e) => setLocalMidtrans({ ...localMidtrans, vaAdminFee: Number(e.target.value) || 0 })}
+                        className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-semibold focus:border-primary focus:outline-none dark:border-slate-700"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Standar Midtrans adalah flat Rp 4.000 / transaksi VA. Uang ini ditagihkan ke pelanggan agar bengkel terima utuh.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Biaya Layanan QRIS (Opsional)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">Rp</span>
+                      <input
+                        type="number"
+                        value={localMidtrans.qrisAdminFee}
+                        onChange={(e) => setLocalMidtrans({ ...localMidtrans, qrisAdminFee: Number(e.target.value) || 0 })}
+                        className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-semibold focus:border-primary focus:outline-none dark:border-slate-700"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Disarankan Rp 0 (atau diserap bengkel) untuk mematuhi regulasi QRIS Bank Indonesia (MDR 0,7%).
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Simpan Button */}
+            {canEdit && (
+              <Button
+                type="button"
+                onClick={() => {
+                  updateMidtransConfig(localMidtrans)
+                  toast.success("Pengaturan Midtrans Tersimpan", "Konfigurasi payment gateway berhasil diperbarui.")
+                }}
+                className="w-full gap-2 rounded-xl py-2.5 text-xs font-semibold shadow-sm"
+              >
+                <Check className="size-4" />
+                <span>Simpan Pengaturan Midtrans</span>
+              </Button>
+            )}
           </div>
         )}
 

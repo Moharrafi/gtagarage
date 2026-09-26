@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   QrCode,
   Landmark,
@@ -22,6 +22,12 @@ import {
   X,
   Search,
   Eye,
+  Lock,
+  ExternalLink,
+  Clock,
+  Sparkles,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -57,10 +63,30 @@ const filters: InvoiceFilter[] = [
 ]
 
 const methods = [
-  { key: "QRIS", label: "QRIS", desc: "Scan dengan e-wallet apa pun", icon: QrCode },
-  { key: "Transfer", label: "Transfer Bank", desc: "Virtual account otomatis", icon: Landmark },
-  { key: "Kartu", label: "Kartu Debit/Kredit", desc: "Visa · Mastercard", icon: CreditCard },
-  { key: "Tunai", label: "Tunai", desc: "Bayar di kasir", icon: Wallet },
+  {
+    key: "QRIS",
+    label: "QRIS Dynamic (Midtrans)",
+    desc: "Scan via GoPay, BCA, Livin', OVO, ShopeePay",
+    icon: QrCode,
+  },
+  {
+    key: "Transfer",
+    label: "Virtual Account (Midtrans)",
+    desc: "BCA, Mandiri, BRI, BNI, Permata VA otomatis",
+    icon: Landmark,
+  },
+  {
+    key: "Kartu",
+    label: "Kartu Debit / Kredit",
+    desc: "Visa · Mastercard · JCB (Midtrans 3D Secure)",
+    icon: CreditCard,
+  },
+  {
+    key: "Tunai",
+    label: "Tunai di Kasir",
+    desc: "Bayar cash & hitung otomatis kembalian",
+    icon: Wallet,
+  },
 ] as const
 
 function formatNumber(val: number): string {
@@ -295,7 +321,7 @@ Terima kasih banyak atas kepercayaan Anda kepada bengkel kami.`
 }
 
 export function InvoicesScreen() {
-  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification } = useWorkshop()
+  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig } = useWorkshop()
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
   const [active, setActive] = useState<Invoice | null>(null)
@@ -303,6 +329,16 @@ export function InvoicesScreen() {
   const [payFor, setPayFor] = useState<Invoice | null>(null)
   const [method, setMethod] = useState<(typeof methods)[number]["key"] | null>(null)
   const [paid, setPaid] = useState(false)
+
+  // Midtrans Payment Gateway state
+  const [selectedBank, setSelectedBank] = useState<"BCA" | "Mandiri" | "BRI" | "BNI" | "Permata">("BCA")
+  const [cashReceived, setCashReceived] = useState<number | "">("")
+  const [copiedVa, setCopiedVa] = useState(false)
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false)
+  const [paymentRefId, setPaymentRefId] = useState<string>("")
+  const [cardNumber, setCardNumber] = useState("4111 2222 3333 4444")
+  const [cardExp, setCardExp] = useState("12/28")
+  const [cardCvv, setCardCvv] = useState("888")
 
   // Discount Modal State
   const [discountFor, setDiscountFor] = useState<Invoice | null>(null)
@@ -540,8 +576,36 @@ export function InvoicesScreen() {
   function openPay(inv: Invoice) {
     setActive(null)
     setPayFor(inv)
-    setMethod(null)
+    setMethod("QRIS")
     setPaid(false)
+    setSelectedBank("BCA")
+    setCashReceived("")
+    setCopiedVa(false)
+    setIsSimulatingPayment(false)
+    const genRef = `MDT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(100000 + Math.random() * 900000)}`
+    setPaymentRefId(genRef)
+    setCardNumber("4111 2222 3333 4444")
+    setCardExp("12/28")
+    setCardCvv("888")
+  }
+
+  const getVaNumber = (bank: string, inv: Invoice | null) => {
+    const seed = inv ? inv.id.replace(/\D/g, "").slice(-4) || "2435" : "2435"
+    const phoneSuffix = inv?.customer.phone ? inv.customer.phone.replace(/\D/g, "").slice(-4) : "8910"
+    switch (bank) {
+      case "BCA":
+        return `70012 ${phoneSuffix} ${seed}`
+      case "Mandiri":
+        return `88708 ${phoneSuffix} ${seed}`
+      case "BRI":
+        return `10777 ${phoneSuffix} ${seed}`
+      case "BNI":
+        return `8810 ${phoneSuffix} ${seed}`
+      case "Permata":
+        return `8528 ${phoneSuffix} ${seed}`
+      default:
+        return `70012 ${phoneSuffix} ${seed}`
+    }
   }
 
   return (
@@ -1035,193 +1099,688 @@ export function InvoicesScreen() {
         )}
       </BottomSheet>
 
-      {/* Payment */}
+      {/* Midtrans Payment BottomSheet */}
       <BottomSheet
         open={!!payFor}
         onClose={() => setPayFor(null)}
         title={paid ? undefined : "Metode Pembayaran"}
       >
-        {payFor && !paid && (
-          <div className="space-y-4">
-            {/* Financial card with voucher / discount button */}
-            <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2 dark:border-slate-800">
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Subtotal ({payFor.items.length} item)</span>
-                <span className="font-medium text-foreground">{formatRupiah(invoiceSubtotal(payFor))}</span>
+        {payFor && !paid && (() => {
+          const rawSubtotal = invoiceSubtotal(payFor)
+          const rawTotal = invoiceTotal(payFor)
+          const rawSisa = Math.max(0, rawTotal - payFor.paidAmount)
+
+          // Admin fee calculation
+          let adminFee = 0
+          if (midtransConfig?.chargeAdminFeeToCustomer) {
+            if (method === "Transfer") {
+              adminFee = midtransConfig.vaAdminFee || 4000
+            } else if (method === "QRIS") {
+              adminFee = midtransConfig.qrisAdminFee || 0
+            } else if (method === "Kartu") {
+              adminFee = Math.round(rawSisa * 0.02)
+            }
+          }
+          const finalPayAmount = rawSisa + adminFee
+
+          // Quick cash options for Tunai
+          const quickCashOpts: number[] = [finalPayAmount]
+          const round50k = Math.ceil(finalPayAmount / 50000) * 50000
+          if (round50k > finalPayAmount && !quickCashOpts.includes(round50k)) quickCashOpts.push(round50k)
+          const round100k = Math.ceil(finalPayAmount / 100000) * 100000
+          if (round100k > finalPayAmount && !quickCashOpts.includes(round100k)) quickCashOpts.push(round100k)
+          for (const val of [100000, 200000, 500000, 1000000]) {
+            if (val > finalPayAmount && !quickCashOpts.includes(val)) {
+              quickCashOpts.push(val)
+            }
+          }
+          const activeCashOptions = quickCashOpts.slice(0, 4)
+
+          const handleExecutePayment = () => {
+            if (!method) return
+            if (method === "Tunai" && cashReceived !== "" && Number(cashReceived) < finalPayAmount) {
+              toast.error("Uang Kurang", "Nominal uang tunai kurang dari total tagihan.")
+              return
+            }
+
+            const paidMethodLabel =
+              method === "QRIS"
+                ? "Midtrans QRIS (GoPay/ShopeePay)"
+                : method === "Transfer"
+                ? `Midtrans Virtual Account (${selectedBank})`
+                : method === "Kartu"
+                ? "Kartu Debit/Kredit (Midtrans 3DS)"
+                : "Tunai di Kasir"
+
+            setInvoiceList((prev) =>
+              prev.map((item) =>
+                item.id === payFor.id
+                  ? {
+                      ...item,
+                      status: "Lunas",
+                      paidAmount: rawTotal,
+                      method: method || "QRIS",
+                    }
+                  : item
+              )
+            )
+            setActive((prev) =>
+              prev && prev.id === payFor.id
+                ? {
+                    ...prev,
+                    status: "Lunas",
+                    paidAmount: rawTotal,
+                    method: method || "QRIS",
+                  }
+                : prev
+            )
+
+            addNotification({
+              type: "push",
+              title: "Pembayaran Lunas (Midtrans)",
+              body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(finalPayAmount)} telah diterima lunas via ${paidMethodLabel} (Ref: ${paymentRefId}).`,
+              channel: "Payment Gateway",
+              status: "terkirim",
+              linkTab: "invoice",
+            })
+
+            toast.success("Pembayaran Berhasil Diterima", `${formatRupiah(finalPayAmount)} via ${paidMethodLabel} tercatat lunas.`)
+            setPaid(true)
+          }
+
+          const handleSimulatePayment = () => {
+            setIsSimulatingPayment(true)
+            setTimeout(() => {
+              setIsSimulatingPayment(false)
+              handleExecutePayment()
+            }, 600)
+          }
+
+          return (
+            <div className="space-y-4 max-h-[82vh] overflow-y-auto pr-0.5 no-scrollbar">
+              {/* Midtrans Status Pill Header */}
+              <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2 dark:border-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-foreground">Midtrans Gateway</span>
+                  <span className="text-[10px] text-muted-foreground">· Otomatis &amp; Realtime</span>
+                </div>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                    midtransConfig?.environment === "production"
+                      ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
+                      : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "size-1.5 rounded-full animate-pulse",
+                      midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                    )}
+                  />
+                  Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
+                </span>
               </div>
 
-              {payFor.discountAmount && payFor.discountAmount > 0 ? (
-                <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Tag className="size-3.5 shrink-0" />
-                    <span className="font-semibold truncate">{payFor.discountCode || "Diskon"}</span>
-                    <span className="text-[10px] opacity-75 shrink-0">
-                      ({payFor.discountType === "voucher" ? "Voucher" : "Manual"})
+              {/* Financial summary card */}
+              <div className="rounded-2xl border border-border bg-muted/40 p-3.5 space-y-2.5 dark:border-slate-800">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Subtotal ({payFor.items.length} item)</span>
+                  <span className="font-medium text-foreground">{formatRupiah(rawSubtotal)}</span>
+                </div>
+
+                {payFor.discountAmount && payFor.discountAmount > 0 ? (
+                  <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Tag className="size-3.5 shrink-0" />
+                      <span className="font-semibold truncate">{payFor.discountCode || "Diskon"}</span>
+                      <span className="text-[10px] opacity-75 shrink-0">
+                        ({payFor.discountType === "voucher" ? "Voucher" : "Manual"})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold">- {formatRupiah(payFor.discountAmount)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDiscount(payFor.id)}
+                        className="rounded p-0.5 text-muted-foreground hover:bg-emerald-500/20 hover:text-foreground"
+                        title="Hapus diskon"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiscountFor(payFor)
+                      setVoucherInput("")
+                      setManualAmount(0)
+                      setManualNote("")
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Tag className="size-3.5" /> Ada Voucher Promo atau Diskon Khusus?
+                    </span>
+                    <span className="text-[11px] underline">Gunakan</span>
+                  </button>
+                )}
+
+                {payFor.paidAmount > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Sudah Dibayar (DP)</span>
+                    <span>{formatRupiah(payFor.paidAmount)}</span>
+                  </div>
+                )}
+
+                {/* Tagihan Pokok Bengkel vs Admin Fee Gateway */}
+                {adminFee > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground pt-0.5">
+                    <span className="flex items-center gap-1">
+                      <span>Biaya Admin Midtrans</span>
+                      <span className="rounded bg-primary/10 px-1 py-0.2 text-[9px] font-semibold text-primary">
+                        {method === "Transfer" ? "VA Flat" : method === "Kartu" ? "2% MDR" : "Gateway"}
+                      </span>
+                    </span>
+                    <span className="font-semibold text-foreground">+ {formatRupiah(adminFee)}</span>
+                  </div>
+                )}
+
+                <div className="border-t border-dashed border-border pt-2 flex items-baseline justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground">Total Tagihan Bayar</span>
+                    {adminFee > 0 ? (
+                      <p className="text-[10px] text-muted-foreground">Termasuk biaya admin penanganan gateway</p>
+                    ) : (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Bebas biaya admin transfer</p>
+                    )}
+                  </div>
+                  <span className="text-xl font-black tracking-tight text-primary">
+                    {formatRupiah(finalPayAmount)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Methods Selector */}
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-foreground">Pilih Kanal Pembayaran:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {methods.map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => setMethod(m.key)}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all",
+                        method === m.key
+                          ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
+                          : "border-border bg-card hover:bg-muted/50 dark:border-slate-800"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-8 shrink-0 items-center justify-center rounded-lg mt-0.5",
+                          method === m.key ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                        )}
+                      >
+                        <m.icon className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-bold truncate">{m.label}</p>
+                          <span
+                            className={cn(
+                              "flex size-4 shrink-0 items-center justify-center rounded-full border",
+                              method === m.key
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/30"
+                            )}
+                          >
+                            {method === m.key && <Check className="size-2.5" />}
+                          </span>
+                        </div>
+                        <p className="text-[10.5px] text-muted-foreground leading-tight mt-0.5 line-clamp-1">{m.desc}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ================= INTERACTIVE VIEW PER METHOD ================= */}
+
+              {/* 1. QRIS DYNAMIC VIEW */}
+              {method === "QRIS" && (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-xs tracking-wider text-rose-600 dark:text-rose-400">QRIS</span>
+                      <span className="text-[10px] text-muted-foreground">· Midtrans Snap QR Dynamic</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                      <Clock className="size-3" />
+                      Berlaku 15 Menit
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold">- {formatRupiah(payFor.discountAmount)}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveDiscount(payFor.id)}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-emerald-500/20 hover:text-foreground"
-                      title="Hapus diskon"
-                    >
-                      <X className="size-3" />
-                    </button>
+
+                  <div className="flex flex-col items-center justify-center gap-2.5 py-1">
+                    {/* Simulated High-Resolution Styled QRIS Box */}
+                    <div className="relative rounded-2xl bg-white p-3.5 shadow-md border-2 border-slate-200">
+                      <div className="size-44 rounded-xl border border-slate-300 p-2 flex flex-col justify-between bg-white">
+                        {/* QR Corners styling */}
+                        <div className="flex justify-between">
+                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                            <div className="size-3 bg-slate-900 rounded-xs" />
+                          </div>
+                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                            <div className="size-3 bg-slate-900 rounded-xs" />
+                          </div>
+                        </div>
+
+                        {/* QR Matrix body simulation */}
+                        <div className="grid grid-cols-11 gap-1 my-1 px-1">
+                          {Array.from({ length: 77 }).map((_, i) => (
+                            <span
+                              key={i}
+                              className={cn(
+                                "size-1.5 rounded-[1px]",
+                                (i * 13 + ((i * i) % 7)) % 3 !== 1 ? "bg-slate-900" : "bg-transparent"
+                              )}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Center Midtrans / Logo Badge */}
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="rounded-lg bg-blue-600 px-2 py-0.5 text-[8.5px] font-black text-white shadow-sm border border-white">
+                            MIDTRANS
+                          </div>
+                        </div>
+
+                        {/* Bottom Corners */}
+                        <div className="flex justify-between items-end">
+                          <div className="size-8 rounded-md border-[3.5px] border-slate-900 p-1 flex items-center justify-center">
+                            <div className="size-3 bg-slate-900 rounded-xs" />
+                          </div>
+                          <span className="text-[7.5px] font-mono text-slate-500 font-bold">NMID: ID1020260925</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-center space-y-0.5">
+                      <p className="text-xs font-bold text-foreground">{profile.name || "GTA GARAGE"}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Scan dengan e-Wallet (GoPay, OVO, Dana, ShopeePay) atau m-Banking (BCA, Livin&apos;, BRImo)
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDiscountFor(payFor)
-                    setVoucherInput("")
-                    setManualAmount(0)
-                    setManualNote("")
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg border border-dashed border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Tag className="size-3.5" /> Ada Voucher Promo atau Diskon Khusus?
-                  </span>
-                  <span className="text-[11px] underline">Gunakan</span>
-                </button>
-              )}
 
-              {payFor.paidAmount > 0 && (
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Sudah Dibayar (DP)</span>
-                  <span>{formatRupiah(payFor.paidAmount)}</span>
+                  {/* Cashier simulation button */}
+                  <button
+                    type="button"
+                    onClick={handleSimulatePayment}
+                    disabled={isSimulatingPayment}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>
+                      {isSimulatingPayment
+                        ? "Memverifikasi notifikasi webhook Midtrans..."
+                        : "⚡ Simulasi: Pelanggan Selesai Scan QRIS"}
+                    </span>
+                  </button>
                 </div>
               )}
 
-              <div className="border-t border-dashed border-border pt-1.5 flex items-baseline justify-between">
-                <span className="text-xs font-medium text-foreground">Sisa yang Harus Dibayar</span>
-                <span className="text-lg font-bold text-primary">
-                  {formatRupiah(Math.max(0, invoiceTotal(payFor) - payFor.paidAmount))}
+              {/* 2. TRANSFER BANK / VIRTUAL ACCOUNT VIEW */}
+              {method === "Transfer" && (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                    <span className="text-xs font-bold text-foreground">Pilih Bank Virtual Account</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Cek Otomatis 24 Jam</span>
+                  </div>
+
+                  {/* Bank selector chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["BCA", "Mandiri", "BRI", "BNI", "Permata"] as const).map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => {
+                          setSelectedBank(b)
+                          setCopiedVa(false)
+                        }}
+                        className={cn(
+                          "rounded-xl border py-1.5 px-3 text-xs font-bold transition-all",
+                          selectedBank === b
+                            ? "border-primary bg-primary text-primary-foreground shadow-xs"
+                            : "border-border bg-background hover:bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* VA Number & Details Card */}
+                  <div className="rounded-xl border border-border bg-background p-3.5 space-y-2 dark:border-slate-700/80">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        {selectedBank} Virtual Account
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const num = getVaNumber(selectedBank, payFor).replace(/\s/g, "")
+                          navigator.clipboard?.writeText(num)
+                          setCopiedVa(true)
+                          toast.success("Nomor VA Disalin", `${num} (${selectedBank})`)
+                          setTimeout(() => setCopiedVa(false), 2000)
+                        }}
+                        className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold hover:bg-muted transition-colors"
+                      >
+                        {copiedVa ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                        <span>{copiedVa ? "Tersalin!" : "Salin VA"}</span>
+                      </button>
+                    </div>
+
+                    <p className="font-mono text-lg font-black tracking-wider text-foreground">
+                      {getVaNumber(selectedBank, payFor)}
+                    </p>
+
+                    <div className="border-t border-dashed border-border pt-2 text-[11px] space-y-1 text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>Atas Nama:</span>
+                        <strong className="text-foreground">MIDTRANS / {payFor.customer.name.toUpperCase()}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Jumlah Transfer:</span>
+                        <strong className="text-primary font-bold">{formatRupiah(finalPayAmount)}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cashier simulation button */}
+                  <button
+                    type="button"
+                    onClick={handleSimulatePayment}
+                    disabled={isSimulatingPayment}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>
+                      {isSimulatingPayment
+                        ? "Menerima notifikasi settlement VA..."
+                        : "⚡ Simulasi: Pelanggan Selesai Transfer VA"}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* 3. KARTU DEBIT / KREDIT VIEW */}
+              {method === "Kartu" && (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                    <span className="text-xs font-bold text-foreground">Midtrans 3D Secure Card Gateway</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">Visa · Master · JCB</span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Nomor Kartu</label>
+                      <input
+                        type="text"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value)}
+                        placeholder="4111 2222 3333 4444"
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">Masa Berlaku</label>
+                        <input
+                          type="text"
+                          value={cardExp}
+                          onChange={(e) => setCardExp(e.target.value)}
+                          placeholder="MM/YY"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">CVV / CVC</label>
+                        <input
+                          type="password"
+                          maxLength={4}
+                          value={cardCvv}
+                          onChange={(e) => setCardCvv(e.target.value)}
+                          placeholder="•••"
+                          className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-mono font-semibold focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/40 p-2 rounded-xl">
+                    <Lock className="size-3 shrink-0 text-blue-600 dark:text-blue-400" />
+                    <span>Diproteksi dengan Fraud Detection System Aegis &amp; One Time Password (OTP).</span>
+                  </div>
+
+                  {/* Cashier simulation button */}
+                  <button
+                    type="button"
+                    onClick={handleSimulatePayment}
+                    disabled={isSimulatingPayment}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                  >
+                    <Sparkles className="size-3.5" />
+                    <span>
+                      {isSimulatingPayment
+                        ? "Memvalidasi OTP 3DS Midtrans..."
+                        : "⚡ Simulasi: Transaksi Kartu 3D Secure Berhasil"}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* 4. TUNAI DI KASIR VIEW */}
+              {method === "Tunai" && (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-border/80 pb-2">
+                    <span className="text-xs font-bold text-foreground">Kalkulator Kasir Tunai</span>
+                    <span className="text-[10px] text-muted-foreground">Hitung Kembalian Otomatis</span>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                      Uang Diterima dari Pelanggan (Rp)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">Rp</span>
+                      <input
+                        type="number"
+                        value={cashReceived}
+                        onChange={(e) => setCashReceived(e.target.value === "" ? "" : Number(e.target.value))}
+                        placeholder={finalPayAmount.toString()}
+                        className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-sm font-bold focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quick suggestion chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeCashOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setCashReceived(opt)}
+                        className={cn(
+                          "rounded-lg border px-2.5 py-1 text-xs font-medium transition-all",
+                          cashReceived === opt
+                            ? "border-primary bg-primary text-primary-foreground font-semibold shadow-xs"
+                            : "border-border bg-background hover:bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {opt === finalPayAmount ? "Uang Pas" : formatRupiah(opt)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Kembalian / Kurang Banner */}
+                  {typeof cashReceived === "number" && (
+                    <div
+                      className={cn(
+                        "rounded-xl p-3 border text-xs font-semibold flex items-center justify-between",
+                        cashReceived >= finalPayAmount
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-400"
+                      )}
+                    >
+                      <span>{cashReceived >= finalPayAmount ? "Uang Kembalian Kasir:" : "Uang Masih Kurang:"}</span>
+                      <span className="text-sm font-bold">
+                        {cashReceived >= finalPayAmount
+                          ? formatRupiah(cashReceived - finalPayAmount)
+                          : formatRupiah(finalPayAmount - cashReceived)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Main Confirm Button */}
+              <Button
+                type="button"
+                className="w-full gap-2 py-3 text-xs font-bold shadow-md"
+                disabled={
+                  !method ||
+                  (method === "Tunai" && cashReceived !== "" && Number(cashReceived) < finalPayAmount) ||
+                  isSimulatingPayment
+                }
+                onClick={handleExecutePayment}
+              >
+                <ShieldCheck className="size-4" />
+                <span>
+                  {method === "Tunai"
+                    ? "Terima Pembayaran Tunai & Selesaikan"
+                    : `Konfirmasi Pembayaran (${method})`}
+                </span>
+              </Button>
+
+              {/* Midtrans Trust Footer */}
+              <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                <Lock className="size-3 text-muted-foreground/70" />
+                <span>
+                  Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
                 </span>
               </div>
             </div>
+          )
+        })()}
 
-            <div className="space-y-2">
-              {methods.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  onClick={() => setMethod(m.key)}
-                  className={cn(
-                    "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
-                    method === m.key ? "border-primary bg-primary/10" : "border-border hover:bg-accent",
-                  )}
-                >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-foreground">
-                    <m.icon className="size-4.5" />
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{m.label}</p>
-                    <p className="text-xs text-muted-foreground">{m.desc}</p>
-                  </div>
-                  <span
-                    className={cn(
-                      "flex size-5 items-center justify-center rounded-full border",
-                      method === m.key ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
-                    )}
-                  >
-                    {method === m.key && <Check className="size-3" />}
-                  </span>
-                </button>
-              ))}
-            </div>
+        {/* ================= SUCCESS PAID VIEW ================= */}
+        {payFor && paid && (() => {
+          const rawSubtotal = invoiceSubtotal(payFor)
+          const rawTotal = invoiceTotal(payFor)
+          const paidMethodLabel =
+            method === "QRIS"
+              ? "Midtrans QRIS (GoPay/ShopeePay)"
+              : method === "Transfer"
+              ? `Midtrans Virtual Account (${selectedBank})`
+              : method === "Kartu"
+              ? "Kartu Debit/Kredit (Midtrans 3DS)"
+              : "Tunai di Kasir"
 
-            {method === "QRIS" && (
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-muted/40 p-4">
-                <div className="grid grid-cols-7 gap-0.5 rounded-lg bg-background p-3">
-                  {Array.from({ length: 49 }).map((_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "size-3 rounded-[2px]",
-                        // deterministic pseudo-random pattern
-                        (i * 7 + ((i * i) % 5)) % 3 === 0 ? "bg-foreground" : "bg-transparent",
-                      )}
-                    />
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">Scan untuk membayar via QRIS</p>
+          return (
+            <div className="flex flex-col items-center gap-3.5 py-4 text-center">
+              <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 ring-8 ring-emerald-500/5 animate-in zoom-in-75">
+                <Check className="size-8" strokeWidth={2.5} />
               </div>
-            )}
+              <div className="space-y-1">
+                <p className="text-lg font-bold text-foreground">Pembayaran Berhasil Diterima</p>
+                <p className="text-xs text-muted-foreground">
+                  Invoice <strong>{payFor.number}</strong> an. <strong>{payFor.customer.name}</strong>
+                </p>
+              </div>
 
-            <Button
-              className="w-full gap-2"
-              disabled={!method}
-              onClick={() => {
-                setPaid(true)
-                if (payFor) {
-                  const total = invoiceTotal(payFor)
-                  const sisa = total - payFor.paidAmount
-                  setInvoiceList((prev) =>
-                    prev.map((item) =>
-                      item.id === payFor.id
-                        ? {
-                            ...item,
-                            status: "Lunas",
-                            paidAmount: total,
-                            method: method || "QRIS",
-                          }
-                        : item,
-                    ),
-                  )
-                  setActive((prev) =>
-                    prev && prev.id === payFor.id
-                      ? {
-                          ...prev,
-                          status: "Lunas",
-                          paidAmount: total,
-                          method: method || "QRIS",
-                        }
-                      : prev,
-                  )
-                  addNotification({
-                    type: "push",
-                    title: "Pembayaran Lunas",
-                    body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(total)} telah diterima lunas via ${method || "QRIS"}.`,
-                    channel: "Kasir POS",
-                    status: "terkirim",
-                    linkTab: "invoice",
-                  })
-                  toast.success("Pembayaran Berhasil", `${formatRupiah(sisa)} via ${method} tercatat lunas.`)
-                }
-              }}
-            >
-              <ShieldCheck className="size-4" />
-              Konfirmasi Pembayaran
-            </Button>
-            <p className="text-center text-[0.7rem] text-muted-foreground">
-              Pembayaran diproses aman. Integrasi gateway (Stripe/QRIS) menyusul.
-            </p>
-          </div>
-        )}
+              {/* Receipt Snapshot Box */}
+              <div className="w-full rounded-2xl border border-border bg-muted/30 p-3.5 text-left text-xs space-y-2 dark:border-slate-800">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Total Tagihan Lunas</span>
+                  <span className="font-bold text-base text-foreground">{formatRupiah(rawTotal)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Metode Pembayaran</span>
+                  <span className="font-semibold text-foreground">{paidMethodLabel}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground pt-1 border-t border-dashed border-border">
+                  <span>Ref ID Midtrans</span>
+                  <div className="flex items-center gap-1 font-mono text-[11px] font-semibold text-foreground">
+                    <span>{paymentRefId}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(paymentRefId)
+                        toast.success("Ref ID Disalin", paymentRefId)
+                      }}
+                      className="p-1 hover:text-primary transition-colors"
+                      title="Salin Ref ID"
+                    >
+                      <Copy className="size-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Waktu Transaksi</span>
+                  <span className="text-foreground">
+                    {new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB · {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                </div>
+              </div>
 
-        {payFor && paid && (
-          <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <span className="flex size-16 items-center justify-center rounded-full bg-success/15 text-success">
-              <Check className="size-8" strokeWidth={2.5} />
-            </span>
-            <div>
-              <p className="text-lg font-semibold">Pembayaran Berhasil</p>
-              <p className="text-sm text-muted-foreground">
-                {formatRupiah(invoiceTotal(payFor) - payFor.paidAmount)} via {method}
+              <p className="text-xs text-muted-foreground">
+                Status tagihan otomatis berubah menjadi <strong>LUNAS</strong> dan notifikasi sistem telah dicatat.
               </p>
+
+              <div className="w-full space-y-2 pt-1">
+                {canEdit && (
+                  <Button
+                    type="button"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 active:scale-98"
+                    onClick={() => {
+                      const currentPay = payFor
+                      setPayFor(null)
+                      if (currentPay) openWa(currentPay)
+                    }}
+                  >
+                    <WhatsAppIcon className="size-4 fill-white" />
+                    Kirim Kwitansi Lunas via WhatsApp
+                  </Button>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 gap-1.5 text-xs"
+                    onClick={() => window.print()}
+                  >
+                    <Printer className="size-3.5" />
+                    Cetak Struk
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="flex-1 text-xs font-semibold"
+                    onClick={() => setPayFor(null)}
+                  >
+                    Selesai &amp; Tutup
+                  </Button>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Notifikasi WhatsApp kwitansi otomatis dikirim ke {payFor.customer.name}.
-            </p>
-            <Button className="mt-1 w-full" onClick={() => setPayFor(null)}>
-              Selesai
-            </Button>
-          </div>
-        )}
+          )
+        })()}
       </BottomSheet>
 
       {/* Discount / Voucher BottomSheet */}
