@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, Wrench } from "lucide-react"
+import { Bell, Wrench, Home, Package, ReceiptText, BarChart3, Settings } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
 import { NotificationsPanel } from "@/components/workshop/notifications-panel"
@@ -18,20 +18,31 @@ import { InvoicesScreen } from "@/components/workshop/screens/invoices"
 import { AnalyticsScreen } from "@/components/workshop/screens/analytics"
 
 const titles: Record<TabKey, { title: string; subtitle: string }> = {
-  beranda: { title: "GTA GARAGE", subtitle: "Kamis, 25 September 2026" },
-  pekerjaan: { title: "Pekerjaan", subtitle: "Order servis & perbaikan" },
-  stok: { title: "Stok Suku Cadang", subtitle: "Inventaris & riwayat pakai" },
-  invoice: { title: "Invoice & Pembayaran", subtitle: "Tagihan & transaksi digital" },
-  analitik: { title: "Analitik & Laporan", subtitle: "Performa & keuangan bengkel" },
+  beranda: { title: "GTA GARAGE", subtitle: "Sistem Operasional & Kasir Bengkel" },
+  pekerjaan: { title: "Pekerjaan", subtitle: "Order servis & perbaikan kendaraan" },
+  stok: { title: "Stok Suku Cadang", subtitle: "Inventaris & riwayat pakai sparepart" },
+  invoice: { title: "Invoice & Pembayaran", subtitle: "Tagihan, QRIS Midtrans & transaksi" },
+  analitik: { title: "Analitik & Laporan", subtitle: "Performa pendapatan & keuangan bengkel" },
 }
+
+const navItems: { key: TabKey; label: string; icon: typeof Home }[] = [
+  { key: "beranda", label: "Beranda", icon: Home },
+  { key: "pekerjaan", label: "Pekerjaan", icon: Wrench },
+  { key: "stok", label: "Stok Suku Cadang", icon: Package },
+  { key: "invoice", label: "Invoice & Kasir", icon: ReceiptText },
+  { key: "analitik", label: "Analitik & Laporan", icon: BarChart3 },
+]
 
 function AppShellInner() {
   const [tab, setTab] = useState<TabKey>("beranda")
   const [notifOpen, setNotifOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { profile, currentUser, authLoaded, unreadNotifCount } = useWorkshop()
+  const { profile, currentUser, authLoaded, unreadNotifCount, workOrders, parts } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
+
+  const activeJobsCount = workOrders.filter((w) => w.status !== "Selesai").length
+  const lowStockCount = parts.filter((p) => p.stock <= p.minStock).length
 
   if (!authLoaded) {
     return (
@@ -56,75 +67,202 @@ function AppShellInner() {
   }
 
   return (
-    <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-6">
-      <div className="relative flex h-dvh w-full max-w-[440px] flex-col overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-3rem)] sm:max-h-[920px] sm:rounded-[2.25rem] sm:ring-1 sm:ring-border">
-        {/* Header */}
-        <header className="z-20 flex items-center gap-3 border-b border-border bg-card/80 px-4 py-3.5 backdrop-blur-md">
-          {tab === "beranda" ? (
-            <span className="flex size-9 items-center justify-center rounded-xl bg-brand-gradient text-primary-foreground shadow-sm shadow-primary/30">
+    <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6">
+      <div className="relative flex h-dvh w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
+        {/* Tablet / Desktop Sidebar Rail */}
+        <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">
+          {/* Brand header */}
+          <div className="flex items-center gap-3 p-4 border-b border-border/70">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/25">
               <Wrench className="size-5" strokeWidth={2.4} />
             </span>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-base font-semibold leading-tight">{displayTitle}</h1>
-              {currentUser.role === "Mekanik" && (
-                <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
-                  Mekanik
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <h2 className="truncate text-sm font-bold text-foreground tracking-tight">
+                  {profile.name || "GTA GARAGE"}
+                </h2>
+                <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] font-bold text-primary">
+                  POS
                 </span>
-              )}
+              </div>
+              <p className="truncate text-[10px] text-muted-foreground mt-0.5">
+                {profile.slogan?.split("\n")[0] || "Motorcycle Studio & Garage"}
+              </p>
             </div>
-            <p className="truncate text-xs text-muted-foreground">{head.subtitle}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setNotifOpen(true)}
-            aria-label="Buka notifikasi"
-            className="relative flex size-9 items-center justify-center rounded-full text-foreground hover:bg-accent transition-colors"
-          >
-            <Bell className="size-5" />
-            {unreadNotifCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-card animate-in zoom-in duration-200">
-                {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+
+          {/* Navigation Links */}
+          <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto no-scrollbar">
+            <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+              Menu Utama
+            </p>
+            {navItems.map(({ key, label, icon: Icon }) => {
+              const isActive = tab === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-medium transition-all text-left group",
+                    isActive
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs shadow-primary/20"
+                      : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
+                  )}
+                >
+                  <Icon
+                    className={cn(
+                      "size-4 shrink-0 transition-transform group-hover:scale-105",
+                      isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground"
+                    )}
+                    strokeWidth={isActive ? 2.5 : 2}
+                  />
+                  <span className="flex-1 truncate">{label}</span>
+                  {key === "pekerjaan" && activeJobsCount > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                        isActive
+                          ? "bg-primary-foreground/25 text-primary-foreground"
+                          : "bg-primary/15 text-primary"
+                      )}
+                    >
+                      {activeJobsCount}
+                    </span>
+                  )}
+                  {key === "stok" && lowStockCount > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[9.5px] font-bold",
+                        isActive
+                          ? "bg-primary-foreground/25 text-primary-foreground"
+                          : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      )}
+                    >
+                      {lowStockCount} tipis
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* Sidebar Footer User Card */}
+          <div className="p-3 border-t border-border/70 space-y-2 bg-muted/20">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left hover:bg-accent transition-colors"
+            >
+              <div className="relative">
+                <Avatar className="size-9 ring-1 ring-border">
+                  <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                    {currentUser.avatarInitials || initials(profile.owner || "GI")}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  className={cn(
+                    "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background",
+                    currentUser.role === "Owner"
+                      ? "bg-blue-500"
+                      : currentUser.role === "Admin"
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  )}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-foreground leading-tight">
+                  {currentUser.name}
+                </p>
+                <p className="truncate text-[10px] text-muted-foreground mt-0.5">
+                  {currentUser.role} · Pengaturan Bengkel
+                </p>
+              </div>
+              <Settings className="size-4 text-muted-foreground shrink-0" />
+            </button>
+          </div>
+        </aside>
+
+        {/* Main section */}
+        <div className="relative flex flex-1 flex-col overflow-hidden min-w-0">
+          {/* Header */}
+          <header className="z-20 flex items-center gap-3 border-b border-border bg-card/80 px-4 md:px-6 py-3.5 backdrop-blur-md">
+            {tab === "beranda" ? (
+              <span className="flex size-9 md:hidden items-center justify-center rounded-xl bg-brand-gradient text-primary-foreground shadow-sm shadow-primary/30">
+                <Wrench className="size-5" strokeWidth={2.4} />
               </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            aria-label="Buka Pengaturan"
-            title={`Pengaturan Bengkel & Akun (${currentUser.name} - ${currentUser.role})`}
-            className="group relative flex size-9 items-center justify-center rounded-full transition-transform active:scale-95 hover:ring-2 hover:ring-primary/40 focus:outline-none"
-          >
-            <Avatar className="size-9 ring-1 ring-border group-hover:ring-primary/60 transition-all">
-              <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                {currentUser.avatarInitials || initials(profile.owner || "GI")}
-              </AvatarFallback>
-            </Avatar>
-            <span
-              className={cn(
-                "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background",
-                currentUser.role === "Owner"
-                  ? "bg-blue-500"
-                  : currentUser.role === "Admin"
-                  ? "bg-amber-500"
-                  : "bg-emerald-500"
-              )}
-              title={`Role: ${currentUser.role}`}
-            />
-          </button>
-        </header>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-base md:text-lg font-bold leading-tight text-foreground">{displayTitle}</h1>
+                {currentUser.role === "Mekanik" && (
+                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    Mode Mekanik
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-xs text-muted-foreground">{head.subtitle}</p>
+            </div>
 
-        {/* Scrollable content */}
-        <main className="flex-1 overflow-y-auto overscroll-contain px-4 pb-24 pt-4 no-scrollbar">
-          {tab === "beranda" && <DashboardScreen onNavigate={setTab} />}
-          {tab === "pekerjaan" && <WorkOrdersScreen />}
-          {tab === "stok" && <InventoryScreen />}
-          {tab === "invoice" && <InvoicesScreen />}
-          {tab === "analitik" && <AnalyticsScreen />}
-        </main>
+            {/* Quick Actions in Header */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setNotifOpen(true)}
+                aria-label="Buka notifikasi"
+                className="relative flex size-9 items-center justify-center rounded-full text-foreground hover:bg-accent transition-colors"
+              >
+                <Bell className="size-5" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-card animate-in zoom-in duration-200">
+                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                aria-label="Buka Pengaturan"
+                title={`Pengaturan Bengkel & Akun (${currentUser.name} - ${currentUser.role})`}
+                className="group relative flex size-9 items-center justify-center rounded-full transition-transform active:scale-95 hover:ring-2 hover:ring-primary/40 focus:outline-none"
+              >
+                <Avatar className="size-9 ring-1 ring-border group-hover:ring-primary/60 transition-all">
+                  <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    {currentUser.avatarInitials || initials(profile.owner || "GI")}
+                  </AvatarFallback>
+                </Avatar>
+                <span
+                  className={cn(
+                    "absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background",
+                    currentUser.role === "Owner"
+                      ? "bg-blue-500"
+                      : currentUser.role === "Admin"
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  )}
+                  title={`Role: ${currentUser.role}`}
+                />
+              </button>
+            </div>
+          </header>
 
-        <BottomNav active={tab} onChange={setTab} />
+          {/* Scrollable content */}
+          <main className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-24 md:pb-6 pt-4 no-scrollbar">
+            <div className="mx-auto w-full max-w-5xl">
+              {tab === "beranda" && <DashboardScreen onNavigate={setTab} />}
+              {tab === "pekerjaan" && <WorkOrdersScreen />}
+              {tab === "stok" && <InventoryScreen />}
+              {tab === "invoice" && <InvoicesScreen />}
+              {tab === "analitik" && <AnalyticsScreen />}
+            </div>
+          </main>
+
+          {/* Mobile Bottom Navigation (Hidden on Tablet) */}
+          <div className="md:hidden">
+            <BottomNav active={tab} onChange={setTab} />
+          </div>
+        </div>
         <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} onNavigate={setTab} />
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <Toaster />

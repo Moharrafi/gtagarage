@@ -124,7 +124,7 @@ export function WorkOrdersScreen() {
 
   return (
     <div className="space-y-4">
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0 md:flex-wrap">
         {filters.map((f) => {
           const count =
             f === "Aktif"
@@ -172,7 +172,7 @@ export function WorkOrdersScreen() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
         {list.map((w) => {
           const open = openId === w.id
           const partsTotal = w.usedParts.reduce((s, p) => s + p.qty * p.price, 0)
@@ -348,7 +348,7 @@ export function WorkOrdersScreen() {
         })}
 
         {list.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
+          <div className="col-span-full rounded-2xl border border-dashed border-border py-12 text-center text-sm text-muted-foreground">
             {filter === "Selesai"
               ? "Belum ada riwayat pekerjaan yang selesai."
               : "Tidak ada pekerjaan aktif dalam status ini."}

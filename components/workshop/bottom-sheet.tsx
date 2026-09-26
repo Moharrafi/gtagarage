@@ -29,7 +29,7 @@ export function BottomSheet({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center overflow-hidden p-0 md:p-6">
       <button
         type="button"
         aria-label="Tutup"
@@ -41,15 +41,16 @@ export function BottomSheet({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative mx-auto flex w-full max-w-[440px] flex-col bg-card shadow-2xl animate-in slide-in-from-bottom duration-300",
+          "relative mx-auto flex w-full flex-col bg-card shadow-2xl animate-in duration-300 md:animate-in md:zoom-in-95",
+          "max-w-[440px] md:max-w-[640px] lg:max-w-[720px]",
           full
-            ? "h-full max-h-dvh sm:max-h-[920px] rounded-none sm:rounded-[2.25rem] border-0"
-            : "max-h-[92dvh] sm:max-h-[850px] rounded-t-3xl border-t border-border",
+            ? "h-full max-h-dvh md:max-h-[90dvh] rounded-none md:rounded-3xl border-0 md:border md:border-border"
+            : "max-h-[92dvh] md:max-h-[86dvh] rounded-t-3xl md:rounded-3xl border-t md:border border-border",
           className,
         )}
       >
         {!full && (
-          <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/30" />
+          <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/30 md:hidden" />
         )}
 
         {title && (

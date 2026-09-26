@@ -83,22 +83,22 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
       ]
 
   return (
-    <div className="space-y-5">
-      <section className="grid grid-cols-2 gap-3">
+    <div className="space-y-4 md:space-y-5">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {stats.map((s) => (
-          <Card key={s.label} className="gap-0 p-3.5">
+          <Card key={s.label} className="gap-0 p-3.5 md:p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">{s.label}</span>
               <s.icon className={`size-4 ${s.tint}`} />
             </div>
-            <p className="mt-2 text-xl font-semibold tracking-tight text-balance">{s.value}</p>
+            <p className="mt-2 text-xl md:text-2xl font-semibold tracking-tight text-balance">{s.value}</p>
             <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{s.sub}</p>
           </Card>
         ))}
       </section>
 
       <section>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2 md:gap-3.5">
           {activeQuickActions.map((a) => (
             <button
               key={a.label}
@@ -110,35 +110,35 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
                   onNavigate(a.go)
                 }
               }}
-              className="flex flex-col items-center gap-1.5 rounded-2xl bg-card p-3 text-xs font-medium border border-border dark:border-slate-700/80 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-muted/50 dark:hover:bg-slate-800"
+              className="flex flex-col items-center gap-1.5 rounded-2xl bg-card p-3 md:p-3.5 text-xs font-medium border border-border dark:border-slate-700/80 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md hover:bg-muted/50 dark:hover:bg-slate-800"
             >
               <span
                 className={cn(
-                  "flex size-10 items-center justify-center rounded-full transition-colors",
+                  "flex size-10 md:size-11 items-center justify-center rounded-full transition-colors",
                   a.action === "wa"
                     ? "bg-[#25D366]/15 text-[#25D366] dark:bg-[#25D366]/20 dark:text-[#25D366]"
                     : "bg-primary/15 text-primary"
                 )}
               >
-                <a.icon className="size-5" />
+                <a.icon className="size-5 md:size-5.5" />
               </span>
-              {a.label}
+              <span className="truncate">{a.label}</span>
             </button>
           ))}
         </div>
       </section>
 
-      <Card className="gap-3 p-4">
+      <Card className="gap-3 p-4 md:p-5">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
-            <p className="text-2xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
+            <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-1 text-xs font-medium text-success">
+          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
             <TrendingUp className="size-3.5" /> +6,8%
           </span>
         </div>
-        <div className="h-20 w-full">
+        <div className="h-24 md:h-32 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
               <defs>
@@ -159,58 +159,72 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
         </div>
       </Card>
 
-      <section>
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Pekerjaan Aktif</h2>
-          <button
-            type="button"
-            onClick={() => onNavigate("pekerjaan")}
-            className="flex items-center gap-0.5 text-xs font-medium text-primary"
-          >
-            Lihat semua <ChevronRight className="size-3.5" />
-          </button>
-        </div>
-        <div className="space-y-2.5">
-          {activeJobs.slice(0, 3).map((w) => (
-            <Card key={w.id} className="gap-2.5 p-3.5">
-              <div className="flex items-center gap-3">
-                <ServiceIcon service={w.service} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">
-                      {w.vehicle.brand} {w.vehicle.model}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Pekerjaan Aktif</h2>
+            <button
+              type="button"
+              onClick={() => onNavigate("pekerjaan")}
+              className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+            >
+              Lihat semua <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+          <div className="space-y-2.5">
+            {activeJobs.slice(0, 3).map((w) => (
+              <Card key={w.id} className="gap-2.5 p-3.5 hover:border-primary/40 transition-colors">
+                <div className="flex items-center gap-3">
+                  <ServiceIcon service={w.service} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium">
+                        {w.vehicle.brand} {w.vehicle.model}
+                      </p>
+                      <span className="shrink-0 text-xs text-muted-foreground">{w.code}</span>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {w.vehicle.plate} · {w.customer.name}
                     </p>
-                    <span className="shrink-0 text-xs text-muted-foreground">{w.code}</span>
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {w.vehicle.plate} · {w.customer.name}
-                  </p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <WorkStatusBadge status={w.status} />
+                  <span className="text-xs text-muted-foreground">{w.progress}%</span>
+                </div>
+                <Progress value={w.progress} className="h-1.5" />
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Invoice Terbaru</h2>
+            <button
+              type="button"
+              onClick={() => onNavigate("invoice")}
+              className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+            >
+              Lihat semua <ChevronRight className="size-3.5" />
+            </button>
+          </div>
+          <Card className="divide-y divide-border p-0 overflow-hidden">
+            {invoices.slice(0, 3).map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-muted/30 transition-colors">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{inv.customer.name}</p>
+                  <p className="text-xs text-muted-foreground">{inv.number} · {inv.service}</p>
+                </div>
+                <div className="text-right">
+                  <p className="shrink-0 text-sm font-semibold text-foreground">{formatRupiah(invoiceTotal(inv))}</p>
+                  <span className="text-[10px] text-muted-foreground">{inv.status}</span>
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <WorkStatusBadge status={w.status} />
-                <span className="text-xs text-muted-foreground">{w.progress}%</span>
-              </div>
-              <Progress value={w.progress} className="h-1.5" />
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-2 text-sm font-semibold">Invoice Terbaru</h2>
-        <Card className="divide-y divide-border p-0">
-          {invoices.slice(0, 3).map((inv) => (
-            <div key={inv.id} className="flex items-center justify-between gap-3 p-3.5">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{inv.customer.name}</p>
-                <p className="text-xs text-muted-foreground">{inv.number}</p>
-              </div>
-              <p className="shrink-0 text-sm font-semibold">{formatRupiah(invoiceTotal(inv))}</p>
-            </div>
-          ))}
-        </Card>
-      </section>
+            ))}
+          </Card>
+        </section>
+      </div>
 
       {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} />}
     </div>

@@ -152,128 +152,132 @@ export function AnalyticsScreen() {
         </div>
       </Card>
 
-      <Card className="gap-3 p-4">
-        <h2 className="text-sm font-semibold">Kunjungan Harian</h2>
-        <div className="h-40 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dailyVisits} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
-              <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-              <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-              <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
-              <Bar dataKey="masuk" name="Masuk" fill="var(--chart-3)" radius={[4, 4, 0, 0]} maxBarSize={14} />
-              <Bar dataKey="selesai" name="Selesai" fill="var(--chart-4)" radius={[4, 4, 0, 0]} maxBarSize={14} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="flex justify-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-chart-3" /> Masuk
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-chart-4" /> Selesai
-          </span>
-        </div>
-      </Card>
-
-      <Card className="gap-3 p-4">
-        <h2 className="text-sm font-semibold">Pendapatan per Layanan</h2>
-        <div className="flex items-center gap-2">
-          <div className="h-40 w-1/2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="gap-3 p-4">
+          <h2 className="text-sm font-semibold">Kunjungan Harian</h2>
+          <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={serviceBreakdown}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={38}
-                  outerRadius={62}
-                  paddingAngle={2}
-                  stroke="none"
-                >
-                  {serviceBreakdown.map((_, i) => (
-                    <Cell key={i} fill={pieColors[i % pieColors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<ChartTooltip currency />} />
-              </PieChart>
+              <BarChart data={dailyVisits} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.4 }} />
+                <Bar dataKey="masuk" name="Masuk" fill="var(--chart-3)" radius={[4, 4, 0, 0]} maxBarSize={14} />
+                <Bar dataKey="selesai" name="Selesai" fill="var(--chart-4)" radius={[4, 4, 0, 0]} maxBarSize={14} />
+              </BarChart>
             </ResponsiveContainer>
           </div>
-          <ul className="flex-1 space-y-2">
-            {serviceBreakdown.map((s, i) => (
-              <li key={s.name} className="flex items-center gap-2 text-xs">
-                <span className="size-2.5 shrink-0 rounded-full" style={{ background: pieColors[i] }} />
-                <span className="flex-1 truncate text-muted-foreground">{s.name}</span>
-                <span className="font-medium">{Math.round((s.jobs / totalJobs) * 100)}%</span>
+          <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-chart-3" /> Masuk
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-chart-4" /> Selesai
+            </span>
+          </div>
+        </Card>
+
+        <Card className="gap-3 p-4">
+          <h2 className="text-sm font-semibold">Pendapatan per Layanan</h2>
+          <div className="flex items-center gap-2">
+            <div className="h-40 w-1/2">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={serviceBreakdown}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={38}
+                    outerRadius={62}
+                    paddingAngle={2}
+                    stroke="none"
+                  >
+                    {serviceBreakdown.map((_, i) => (
+                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<ChartTooltip currency />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <ul className="flex-1 space-y-2">
+              {serviceBreakdown.map((s, i) => (
+                <li key={s.name} className="flex items-center gap-2 text-xs">
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: pieColors[i] }} />
+                  <span className="flex-1 truncate text-muted-foreground">{s.name}</span>
+                  <span className="font-medium">{Math.round((s.jobs / totalJobs) * 100)}%</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="gap-3 p-4">
+          <h2 className="text-sm font-semibold">Efisiensi Teknisi</h2>
+          <ul className="space-y-3">
+            {technicians.map((t) => (
+              <li key={t.id} className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{t.name}</span>
+                  <span className="text-muted-foreground">
+                    {t.completedThisMonth} job · {t.avgHours} jam/job
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={t.efficiency} className="h-1.5 flex-1" />
+                  <span className="w-9 text-right text-xs font-semibold">{t.efficiency}%</span>
+                </div>
               </li>
             ))}
           </ul>
-        </div>
-      </Card>
+        </Card>
 
-      <Card className="gap-3 p-4">
-        <h2 className="text-sm font-semibold">Efisiensi Teknisi</h2>
-        <ul className="space-y-3">
-          {technicians.map((t) => (
-            <li key={t.id} className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium">{t.name}</span>
-                <span className="text-muted-foreground">
-                  {t.completedThisMonth} job · {t.avgHours} jam/job
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={t.efficiency} className="h-1.5 flex-1" />
-                <span className="w-9 text-right text-xs font-semibold">{t.efficiency}%</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Card>
-
-      <Card className="gap-3 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">Laporan Keuangan</h2>
-            <p className="text-xs text-muted-foreground">{monthlyReport.period}</p>
-          </div>
-          <Button size="sm" variant="outline" className="gap-1.5 bg-transparent">
-            <Download className="size-3.5" /> Ekspor
-          </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="rounded-xl bg-muted/50 p-3">
-            <p className="flex items-center gap-1 text-[0.7rem] text-muted-foreground">
-              <ArrowUpRight className="size-3 text-success" /> Pendapatan
-            </p>
-            <p className="mt-1 text-sm font-semibold">{formatRupiah(monthlyReport.pendapatan)}</p>
-          </div>
-          <div className="rounded-xl bg-muted/50 p-3">
-            <p className="flex items-center gap-1 text-[0.7rem] text-muted-foreground">
-              <ArrowDownRight className="size-3 text-destructive" /> Pengeluaran
-            </p>
-            <p className="mt-1 text-sm font-semibold">{formatRupiah(monthlyReport.pengeluaran)}</p>
-          </div>
-        </div>
-
-        <div className="rounded-xl bg-primary/10 p-3.5">
+        <Card className="gap-3 p-4">
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
-              <Wallet className="size-4" /> Laba Bersih
-            </span>
-            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[0.7rem] font-medium text-primary">
-              margin {monthlyReport.labaMargin}%
-            </span>
+            <div>
+              <h2 className="text-sm font-semibold">Laporan Keuangan</h2>
+              <p className="text-xs text-muted-foreground">{monthlyReport.period}</p>
+            </div>
+            <Button size="sm" variant="outline" className="gap-1.5 bg-transparent">
+              <Download className="size-3.5" /> Ekspor
+            </Button>
           </div>
-          <p className="mt-1.5 text-xl font-semibold">{formatRupiah(monthlyReport.laba)}</p>
-        </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Piutang belum tertagih</span>
-          <span className="font-medium text-foreground">{formatRupiah(monthlyReport.piutang)}</span>
-        </div>
-      </Card>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-xl bg-muted/50 p-3">
+              <p className="flex items-center gap-1 text-[0.7rem] text-muted-foreground">
+                <ArrowUpRight className="size-3 text-success" /> Pendapatan
+              </p>
+              <p className="mt-1 text-sm font-semibold">{formatRupiah(monthlyReport.pendapatan)}</p>
+            </div>
+            <div className="rounded-xl bg-muted/50 p-3">
+              <p className="flex items-center gap-1 text-[0.7rem] text-muted-foreground">
+                <ArrowDownRight className="size-3 text-destructive" /> Pengeluaran
+              </p>
+              <p className="mt-1 text-sm font-semibold">{formatRupiah(monthlyReport.pengeluaran)}</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl bg-primary/10 p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-primary">
+                <Wallet className="size-4" /> Laba Bersih
+              </span>
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[0.7rem] font-medium text-primary">
+                margin {monthlyReport.labaMargin}%
+              </span>
+            </div>
+            <p className="mt-1.5 text-xl font-semibold">{formatRupiah(monthlyReport.laba)}</p>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Piutang belum tertagih</span>
+            <span className="font-medium text-foreground">{formatRupiah(monthlyReport.piutang)}</span>
+          </div>
+        </Card>
+      </div>
 
       <p className="pb-2 text-center text-[0.7rem] text-muted-foreground">
         Data ditampilkan sebagai demo. Hubungkan database untuk laporan real-time.

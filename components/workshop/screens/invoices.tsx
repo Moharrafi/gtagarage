@@ -1030,7 +1030,7 @@ export function InvoicesScreen() {
         </Card>
       </div>
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0 md:flex-wrap">
         {filters.map((f) => {
           const count = getFilterCount(f)
           return (
@@ -1068,9 +1068,9 @@ export function InvoicesScreen() {
         </div>
       )}
 
-      <div className="space-y-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
         {list.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground dark:border-slate-800">
+          <Card className="col-span-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground dark:border-slate-800">
             <FileText className="size-10 stroke-[1.5] text-muted-foreground/50 mb-2" />
             <p className="text-sm font-semibold text-foreground">Tidak Ada Invoice</p>
             <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">

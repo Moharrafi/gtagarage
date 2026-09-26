@@ -169,7 +169,7 @@ export function InventoryScreen() {
       )}
 
       {/* 4 Focus Pillar Filter Bar */}
-      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 no-scrollbar">
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 no-scrollbar md:mx-0 md:px-0 md:flex-wrap">
         {[
           { id: "all", label: "Semua", count: parts.length },
           { id: "vapor", label: "💧 Vapor Blasting", count: countVapor },
@@ -230,7 +230,7 @@ export function InventoryScreen() {
         </button>
       </div>
 
-      <div className="space-y-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
         {filtered.map((p) => {
           const low = p.stock <= p.minStock
           const maxStock = Math.max(p.minStock * 2, p.stock, 1)
@@ -367,7 +367,7 @@ export function InventoryScreen() {
         })}
 
         {filtered.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted-foreground">Tidak ada item yang cocok.</p>
+          <p className="col-span-full py-10 text-center text-sm text-muted-foreground">Tidak ada item yang cocok.</p>
         )}
       </div>
 
