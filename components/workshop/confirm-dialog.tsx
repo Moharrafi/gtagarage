@@ -122,10 +122,10 @@ export function ConfirmDialog() {
 
   const confirmBtnClasses =
     options.variant === "warning"
-      ? "bg-amber-600 hover:bg-amber-700 text-white"
+      ? "bg-amber-600 hover:bg-amber-700 text-white shadow-sm shadow-amber-600/25"
       : options.variant === "destructive"
-      ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-xs shadow-destructive/25"
-      : "bg-primary hover:bg-primary/90 text-primary-foreground"
+      ? "bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/25"
+      : "bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/25"
 
   return (
     <div
@@ -137,7 +137,7 @@ export function ConfirmDialog() {
       onClick={() => handleAction(false)}
     >
       <div
-        className="relative w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900"
+        className="relative w-full max-w-sm rounded-3xl border border-border/80 bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close X button */}
@@ -145,7 +145,7 @@ export function ConfirmDialog() {
           type="button"
           onClick={() => handleAction(false)}
           aria-label="Tutup konfirmasi"
-          className="absolute right-3.5 top-3.5 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          className="absolute right-3.5 top-3.5 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <X className="size-4" />
         </button>
@@ -166,7 +166,7 @@ export function ConfirmDialog() {
         {/* Message */}
         <div
           id="confirm-dialog-desc"
-          className="rounded-2xl bg-muted/40 p-3 text-xs leading-relaxed text-foreground border border-border/70 dark:bg-slate-950/60 dark:border-slate-800"
+          className="rounded-2xl bg-muted/50 p-3.5 text-xs leading-relaxed text-foreground/90 border border-border/70 dark:bg-slate-950/60 dark:border-slate-800 dark:text-slate-200"
         >
           {options.description}
         </div>
@@ -176,7 +176,7 @@ export function ConfirmDialog() {
           <button
             type="button"
             onClick={() => handleAction(false)}
-            className="flex-1 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground hover:bg-accent active:scale-[0.98] transition-all dark:border-slate-700 dark:hover:bg-slate-800"
+            className="flex-1 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all dark:border-slate-700 dark:hover:bg-slate-800"
           >
             {options.cancelText}
           </button>
@@ -185,12 +185,12 @@ export function ConfirmDialog() {
             autoFocus
             onClick={() => handleAction(true)}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98]",
+              "flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98] text-white [&>svg]:text-white [&>svg]:stroke-white",
               confirmBtnClasses
             )}
           >
             {renderIcon()}
-            <span>{options.confirmText}</span>
+            <span className="text-white font-semibold">{options.confirmText}</span>
           </button>
         </div>
       </div>
