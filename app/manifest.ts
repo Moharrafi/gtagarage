@@ -1,0 +1,76 @@
+import type { MetadataRoute } from 'next'
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: 'GTA GARAGE — Sistem Manajemen Bengkel',
+    short_name: 'GTA Garage',
+    description:
+      'Aplikasi POS & Manajemen Bengkel Motor: servis kendaraan, vapor & sand blasting, kustomisasi motor, stok suku cadang, dan kasir otomatis.',
+    start_url: '/',
+    id: '/',
+    display: 'standalone',
+    display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+    background_color: '#090a0e',
+    theme_color: '#f97316',
+    orientation: 'any',
+    scope: '/',
+    lang: 'id',
+    dir: 'ltr',
+    categories: ['business', 'productivity', 'finance'],
+    icons: [
+      {
+        src: '/icons/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-maskable-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icons/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icons/icon-maskable-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'maskable',
+      },
+      {
+        src: '/icons/icon.svg',
+        sizes: '512x512',
+        type: 'image/svg+xml',
+        purpose: 'any',
+      },
+    ],
+    shortcuts: [
+      {
+        name: 'Tambah Kendaraan Masuk',
+        short_name: 'Input Servis',
+        description: 'Daftarkan kendaraan atau pengerjaan baru di bengkel',
+        url: '/?tab=pekerjaan',
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'Kasir & Pembayaran Invoice',
+        short_name: 'Kasir / Invoice',
+        description: 'Terima pembayaran QRIS / Cash & cetak struk',
+        url: '/?tab=invoice',
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+      },
+      {
+        name: 'Katalog & Stok Sparepart',
+        short_name: 'Stok Barang',
+        description: 'Pantau stok item suku cadang bengkel',
+        url: '/?tab=stok',
+        icons: [{ src: '/icons/icon-192.png', sizes: '192x192' }],
+      },
+    ],
+  }
+}

@@ -1910,7 +1910,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
         {/* Footer Note & Reset Action */}
         <div className="pt-3 border-t border-border flex items-center justify-between text-[0.7rem] text-muted-foreground flex-wrap gap-2">
-          <span>BengkelPro v1.2</span>
+          <span>GTA GARAGE POS v2.4 (PWA Ready)</span>
           <div className="flex items-center gap-3">
             <button
               type="button"

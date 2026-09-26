@@ -1,36 +1,59 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { PwaInstaller } from '@/components/workshop/pwa-installer'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BengkelPro — Manajemen Bengkel',
+  title: 'GTA GARAGE — Sistem Manajemen Bengkel',
   description:
-    'Aplikasi manajemen bengkel terpadu: servis kendaraan, vapor & sand blasting, kustomisasi motor, stok suku cadang, invoice, dan analitik.',
-  generator: 'v0.app',
+    'Aplikasi POS & Manajemen Bengkel Motor: servis kendaraan, vapor & sand blasting, kustomisasi motor, stok suku cadang, invoice Midtrans, dan analitik.',
+  applicationName: 'GTA GARAGE',
+  manifest: '/manifest.webmanifest',
+  formatDetection: {
+    telephone: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'GTA Garage',
+  },
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
+        url: '/icons/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
       },
       {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
+        url: '/icons/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
       },
       {
-        url: '/icon.svg',
+        url: '/icons/icon.svg',
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: [
+      {
+        url: '/apple-touch-icon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
   },
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
   colorScheme: 'light dark',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#f7f5f0' },
-    { media: '(prefers-color-scheme: dark)', color: '#232120' },
+    { media: '(prefers-color-scheme: dark)', color: '#090a0e' },
   ],
 }
 
@@ -50,8 +73,10 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        <PwaInstaller />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )
 }
+
