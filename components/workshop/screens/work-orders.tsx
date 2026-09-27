@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye, Search, X } from "lucide-react"
+import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye, Search, X, Zap, CheckCircle2 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -89,6 +89,55 @@ export function WorkOrdersScreen() {
   const [form, setForm] = useState<WorkOrderInput>(emptyForm)
   const [waOpen, setWaOpen] = useState(false)
   const [waWoId, setWaWoId] = useState<string | undefined>(undefined)
+  const [assignTargetWo, setAssignTargetWo] = useState<WorkOrder | null>(null)
+
+  const activeJobsByTech = useMemo(() => {
+    const counts: Record<string, number> = {}
+    workOrders.forEach((order) => {
+      if (order.status !== "Selesai") {
+        counts[order.technician] = (counts[order.technician] || 0) + 1
+      }
+    })
+    return counts
+  }, [workOrders])
+
+  function handleAssignAndStart(techName: string) {
+    if (!assignTargetWo) return
+    const isFromAntrian = assignTargetWo.status === "Antrian"
+    const newStatus: WorkStatus = isFromAntrian ? "Dikerjakan" : assignTargetWo.status
+
+    const updatedInput: WorkOrderInput = {
+      ...fromWorkOrder(assignTargetWo),
+      technician: techName,
+      status: newStatus,
+    }
+
+    updateWorkOrder(assignTargetWo.id, updatedInput)
+    if (isFromAntrian) {
+      toast.success(
+        "Pekerjaan Dimulai!",
+        `${assignTargetWo.vehicle.brand} (${assignTargetWo.vehicle.plate}) resmi dikerjakan oleh ${techName}.`
+      )
+    } else {
+      toast.success(
+        "Mekanik Diperbarui",
+        `${assignTargetWo.vehicle.plate} dialihkan ke teknisi ${techName}.`
+      )
+    }
+    setAssignTargetWo(null)
+  }
+
+  function handleQuickComplete(w: WorkOrder) {
+    const updatedInput: WorkOrderInput = {
+      ...fromWorkOrder(w),
+      status: "Siap Diambil",
+    }
+    updateWorkOrder(w.id, updatedInput)
+    toast.success(
+      "Pengerjaan Selesai!",
+      `${w.vehicle.brand} ${w.vehicle.model} (${w.vehicle.plate}) telah selesai dan siap diserahkan ke pelanggan.`
+    )
+  }
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -238,8 +287,27 @@ export function WorkOrdersScreen() {
                   <p className="truncate text-xs text-muted-foreground">
                     {w.vehicle.plate} · {w.service}
                   </p>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <WorkStatusBadge status={w.status} />
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (canEdit) setAssignTargetWo(w)
+                      }}
+                      role={canEdit ? "button" : undefined}
+                      tabIndex={canEdit ? 0 : undefined}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                        w.technician
+                          ? "bg-primary/10 text-primary hover:bg-primary/20 cursor-pointer"
+                          : "bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 cursor-pointer"
+                      )}
+                      title={canEdit ? "Klik untuk ganti / pilih teknisi" : undefined}
+                    >
+                      <Wrench className="size-2.5" />
+                      <span className="truncate max-w-[120px]">{w.technician || "Pilih Teknisi"}</span>
+                      {canEdit && <Pencil className="size-2 opacity-60 ml-0.5" />}
+                    </span>
                     <ChevronDown
                       className={cn(
                         "ml-auto size-4 text-muted-foreground transition-transform duration-300 ease-out",
@@ -272,6 +340,22 @@ export function WorkOrdersScreen() {
                   indicatorClassName={w.progress >= 100 ? "bg-success" : undefined}
                 />
               </div>
+
+              {w.status === "Antrian" && canEdit && (
+                <div className="px-3.5 pb-3 pt-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAssignTargetWo(w)
+                    }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    <Zap className="size-3.5 fill-current" />
+                    Mulai Kerjakan (Tugaskan Mekanik)
+                  </button>
+                </div>
+              )}
 
               <div
                 className={cn(
@@ -339,11 +423,29 @@ export function WorkOrdersScreen() {
                     </div>
 
                     <div className="flex gap-2 mt-2">
+                      {w.status === "Antrian" && canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setAssignTargetWo(w)}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-all active:scale-[0.98] cursor-pointer"
+                        >
+                          <Zap className="size-3.5 fill-current" /> Mulai Kerjakan
+                        </button>
+                      )}
+                      {w.status === "Dikerjakan" && canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickComplete(w)}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
+                        >
+                          <CheckCircle2 className="size-3.5" /> Selesaikan Pengerjaan
+                        </button>
+                      )}
                       {canEdit && (
                         <button
                           type="button"
                           onClick={() => openEdit(w)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:-translate-y-0.5 hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
+                          className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800 cursor-pointer"
                         >
                           <Pencil className="size-3.5" /> Edit
                         </button>
@@ -355,9 +457,9 @@ export function WorkOrdersScreen() {
                             setWaWoId(w.id)
                             setWaOpen(true)
                           }}
-                          className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
                         >
-                          <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap
+                          <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap Diambil
                         </button>
                       )}
                       {canEdit && (
@@ -475,7 +577,9 @@ export function WorkOrdersScreen() {
               <label className={labelCls} htmlFor="wo-tech">Teknisi</label>
               <select id="wo-tech" className={selectCls} value={form.technician} onChange={(e) => setForm({ ...form, technician: e.target.value })}>
                 {technicians.map((t) => (
-                  <option key={t.id} value={t.name}>{t.name}</option>
+                  <option key={t.id} value={t.name}>
+                    {t.name} ({activeJobsByTech[t.name] || 0} unit aktif)
+                  </option>
                 ))}
               </select>
             </div>
@@ -596,6 +700,118 @@ export function WorkOrdersScreen() {
       </BottomSheet>
 
       {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} initialWorkOrderId={waWoId} />}
+
+      {/* QUICK ASSIGN MECHANIC & START WORK MODAL */}
+      <BottomSheet
+        open={Boolean(assignTargetWo)}
+        onClose={() => setAssignTargetWo(null)}
+        title="Tugaskan Mekanik & Mulai Pengerjaan"
+        className="max-w-[440px] md:max-w-lg"
+      >
+        {assignTargetWo && (
+          <div className="space-y-4 p-4 md:p-5">
+            {/* Target Work Order Summary */}
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5 flex items-center gap-3">
+              <ServiceIcon service={assignTargetWo.service} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1">
+                  <h4 className="text-sm font-bold text-foreground truncate">
+                    {assignTargetWo.vehicle.brand} {assignTargetWo.vehicle.model}
+                  </h4>
+                  <span className="font-mono text-xs font-semibold text-primary">
+                    {assignTargetWo.code}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {assignTargetWo.vehicle.plate} • {assignTargetWo.customer.name}
+                </p>
+                <p className="text-[11px] text-muted-foreground/90 italic truncate mt-1">
+                  &ldquo;{assignTargetWo.complaint || "Perawatan berkala"}&rdquo;
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1">
+                Pilih Mekanik Penanggung Jawab:
+              </p>
+              <p className="text-[11px] text-muted-foreground mb-3">
+                Status pengerjaan akan otomatis diubah ke <strong>Dikerjakan</strong> dan dihitung dalam evaluasi efisiensi bulanan.
+              </p>
+
+              <div className="space-y-2.5">
+                {technicians.map((t) => {
+                  const activeCount = activeJobsByTech[t.name] || 0
+                  const isCurrent = assignTargetWo.technician === t.name
+
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => handleAssignAndStart(t.name)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-2xl border p-3.5 text-left transition-all active:scale-[0.99] cursor-pointer",
+                        isCurrent
+                          ? "border-primary bg-primary/10 ring-1 ring-primary shadow-xs"
+                          : "border-border bg-card hover:border-primary/50 hover:bg-accent/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="size-10 border border-border shadow-xs">
+                          <AvatarFallback className="bg-primary/15 text-xs font-bold text-primary">
+                            {t.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-foreground truncate">{t.name}</p>
+                            {isCurrent && (
+                              <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[9px] font-bold text-primary">
+                                Ditugaskan
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {t.completedThisMonth} order selesai • Rata-rata {t.avgHours} jam
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span
+                          className={cn(
+                            "inline-block rounded-full px-2 py-0.5 text-[10px] font-bold",
+                            activeCount === 0
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                              : activeCount > 3
+                              ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                              : "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                          )}
+                        >
+                          {activeCount} motor aktif
+                        </span>
+                        <p className="text-[10px] font-semibold text-emerald-600 mt-1">
+                          {t.efficiency}% Efisiensi
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setAssignTargetWo(null)}
+                className="rounded-xl px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   )
 }

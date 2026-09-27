@@ -274,8 +274,15 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <WorkStatusBadge status={w.status} />
-                  <span className="text-xs text-muted-foreground">{w.progress}%</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <WorkStatusBadge status={w.status} />
+                    {w.technician && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium text-foreground/80">
+                        <Wrench className="size-2.5 text-primary" /> {w.technician}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold tabular-nums text-foreground">{w.progress}%</span>
                 </div>
                 <Progress
                   value={w.progress}
