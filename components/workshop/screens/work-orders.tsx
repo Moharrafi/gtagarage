@@ -139,6 +139,18 @@ export function WorkOrdersScreen() {
     )
   }
 
+  function handleFinalComplete(w: WorkOrder) {
+    const updatedInput: WorkOrderInput = {
+      ...fromWorkOrder(w),
+      status: "Selesai",
+    }
+    updateWorkOrder(w.id, updatedInput)
+    toast.success(
+      "Pekerjaan Selesai (100%)",
+      `Unit ${w.vehicle.brand} (${w.vehicle.plate}) telah diserahkan dan dipindahkan ke arsip Pekerjaan Selesai.`
+    )
+  }
+
   const list = useMemo(() => {
     const q = query.trim().toLowerCase()
     return workOrders.filter((w) => {
@@ -357,6 +369,35 @@ export function WorkOrdersScreen() {
                 </div>
               )}
 
+              {w.status === "Siap Diambil" && canEdit && (
+                <div className="px-3.5 pb-3 pt-0 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleFinalComplete(w)
+                    }}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Selesai &amp; Serahkan Unit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setWaWoId(w.id)
+                      setWaOpen(true)
+                    }}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-all active:scale-[0.98] cursor-pointer"
+                    title="Kirim pesan WhatsApp Siap Diambil"
+                  >
+                    <WhatsAppIcon className="size-3.5 text-[#25D366]" />
+                    Kirim WA
+                  </button>
+                </div>
+              )}
+
               <div
                 className={cn(
                   "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
@@ -451,16 +492,25 @@ export function WorkOrdersScreen() {
                         </button>
                       )}
                       {w.status === "Siap Diambil" && canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setWaWoId(w.id)
-                            setWaOpen(true)
-                          }}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
-                        >
-                          <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap Diambil
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleFinalComplete(w)}
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
+                          >
+                            <CheckCircle2 className="size-3.5" /> Selesai &amp; Serahkan
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWaWoId(w.id)
+                              setWaOpen(true)
+                            }}
+                            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
+                          >
+                            <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap Diambil
+                          </button>
+                        </>
                       )}
                       {canEdit && (
                         <button

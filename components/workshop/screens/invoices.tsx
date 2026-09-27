@@ -492,7 +492,7 @@ Terima kasih!`
 }
 
 export function InvoicesScreen() {
-  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig } = useWorkshop()
+  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig, workOrders, updateWorkOrder } = useWorkshop()
   const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
   const [active, setActive] = useState<Invoice | null>(null)
@@ -1613,7 +1613,27 @@ export function InvoicesScreen() {
               linkTab: "invoice",
             })
 
-            toast.success("Pembayaran Berhasil Diterima", `${formatRupiah(finalPayAmount)} via ${paidMethodLabel} tercatat lunas.`)
+            // Otomatis sinkronisasi: update status Pekerjaan ke 'Selesai' (100%)
+            if (payFor.workOrderCode) {
+              const matchingWo = workOrders.find((w) => w.code === payFor.workOrderCode)
+              if (matchingWo && matchingWo.status !== "Selesai") {
+                updateWorkOrder(matchingWo.id, {
+                  customerName: matchingWo.customer.name,
+                  customerPhone: matchingWo.customer.phone,
+                  plate: matchingWo.vehicle.plate,
+                  brand: matchingWo.vehicle.brand,
+                  model: matchingWo.vehicle.model,
+                  service: matchingWo.service,
+                  complaint: matchingWo.complaint,
+                  technician: matchingWo.technician,
+                  laborCost: matchingWo.laborCost,
+                  status: "Selesai",
+                  usedParts: matchingWo.usedParts,
+                })
+              }
+            }
+
+            toast.success("Pembayaran Berhasil Diterima", `${formatRupiah(finalPayAmount)} via ${paidMethodLabel} tercatat lunas. Status pekerjaan diperbarui ke Selesai.`)
             setPaid(true)
           }
 
