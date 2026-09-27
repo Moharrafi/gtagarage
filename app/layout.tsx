@@ -63,6 +63,9 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#2563eb" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090a0e" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem("bengkel_theme");var d=window.matchMedia("(prefers-color-scheme: dark)").matches;if(t==="dark"||((!t||t==="system")&&d)){document.documentElement.classList.add("dark")}else{document.documentElement.classList.remove("dark")}}catch(e){}})()`,
