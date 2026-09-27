@@ -246,3 +246,14 @@
     z-index: 999999 !important;
   }
 }
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); width: 35%; }
+  50% { transform: translateX(50%); width: 60%; }
+  100% { transform: translateX(250%); width: 35%; }
+}
+
+.animate-indeterminate {
+  animation: indeterminate 1.4s infinite ease-in-out;
+}
+

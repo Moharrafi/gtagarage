@@ -28,7 +28,6 @@ import { useWorkshop } from "@/lib/store"
 import {
   monthlyReport,
   serviceBreakdown,
-  technicians,
   formatRupiah,
 } from "@/lib/data"
 import { cn } from "@/lib/utils"
@@ -72,7 +71,7 @@ interface ReportExportModalProps {
 }
 
 export function ReportExportModal({ open, onClose }: ReportExportModalProps) {
-  const { profile } = useWorkshop()
+  const { profile, technicians } = useWorkshop()
   const [copiedWa, setCopiedWa] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
 
@@ -367,6 +366,7 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
                   profile={profile}
                   reportCode={reportCode}
                   currentDateStr={currentDateStr}
+                  technicians={technicians}
                 />
               </div>
             </div>
@@ -387,6 +387,7 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
             profile={profile}
             reportCode={reportCode}
             currentDateStr={currentDateStr}
+            technicians={technicians}
             isPrint
           />
         </div>
@@ -402,11 +403,13 @@ function DocumentPrintLayout({
   profile,
   reportCode,
   currentDateStr,
+  technicians = [],
   isPrint = false,
 }: {
   profile: ReturnType<typeof useWorkshop>["profile"]
   reportCode: string
   currentDateStr: string
+  technicians?: ReturnType<typeof useWorkshop>["technicians"]
   isPrint?: boolean
 }) {
   return (

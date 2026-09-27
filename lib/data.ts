@@ -182,6 +182,16 @@ export interface Technician {
   completedThisMonth: number
   avgHours: number // average hours per job
   efficiency: number // 0-100
+  phone?: string
+  specialty?: string
+  status?: "Aktif" | "Istirahat" | "Cuti"
+}
+
+export interface TechnicianInput {
+  name: string
+  phone?: string
+  specialty?: string
+  status?: "Aktif" | "Istirahat" | "Cuti"
 }
 
 export interface NotificationItem {
@@ -483,10 +493,10 @@ export const vehicles: Vehicle[] = [
 ]
 
 export const technicians: Technician[] = [
-  { id: "t1", name: "Agus Pratama", initials: "AP", activeJobs: 3, completedThisMonth: 42, avgHours: 3.2, efficiency: 94 },
-  { id: "t2", name: "Bayu Saputra", initials: "BS", activeJobs: 2, completedThisMonth: 38, avgHours: 3.8, efficiency: 88 },
-  { id: "t3", name: "Candra Wibowo", initials: "CW", activeJobs: 4, completedThisMonth: 31, avgHours: 4.5, efficiency: 79 },
-  { id: "t4", name: "Doni Firmansyah", initials: "DF", activeJobs: 1, completedThisMonth: 27, avgHours: 4.1, efficiency: 83 },
+  { id: "t1", name: "Agus Pratama", initials: "AP", activeJobs: 3, completedThisMonth: 42, avgHours: 3.2, efficiency: 94, phone: "0812-3456-7891", specialty: "Spesialis Mesin 4-Tak & Vapor Blasting", status: "Aktif" },
+  { id: "t2", name: "Bayu Saputra", initials: "BS", activeJobs: 2, completedThisMonth: 38, avgHours: 3.8, efficiency: 88, phone: "0813-2345-6782", specialty: "Kelistrikan, ECU & Sand Blasting", status: "Aktif" },
+  { id: "t3", name: "Candra Wibowo", initials: "CW", activeJobs: 4, completedThisMonth: 31, avgHours: 4.5, efficiency: 79, phone: "0815-3456-7893", specialty: "Kustomisasi, Knalpot & Rangka Sasis", status: "Aktif" },
+  { id: "t4", name: "Doni Firmansyah", initials: "DF", activeJobs: 1, completedThisMonth: 27, avgHours: 4.1, efficiency: 83, phone: "0819-4567-8904", specialty: "Servis Rutin Berkala & CVT Matic", status: "Aktif" },
 ]
 
 export const parts: Part[] = [

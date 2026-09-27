@@ -30,11 +30,11 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+import { useWorkshop } from "@/lib/store"
 import {
   revenueTrend,
   dailyVisits,
   serviceBreakdown,
-  technicians,
   monthlyReport,
   formatRupiah,
   formatCompact,
@@ -73,6 +73,7 @@ function ChartTooltip({
 const periods = ["Mingguan", "Bulanan", "Tahunan"] as const
 
 export function AnalyticsScreen() {
+  const { technicians } = useWorkshop()
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)

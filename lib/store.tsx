@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, t
 import {
   workOrders as seedWorkOrders,
   parts as seedParts,
+  technicians as defaultTechnicians,
   defaultServiceRates,
   defaultCategories,
   defaultVouchers,
@@ -18,6 +19,8 @@ import {
   type UserAccount,
   type UserRole,
   type NotificationItem,
+  type Technician,
+  type TechnicianInput,
 } from "@/lib/data"
 
 export interface WorkOrderInput {
@@ -102,6 +105,10 @@ interface WorkshopContextValue {
   serviceRates: ServiceRate[]
   categories: string[]
   vouchers: Voucher[]
+  technicians: Technician[]
+  addTechnician: (input: TechnicianInput) => void
+  updateTechnician: (id: string, input: Partial<TechnicianInput>) => void
+  deleteTechnician: (id: string) => void
   profile: WorkshopProfile
   updateProfile: (profile: Partial<WorkshopProfile>) => void
   midtransConfig: MidtransConfig
@@ -715,12 +722,82 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     setCategories(defaultCategories)
     setVouchers(defaultVouchers)
     setProfile(defaultWorkshopProfile)
+    setTechnicians(defaultTechnicians)
     setDismissedTips({})
     try {
       localStorage.removeItem("bengkel_profile")
       localStorage.removeItem("bengkel_vouchers")
+      localStorage.removeItem("bengkel_technicians_v1")
       localStorage.removeItem("bengkel_dismissed_tips")
     } catch {}
+  }, [])
+
+  // Technicians / Mechanics State & Actions
+  const [technicians, setTechnicians] = useState<Technician[]>(defaultTechnicians)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bengkel_technicians_v1")
+      if (saved) {
+        setTechnicians(JSON.parse(saved))
+      } else {
+        localStorage.setItem("bengkel_technicians_v1", JSON.stringify(defaultTechnicians))
+      }
+    } catch (e) {
+      console.error("Failed to load bengkel_technicians_v1", e)
+    }
+  }, [])
+
+  const addTechnician = useCallback((input: TechnicianInput) => {
+    setTechnicians((prev) => {
+      const name = input.name.trim()
+      const newTech: Technician = {
+        id: `tech-${Date.now()}`,
+        name,
+        initials: initials(name),
+        activeJobs: 0,
+        completedThisMonth: 0,
+        avgHours: 3.5,
+        efficiency: 90,
+        phone: input.phone?.trim() || "",
+        specialty: input.specialty?.trim() || "Mekanik Umum & Servis",
+        status: input.status || "Aktif",
+      }
+      const next = [...prev, newTech]
+      try {
+        localStorage.setItem("bengkel_technicians_v1", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const updateTechnician = useCallback((id: string, patch: Partial<TechnicianInput>) => {
+    setTechnicians((prev) => {
+      const next = prev.map((t) => {
+        if (t.id !== id) return t
+        const updatedName = patch.name !== undefined ? patch.name.trim() : t.name
+        return {
+          ...t,
+          ...patch,
+          name: updatedName,
+          initials: initials(updatedName),
+        }
+      })
+      try {
+        localStorage.setItem("bengkel_technicians_v1", JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }, [])
+
+  const deleteTechnician = useCallback((id: string) => {
+    setTechnicians((prev) => {
+      const next = prev.filter((t) => t.id !== id)
+      try {
+        localStorage.setItem("bengkel_technicians_v1", JSON.stringify(next))
+      } catch {}
+      return next
+    })
   }, [])
 
   // Authentication & Role-Based Access Control State
@@ -778,6 +855,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       serviceRates,
       categories,
       vouchers,
+      technicians,
+      addTechnician,
+      updateTechnician,
+      deleteTechnician,
       profile,
       updateProfile,
       addWorkOrder,
@@ -826,6 +907,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       serviceRates,
       categories,
       vouchers,
+      technicians,
+      addTechnician,
+      updateTechnician,
+      deleteTechnician,
       profile,
       updateProfile,
       addWorkOrder,

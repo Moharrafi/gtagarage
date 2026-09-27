@@ -14,7 +14,7 @@ import { WhatsAppModal } from "@/components/workshop/whatsapp-modal"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
-import { formatRupiah, workOrderTotal, technicians, type WorkStatus, type ServiceType, type WorkOrder } from "@/lib/data"
+import { formatRupiah, workOrderTotal, type WorkStatus, type ServiceType, type WorkOrder } from "@/lib/data"
 import { useWorkshop, type WorkOrderInput } from "@/lib/store"
 
 export type JobFilter = "Aktif" | WorkStatus
@@ -53,7 +53,7 @@ const emptyForm: WorkOrderInput = {
   model: "",
   service: "Servis",
   complaint: "",
-  technician: technicians[0].name,
+  technician: "Agus Pratama",
   laborCost: 0,
   status: "Antrian",
 }
@@ -79,7 +79,7 @@ const selectCls =
   "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
 
 export function WorkOrdersScreen() {
-  const { workOrders, parts, serviceRates, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
+  const { workOrders, parts, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
   const [filter, setFilter] = useState<JobFilter>("Aktif")
   const [query, setQuery] = useState("")
   const [openId, setOpenId] = useState<string | null>(null)
@@ -178,7 +178,10 @@ export function WorkOrdersScreen() {
 
   function openAdd() {
     setEditId(null)
-    setForm(emptyForm)
+    setForm({
+      ...emptyForm,
+      technician: technicians[0]?.name || "Agus Pratama",
+    })
     setSheetOpen(true)
   }
 

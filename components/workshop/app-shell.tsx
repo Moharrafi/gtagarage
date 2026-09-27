@@ -12,13 +12,18 @@ import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
 import { LoginScreen } from "@/components/workshop/login-screen"
 import { DashboardScreen } from "@/components/workshop/screens/dashboard"
 
+import { ScreenLoading } from "@/components/workshop/screen-loading"
+
 const WorkOrdersScreen = dynamic(
   () => import("@/components/workshop/screens/work-orders").then((mod) => mod.WorkOrdersScreen),
   {
     loading: () => (
-      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
-        Memuat data pekerjaan...
-      </div>
+      <ScreenLoading
+        title="Memuat Data Pekerjaan..."
+        subtitle="Menyiapkan antrian servis & status unit kendaraan..."
+        icon={Wrench}
+        type="work_orders"
+      />
     ),
   }
 )
@@ -27,9 +32,12 @@ const InventoryScreen = dynamic(
   () => import("@/components/workshop/screens/inventory").then((mod) => mod.InventoryScreen),
   {
     loading: () => (
-      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
-        Memuat katalog suku cadang...
-      </div>
+      <ScreenLoading
+        title="Memuat Katalog Suku Cadang..."
+        subtitle="Menyiapkan stok, SKU & ketersediaan sparepart..."
+        icon={Package}
+        type="inventory"
+      />
     ),
   }
 )
@@ -38,9 +46,12 @@ const InvoicesScreen = dynamic(
   () => import("@/components/workshop/screens/invoices").then((mod) => mod.InvoicesScreen),
   {
     loading: () => (
-      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
-        Memuat kasir & invoice...
-      </div>
+      <ScreenLoading
+        title="Memuat Kasir & Invoice..."
+        subtitle="Sinkronisasi tagihan, status lunas & QRIS Midtrans..."
+        icon={ReceiptText}
+        type="invoices"
+      />
     ),
   }
 )
@@ -49,9 +60,12 @@ const AnalyticsScreen = dynamic(
   () => import("@/components/workshop/screens/analytics").then((mod) => mod.AnalyticsScreen),
   {
     loading: () => (
-      <div className="flex h-48 items-center justify-center text-xs text-muted-foreground animate-pulse">
-        Memuat grafik analitik...
-      </div>
+      <ScreenLoading
+        title="Memuat Analitik & Laporan..."
+        subtitle="Mengalkulasi performa omset & efisiensi bengkel..."
+        icon={BarChart3}
+        type="analytics"
+      />
     ),
   }
 )

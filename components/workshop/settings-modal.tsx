@@ -31,10 +31,12 @@ import {
   CreditCard,
   ExternalLink,
   Lock,
+  Users,
+  Phone,
 } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { useWorkshop, initials, type PartInput, type ServiceRateInput, type WorkshopProfile, type MidtransConfig } from "@/lib/store"
-import { formatRupiah, generatePartSKU, type ServiceType, type Part, type ServiceRate, type Voucher, type VoucherTargetService } from "@/lib/data"
+import { formatRupiah, generatePartSKU, type ServiceType, type Part, type ServiceRate, type Voucher, type VoucherTargetService, type Technician, type TechnicianInput } from "@/lib/data"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
@@ -46,7 +48,7 @@ interface SettingsModalProps {
   onClose: () => void
 }
 
-type SettingsTab = "harga" | "voucher" | "midtrans" | "profil" | "tema" | "sistem"
+type SettingsTab = "harga" | "mekanik" | "voucher" | "midtrans" | "profil" | "tema" | "sistem"
 type CatalogSubTab = "layanan" | "sparepart"
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
@@ -71,6 +73,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     updateVoucher,
     deleteVoucher,
     toggleVoucherStatus,
+    technicians,
+    addTechnician,
+    updateTechnician,
+    deleteTechnician,
     dismissTip,
     isTipDismissed,
     resetDismissedTips,
@@ -386,6 +392,93 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setVoucherFormOpen(false)
   }
 
+  // Technicians / Mechanics Management State & Handlers
+  const [techFormOpen, setTechFormOpen] = useState(false)
+  const [editingTechId, setEditingTechId] = useState<string | null>(null)
+  const [techSearch, setTechSearch] = useState("")
+  const [techForm, setTechForm] = useState<TechnicianInput>({
+    name: "",
+    phone: "",
+    specialty: "Spesialis Mesin 4-Tak & Vapor Blasting",
+    status: "Aktif",
+  })
+
+  const filteredTechnicians = useMemo(() => {
+    const q = techSearch.toLowerCase().trim()
+    if (!q) return technicians
+    return technicians.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.specialty && t.specialty.toLowerCase().includes(q)) ||
+        (t.phone && t.phone.includes(q)) ||
+        (t.status && t.status.toLowerCase().includes(q))
+    )
+  }, [technicians, techSearch])
+
+  const handleOpenAddTech = () => {
+    setEditingTechId(null)
+    setTechForm({
+      name: "",
+      phone: "",
+      specialty: "Spesialis Mesin 4-Tak & Vapor Blasting",
+      status: "Aktif",
+    })
+    setTechFormOpen(true)
+  }
+
+  const handleOpenEditTech = (t: Technician) => {
+    setEditingTechId(t.id)
+    setTechForm({
+      name: t.name,
+      phone: t.phone || "",
+      specialty: t.specialty || "Mekanik Umum & Servis",
+      status: t.status || "Aktif",
+    })
+    setTechFormOpen(true)
+  }
+
+  const handleSaveTech = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!techForm.name.trim()) {
+      toast.error("Validasi Gagal", "Nama lengkap teknisi/mekanik tidak boleh kosong.")
+      return
+    }
+
+    if (editingTechId) {
+      updateTechnician(editingTechId, {
+        name: techForm.name.trim(),
+        phone: techForm.phone?.trim() || "",
+        specialty: techForm.specialty?.trim() || "Mekanik Umum & Servis",
+        status: techForm.status || "Aktif",
+      })
+      toast.success("Data Mekanik Diperbarui", `Data teknisi ${techForm.name} berhasil disimpan.`)
+    } else {
+      addTechnician({
+        name: techForm.name.trim(),
+        phone: techForm.phone?.trim() || "",
+        specialty: techForm.specialty?.trim() || "Mekanik Umum & Servis",
+        status: techForm.status || "Aktif",
+      })
+      toast.success("Mekanik Baru Ditambahkan", `Teknisi ${techForm.name} kini terdaftar dan siap menerima order.`)
+    }
+    setTechFormOpen(false)
+  }
+
+  const handleDeleteTech = async (t: Technician) => {
+    const ok = await confirmModal({
+      title: `Hapus Mekanik ${t.name}?`,
+      description: `Apakah Anda yakin ingin menghapus data teknisi ini? Riwayat pekerjaan terdahulu tetap tersimpan aman.`,
+      confirmText: "Ya, Hapus Mekanik",
+      cancelText: "Batal",
+      variant: "destructive",
+      icon: "trash",
+    })
+    if (ok) {
+      deleteTechnician(t.id)
+      toast.info("Mekanik Dihapus", `Teknisi ${t.name} telah dihapus dari sistem bengkel.`)
+    }
+  }
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault()
     updateProfile(workshopProfile)
@@ -500,7 +593,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       {/* Sticky Tab Navigation & Controls Bar */}
       <div className="shrink-0 bg-background px-4 pt-3 pb-2.5 border-b border-border/70 space-y-2.5 shadow-xs">
         {/* Tab Navigation */}
-        <div className="grid grid-cols-5 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
+        <div className="grid grid-cols-6 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
           <button
             type="button"
             onClick={() => setActiveTab("harga")}
@@ -513,6 +606,20 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           >
             <DollarSign className={cn("size-3.5 shrink-0 transition-colors", activeTab === "harga" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
             <span className="truncate">Tarif</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("mekanik")}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              activeTab === "mekanik"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
+            )}
+          >
+            <Users className={cn("size-3.5 shrink-0 transition-colors", activeTab === "mekanik" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
+            <span className="truncate">Mekanik</span>
           </button>
 
           <button
@@ -671,6 +778,32 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Search & Add Mekanik (Sticky for 'mekanik') */}
+        {activeTab === "mekanik" && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari nama teknisi, spesialisasi, atau status..."
+                value={techSearch}
+                onChange={(e) => setTechSearch(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs font-medium focus:border-primary focus:outline-none"
+              />
+            </div>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleOpenAddTech}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
+              >
+                <Plus className="size-3.5" />
+                <span>Tambah Mekanik</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -882,7 +1015,161 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
         )}
 
-        {/* ================= TAB 2: VOUCHER & PROMO ================= */}
+        {/* ================= TAB 2: TIM MEKANIK ================= */}
+        {activeTab === "mekanik" && (
+          <div className="space-y-3.5">
+            {/* Header Info Banner */}
+            {!isTipDismissed("settings_mechanic_info") && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-3.5 text-xs text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200 flex items-start justify-between gap-2 animate-in fade-in duration-200 shadow-xs">
+                <div className="flex items-start gap-2.5 flex-1">
+                  <Users className="size-4 shrink-0 mt-0.5 text-primary dark:text-blue-400" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-blue-900 dark:text-blue-200">
+                      Manajemen Tim &amp; Teknisi Bengkel
+                    </p>
+                    <p className="text-[11px] opacity-90 leading-relaxed">
+                      Teknisi yang ditambahkan di sini akan langsung terhubung ke <strong>penugasan order pengerjaan</strong>, dropdown pembuatan order baru, dan perhitungan efisiensi bulanan.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    dismissTip("settings_mechanic_info")
+                    toast.info("Info Ditutup", "Tips info mekanik tidak akan ditampilkan lagi.")
+                  }}
+                  className="shrink-0 rounded-lg p-1 text-blue-700/60 hover:bg-blue-500/20 hover:text-blue-950 dark:text-blue-300/60 dark:hover:bg-blue-900/40 dark:hover:text-blue-100 transition-colors"
+                  title="Tutup & jangan tampilkan lagi"
+                  aria-label="Tutup info"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Quick Metrics Strip */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-2xl border border-slate-200/80 bg-card p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Tim</p>
+                <p className="text-base font-bold text-foreground mt-0.5">{technicians.length} <span className="text-[11px] font-normal text-muted-foreground">Orang</span></p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-3 shadow-xs dark:border-emerald-900/50 dark:bg-emerald-950/20">
+                <p className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">Status Aktif</p>
+                <p className="text-base font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
+                  {technicians.filter((t) => t.status === "Aktif" || !t.status).length} <span className="text-[11px] font-normal opacity-80">Mekanik</span>
+                </p>
+              </div>
+              <div className="rounded-2xl border border-blue-200/80 bg-blue-50/50 p-3 shadow-xs dark:border-blue-900/50 dark:bg-blue-950/20">
+                <p className="text-[10px] font-medium text-primary dark:text-blue-400 uppercase tracking-wider">Efisiensi Rata</p>
+                <p className="text-base font-bold text-primary dark:text-blue-300 mt-0.5">
+                  {Math.round(technicians.reduce((s, t) => s + (t.efficiency || 85), 0) / (technicians.length || 1))}%
+                </p>
+              </div>
+            </div>
+
+            {/* Technicians List */}
+            <div className="space-y-2.5">
+              {filteredTechnicians.map((t) => {
+                const status = t.status || "Aktif"
+                return (
+                  <div
+                    key={t.id}
+                    className="flex flex-col gap-3 rounded-2xl border border-slate-200/90 bg-card p-4 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-primary/50 transition-all dark:border-slate-800 dark:bg-slate-900 ring-1 ring-black/[0.03] dark:ring-white/[0.05]"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="size-11 border-2 border-primary/20 shadow-xs">
+                          <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                            {t.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-foreground truncate">{t.name}</h4>
+                            <span
+                              className={cn(
+                                "rounded-md px-2 py-0.5 text-[10px] font-semibold border",
+                                status === "Aktif"
+                                  ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:bg-emerald-950 dark:text-emerald-300"
+                                  : status === "Istirahat"
+                                  ? "bg-amber-500/10 text-amber-700 border-amber-500/30 dark:bg-amber-950 dark:text-amber-300"
+                                  : "bg-rose-500/10 text-rose-700 border-rose-500/30 dark:bg-rose-950 dark:text-rose-300"
+                              )}
+                            >
+                              {status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1.5 truncate">
+                            <Wrench className="size-3 text-primary shrink-0" />
+                            <span>{t.specialty || "Mekanik Umum & Servis"}</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {canEdit && (
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditTech(t)}
+                            className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800 transition-colors shadow-2xs active:scale-95"
+                            title="Edit Data Mekanik"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTech(t)}
+                            className="flex size-8 items-center justify-center rounded-xl border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors shadow-2xs active:scale-95"
+                            title="Hapus Mekanik"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer strip: Phone & Stats */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-border/70 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-3">
+                        {t.phone ? (
+                          <a
+                            href={`https://wa.me/${t.phone.replace(/[^0-9]/g, "").replace(/^0/, "62")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-emerald-600 hover:text-emerald-700 font-semibold"
+                            title="Hubungi via WhatsApp"
+                          >
+                            <Phone className="size-3" />
+                            <span>{t.phone}</span>
+                          </a>
+                        ) : (
+                          <span className="italic opacity-60">Tanpa Kontak</span>
+                        )}
+                        <span>•</span>
+                        <span>{t.completedThisMonth || 0} order bulan ini</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-foreground">Efisiensi:</span>
+                        <span className="font-bold text-primary dark:text-blue-400">{t.efficiency || 85}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+
+              {filteredTechnicians.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 py-10 text-center space-y-2">
+                  <Users className="size-8 mx-auto text-muted-foreground/50" />
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Tidak ada teknisi/mekanik yang cocok dengan pencarian.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 3: VOUCHER & PROMO ================= */}
         {activeTab === "voucher" && (
           <div className="space-y-3.5">
             {/* Header Promo Banner */}
@@ -2031,6 +2318,107 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     className="flex-1 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 transition-colors"
                   >
                     Simpan Voucher
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL: FORM TAMBAH / EDIT MEKANIK ================= */}
+        {techFormOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Users className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">
+                      {editingTechId ? "Edit Data Mekanik" : "Tambah Mekanik Baru"}
+                    </h3>
+                    <p className="text-[10px] text-muted-foreground">Tim operasional &amp; servis GTA Garage</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTechFormOpen(false)}
+                  className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveTech} className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Nama Lengkap Mekanik <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Rian Hidayat"
+                    value={techForm.name}
+                    onChange={(e) => setTechForm({ ...techForm, name: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Spesialisasi / Keahlian
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Spesialis Vapor Blasting & Karburator"
+                    value={techForm.specialty || ""}
+                    onChange={(e) => setTechForm({ ...techForm, specialty: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    No. WhatsApp / Telepon (Opsional)
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="Contoh: 0812-3456-7890"
+                    value={techForm.phone || ""}
+                    onChange={(e) => setTechForm({ ...techForm, phone: e.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                    Status Kerja Mekanik
+                  </label>
+                  <select
+                    value={techForm.status || "Aktif"}
+                    onChange={(e) => setTechForm({ ...techForm, status: e.target.value as "Aktif" | "Istirahat" | "Cuti" })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
+                  >
+                    <option value="Aktif">Aktif (Siap Menerima Order)</option>
+                    <option value="Istirahat">Istirahat / Shift Sore</option>
+                    <option value="Cuti">Cuti / Libur</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTechFormOpen(false)}
+                    className="flex-1 rounded-xl border border-border py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 rounded-xl bg-primary py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
+                  >
+                    {editingTechId ? "Simpan Perubahan" : "Tambah Mekanik"}
                   </button>
                 </div>
               </form>
