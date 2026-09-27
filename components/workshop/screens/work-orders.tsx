@@ -76,7 +76,7 @@ function fromWorkOrder(w: WorkOrder): WorkOrderInput {
 
 const labelCls = "mb-1 block text-xs font-medium text-muted-foreground"
 const selectCls =
-  "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+  "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-slate-400 placeholder:font-normal dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-ring"
 
 export function WorkOrdersScreen() {
   const { workOrders, parts, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
