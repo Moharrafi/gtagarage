@@ -592,90 +592,108 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     >
       {/* Sticky Tab Navigation & Controls Bar */}
       <div className="shrink-0 bg-background px-4 pt-3 pb-2.5 border-b border-border/70 space-y-2.5 shadow-xs">
-        {/* Tab Navigation */}
-        <div className="grid grid-cols-6 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
+        {/* Tab Navigation (Smooth Horizontal Scrollable Pills - Never Truncated) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
           <button
             type="button"
-            onClick={() => setActiveTab("harga")}
+            onClick={(e) => {
+              setActiveTab("harga")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "harga"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <DollarSign className={cn("size-3.5 shrink-0 transition-colors", activeTab === "harga" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Tarif</span>
+            <span>Tarif</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("mekanik")}
+            onClick={(e) => {
+              setActiveTab("mekanik")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "mekanik"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <Users className={cn("size-3.5 shrink-0 transition-colors", activeTab === "mekanik" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Mekanik</span>
+            <span>Mekanik</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("voucher")}
+            onClick={(e) => {
+              setActiveTab("voucher")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "voucher"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <Ticket className={cn("size-3.5 shrink-0 transition-colors", activeTab === "voucher" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Voucher</span>
+            <span>Voucher</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("midtrans")}
+            onClick={(e) => {
+              setActiveTab("midtrans")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "midtrans"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <CreditCard className={cn("size-3.5 shrink-0 transition-colors", activeTab === "midtrans" ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Midtrans</span>
+            <span>Midtrans</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("profil")}
+            onClick={(e) => {
+              setActiveTab("profil")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "profil"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <Store className={cn("size-3.5 shrink-0 transition-colors", activeTab === "profil" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Profil</span>
+            <span>Profil</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab("tema")}
+            onClick={(e) => {
+              setActiveTab("tema")
+              e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+            }}
             className={cn(
-              "flex items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs font-semibold transition-all whitespace-nowrap",
+              "flex shrink-0 items-center justify-center gap-1.5 rounded-xl py-2 px-3 text-xs font-semibold transition-all whitespace-nowrap active:scale-95 cursor-pointer",
               activeTab === "tema"
-                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md"
+                ? "bg-card text-foreground shadow-xs border border-border/80 dark:bg-slate-800 dark:text-white dark:border-slate-600 dark:shadow-md ring-1 ring-black/[0.04]"
                 : "text-muted-foreground hover:text-foreground hover:bg-black/5 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-100"
             )}
           >
             <Moon className={cn("size-3.5 shrink-0 transition-colors", activeTab === "tema" ? "text-primary dark:text-blue-400" : "text-muted-foreground dark:text-slate-400")} />
-            <span className="truncate">Tema</span>
+            <span>Tema</span>
           </button>
         </div>
 
