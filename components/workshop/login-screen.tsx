@@ -104,7 +104,7 @@ export function LoginScreen() {
         <div className="flex items-start justify-between mb-6">
           <div className="flex items-center gap-3">
             {/* Automotive Monogram / Badge */}
-            <div className="flex size-11 items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-white dark:text-zinc-950 font-black text-sm tracking-wider shadow-sm">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-primary text-white font-black text-sm tracking-wider shadow-md shadow-primary/25 ring-2 ring-primary/20">
               GTA
             </div>
             <div>

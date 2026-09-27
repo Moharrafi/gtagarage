@@ -114,8 +114,8 @@ export function PwaInstaller() {
       {showBanner && deferredPrompt && (
         <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
           <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-card p-3.5 shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/20">
-              <Smartphone className="size-5" />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-md shadow-primary/25 border border-primary/30">
+              <img src="/icons/icon-192.png" alt="GTA Garage" className="size-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-bold text-foreground">Pasang GTA Garage di Homescreen</p>

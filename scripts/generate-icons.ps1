@@ -33,19 +33,19 @@ public class PwaIconGenerator
             int innerSize = size - (padding * 2);
             Rectangle innerRect = new Rectangle(padding, padding, innerSize, innerSize);
 
-            // 3. Orange Gradient Accent Border Badge
+            // 3. Royal Blue & Electric Cyan Accent Border Badge
             int badgeRadius = (int)(innerSize * 0.22f);
             using (GraphicsPath badgePath = CreateRoundedRectanglePath(innerRect, badgeRadius))
             using (LinearGradientBrush accentBrush = new LinearGradientBrush(
                 innerRect,
-                Color.FromArgb(255, 249, 115, 22),
-                Color.FromArgb(255, 217, 70, 0),
+                Color.FromArgb(255, 56, 189, 248),  // Sky 400
+                Color.FromArgb(255, 29, 78, 216),   // Blue 700
                 LinearGradientMode.Vertical))
             {
                 g.FillPath(accentBrush, badgePath);
             }
 
-            // 4. Inner Dark Metallic Plate
+            // 4. Inner Dark Metallic Plate (Deep Slate)
             int plateMargin = Math.Max(2, (int)(innerSize * 0.045f));
             int plateSize = innerSize - (plateMargin * 2);
             Rectangle plateRect = new Rectangle(padding + plateMargin, padding + plateMargin, plateSize, plateSize);
@@ -53,14 +53,14 @@ public class PwaIconGenerator
             using (GraphicsPath platePath = CreateRoundedRectanglePath(plateRect, plateRadius))
             using (LinearGradientBrush plateBrush = new LinearGradientBrush(
                 plateRect,
-                Color.FromArgb(255, 28, 30, 36),
-                Color.FromArgb(255, 13, 14, 17),
+                Color.FromArgb(255, 30, 41, 59),
+                Color.FromArgb(255, 15, 23, 42),
                 LinearGradientMode.Vertical))
             {
                 g.FillPath(plateBrush, platePath);
 
                 // Subtle plate inner highlight line
-                using (Pen plateBorderPen = new Pen(Color.FromArgb(80, 255, 255, 255), 1.5f))
+                using (Pen plateBorderPen = new Pen(Color.FromArgb(90, 255, 255, 255), 1.5f))
                 {
                     g.DrawPath(plateBorderPen, platePath);
                 }
@@ -73,21 +73,21 @@ public class PwaIconGenerator
             using (LinearGradientBrush gtaBrush = new LinearGradientBrush(
                 plateRect,
                 Color.FromArgb(255, 255, 255, 255),
-                Color.FromArgb(255, 210, 215, 225),
+                Color.FromArgb(255, 226, 232, 240),
                 LinearGradientMode.Vertical))
             {
                 RectangleF gtaRect = new RectangleF(plateRect.X, plateRect.Y + (plateSize * 0.08f), plateSize, plateSize * 0.44f);
                 g.DrawString("GTA", fontGta, gtaBrush, gtaRect, sf);
             }
 
-            // 6. Typography "GARAGE"
+            // 6. Typography "GARAGE" (Royal Blue Gradient)
             float garageFontSize = plateSize * 0.135f;
             using (Font fontGarage = new Font("Arial Black", garageFontSize, FontStyle.Bold, GraphicsUnit.Pixel))
             using (StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center })
             using (LinearGradientBrush garageBrush = new LinearGradientBrush(
                 plateRect,
-                Color.FromArgb(255, 249, 115, 22),
-                Color.FromArgb(255, 234, 88, 12),
+                Color.FromArgb(255, 96, 165, 250),  // Blue 400
+                Color.FromArgb(255, 37, 99, 235),   // Blue 600
                 LinearGradientMode.Vertical))
             {
                 RectangleF garageRect = new RectangleF(plateRect.X, plateRect.Y + (plateSize * 0.52f), plateSize, plateSize * 0.20f);
