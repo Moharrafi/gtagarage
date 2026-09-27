@@ -410,60 +410,95 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   }
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Pengaturan Bengkel" full={true}>
-      <div className="space-y-4 pb-8">
-        {/* User Card Header */}
-        <div className="flex items-center gap-3 rounded-2xl bg-muted/40 p-3 border border-border dark:bg-slate-900/60 dark:border-slate-700/80">
-          <Avatar className="size-11 ring-2 ring-primary/30">
-            <AvatarFallback className="bg-primary text-sm font-bold text-primary-foreground">
-              {currentUser?.avatarInitials || initials(workshopProfile.owner || "GI")}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-semibold">{currentUser?.name || workshopProfile.owner}</p>
-              <span
-                className={cn(
-                  "rounded-md px-1.5 py-0.5 text-[0.65rem] font-bold",
-                  currentUser?.role === "Owner"
-                    ? "bg-primary/10 text-primary dark:bg-primary/25 dark:text-blue-300"
-                    : currentUser?.role === "Admin"
-                    ? "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300"
-                    : "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300"
-                )}
-              >
-                {currentUser?.role || "Owner"}
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      full={true}
+      header={
+        <div className="shrink-0 bg-primary text-white dark:bg-slate-900 border-b border-primary/20 dark:border-slate-800 px-4 pt-3.5 pb-3">
+          {/* Header Row */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="flex size-8.5 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25 shadow-xs backdrop-blur-xs">
+                <Settings className="size-4.5" strokeWidth={2.4} />
               </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm md:text-base font-bold text-white tracking-tight leading-none">
+                    Pengaturan Bengkel
+                  </h2>
+                  <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9px] font-bold text-white tracking-wide uppercase border border-white/30">
+                    POS &amp; Katalog
+                  </span>
+                </div>
+                <p className="text-[11px] text-blue-100/90 dark:text-slate-300 truncate mt-0.5">
+                  Tarif Layanan, Sparepart, Diskon Voucher &amp; Profil
+                </p>
+              </div>
             </div>
-            <p className="truncate text-xs text-muted-foreground">{workshopProfile.name}</p>
+
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Tutup"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/20 active:scale-95 transition-all"
+            >
+              <X className="size-4.5" />
+            </button>
           </div>
 
-          {/* Icon Power Off untuk Logout (di sebelah kanan nama akun) */}
-          <button
-            type="button"
-            onClick={async () => {
-              const ok = await confirmModal({
-                title: "Konfirmasi Logout",
-                description: `Apakah Anda yakin ingin keluar dari akun ${currentUser?.name || "pengguna"} (${currentUser?.role})? Anda dapat login kembali kapan saja.`,
-                confirmText: "Ya, Logout",
-                cancelText: "Batal",
-                variant: "destructive",
-                icon: "power",
-              })
-              if (ok) {
-                onClose()
-                logout()
-                toast.info("Berhasil Logout", `Sampai jumpa kembali, ${currentUser?.name || "Pengguna"}`)
-              }
-            }}
-            title="Keluar dari akun (Logout)"
-            aria-label="Logout"
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-500/25 text-rose-500 hover:bg-rose-500/15 hover:text-rose-600 active:scale-95 transition-all dark:border-rose-500/35 dark:text-rose-400 dark:hover:bg-rose-950/50"
-          >
-            <Power className="size-4" strokeWidth={2.2} />
-          </button>
-        </div>
+          {/* User Account Card inside the Blue Hero */}
+          <div className="mt-2.5 flex items-center gap-3 rounded-2xl bg-white/10 p-2.5 border border-white/20 backdrop-blur-xs">
+            <Avatar className="size-9.5 ring-2 ring-white/40 shrink-0">
+              <AvatarFallback className="bg-white text-primary text-xs font-bold dark:bg-slate-800 dark:text-white">
+                {currentUser?.avatarInitials || initials(workshopProfile.owner || "GI")}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="truncate text-xs font-bold text-white leading-tight">
+                  {currentUser?.name || workshopProfile.owner}
+                </p>
+                <span className="rounded-md bg-white/25 px-1.5 py-0.5 text-[9px] font-bold text-white border border-white/30 leading-none">
+                  {currentUser?.role || "Owner"}
+                </span>
+              </div>
+              <p className="truncate text-[10px] text-blue-100/90 dark:text-slate-300 mt-0.5">
+                {workshopProfile.name}
+              </p>
+            </div>
 
+            {/* Logout Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await confirmModal({
+                  title: "Konfirmasi Logout",
+                  description: `Apakah Anda yakin ingin keluar dari akun ${currentUser?.name || "pengguna"} (${currentUser?.role})? Anda dapat login kembali kapan saja.`,
+                  confirmText: "Ya, Logout",
+                  cancelText: "Batal",
+                  variant: "destructive",
+                  icon: "power",
+                })
+                if (ok) {
+                  onClose()
+                  logout()
+                  toast.info("Berhasil Logout", `Sampai jumpa kembali, ${currentUser?.name || "Pengguna"}`)
+                }
+              }}
+              title="Keluar dari akun (Logout)"
+              aria-label="Logout"
+              className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-white/10 hover:bg-rose-500 hover:border-rose-400 border border-white/25 text-white active:scale-95 transition-all shadow-xs"
+            >
+              <Power className="size-3.5" strokeWidth={2.4} />
+            </button>
+          </div>
+        </div>
+      }
+      bodyClassName="p-0 overflow-hidden flex flex-col min-h-0 bg-background"
+    >
+      {/* Sticky Tab Navigation & Controls Bar */}
+      <div className="shrink-0 bg-background px-4 pt-3 pb-2.5 border-b border-border/70 space-y-2.5 shadow-xs">
         {/* Tab Navigation */}
         <div className="grid grid-cols-5 gap-1 rounded-2xl bg-muted/70 p-1.5 border border-border dark:bg-slate-900/90 dark:border-slate-700/80">
           <button
@@ -537,10 +572,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        {/* ================= TAB 1: KATALOG & HARGA ================= */}
+        {/* Sub-tabs & Search Bar (Sticky for 'harga') */}
         {activeTab === "harga" && (
-          <div className="space-y-3.5">
-            {/* Sub-tab: Layanan Jasa vs Suku Cadang & Bahan */}
+          <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -556,7 +590,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 )}
               >
                 <Sparkles className={cn("size-3.5 shrink-0 transition-colors", catalogSubTab === "layanan" ? "text-primary dark:text-blue-300" : "text-muted-foreground dark:text-slate-400")} />
-                <span className="truncate tracking-tight font-medium">Jasa & Vapor</span>
+                <span className="truncate tracking-tight font-medium">Jasa &amp; Vapor</span>
                 <span
                   className={cn(
                     "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold transition-colors",
@@ -583,7 +617,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 )}
               >
                 <Package className={cn("size-3.5 shrink-0 transition-colors", catalogSubTab === "sparepart" ? "text-primary dark:text-blue-300" : "text-muted-foreground dark:text-slate-400")} />
-                <span className="truncate tracking-tight font-medium">Sparepart & Bahan</span>
+                <span className="truncate tracking-tight font-medium">Sparepart &amp; Bahan</span>
                 <span
                   className={cn(
                     "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold transition-colors",
@@ -637,44 +671,93 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               )}
             </div>
+          </div>
+        )}
 
+        {/* Search & Add Voucher (Sticky for 'voucher') */}
+        {activeTab === "voucher" && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari kode atau nama promo..."
+                value={voucherSearch}
+                onChange={(e) => setVoucherSearch(e.target.value)}
+                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs font-medium focus:border-primary focus:outline-none"
+              />
+            </div>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={handleOpenAddVoucher}
+                className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all"
+              >
+                <Plus className="size-3.5" />
+                <span>Buat Voucher</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Scrollable Content Container (Only the list & forms scroll!) */}
+      <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 bg-slate-50/60 dark:bg-slate-950/40 p-4 space-y-3.5 no-scrollbar">
+        {/* ================= TAB 1: KATALOG & HARGA ================= */}
+        {activeTab === "harga" && (
+          <div className="space-y-3">
             {/* SUB-SECTION 1: LAYANAN JASA & VAPOR */}
             {catalogSubTab === "layanan" && (
               <div className="space-y-2">
-                <p className="text-[0.7rem] text-muted-foreground">
-                  Daftar tarif standar pengerjaan (Vapor Blasting, Sand Blasting, Servis, & Cat) untuk estimasi jasa servis.
+                <p className="text-[0.7rem] text-muted-foreground font-medium">
+                  Daftar tarif standar pengerjaan (Vapor Blasting, Sand Blasting, Servis, &amp; Cat) untuk estimasi jasa servis.
                 </p>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {filteredServices.map((s) => (
                     <div
                       key={s.id}
-                      className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-xs hover:border-primary/40 dark:border-slate-700/80 dark:bg-slate-900/60 dark:hover:border-primary/60 transition-colors"
+                      className="group flex items-center justify-between rounded-2xl border border-slate-200/90 bg-card p-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-primary/60 transition-all dark:border-slate-700/90 dark:bg-slate-900 dark:hover:border-primary/60 dark:shadow-none ring-1 ring-black/[0.03] dark:ring-white/[0.05]"
                     >
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-xs font-semibold text-foreground">{s.name}</p>
-                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[0.62rem] font-medium text-muted-foreground dark:bg-slate-800 dark:text-slate-300">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="truncate text-xs font-bold text-foreground">{s.name}</p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold border",
+                              s.category === "Vapor Blasting"
+                                ? "bg-sky-500/10 text-sky-700 border-sky-500/25 dark:bg-sky-500/20 dark:text-sky-300 dark:border-sky-500/30"
+                                : s.category === "Sand Blasting"
+                                ? "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30"
+                                : s.category === "Servis"
+                                ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/25 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30"
+                                : "bg-purple-500/10 text-purple-700 border-purple-500/25 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30"
+                            )}
+                          >
                             {s.category}
                           </span>
                         </div>
                         {s.description && (
-                          <p className="truncate text-[0.68rem] text-muted-foreground mt-0.5">
+                          <p className="truncate text-[11px] text-muted-foreground mt-0.5">
                             {s.description}
                           </p>
                         )}
-                        <p className="text-xs font-bold text-primary dark:text-blue-400 mt-1">{formatRupiah(s.price)}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-xs font-bold text-primary dark:text-blue-400">
+                            {formatRupiah(s.price)}
+                          </span>
+                        </div>
                       </div>
 
                       {canEdit && (
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
                             onClick={() => handleOpenEditService(s)}
-                            className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
+                            className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-2xs active:scale-95"
                             title="Edit Tarif"
                           >
-                            <Pencil className="size-3" />
+                            <Pencil className="size-3.5" />
                           </button>
                           <button
                             type="button"
@@ -692,10 +775,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                 toast.success("Tarif Dihapus", `Tarif "${s.name}" telah dihapus.`)
                               }
                             }}
-                            className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
+                            className="flex size-8 items-center justify-center rounded-xl border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-all shadow-2xs active:scale-95"
                             title="Hapus Tarif"
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       )}
@@ -703,7 +786,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   ))}
 
                   {filteredServices.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground dark:border-slate-700">
+                    <div className="rounded-2xl border border-dashed border-border bg-card/60 py-8 text-center text-xs text-muted-foreground dark:border-slate-700">
                       Tidak ada tarif layanan yang cocok.
                     </div>
                   )}
@@ -714,42 +797,53 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             {/* SUB-SECTION 2: SUKU CADANG & BAHAN */}
             {catalogSubTab === "sparepart" && (
               <div className="space-y-2">
-                <p className="text-[0.7rem] text-muted-foreground">
-                  Daftar suku cadang & bahan yang langsung terhubung ke dropdown pemilihan part di pendaftaran pekerjaan.
+                <p className="text-[0.7rem] text-muted-foreground font-medium">
+                  Daftar suku cadang &amp; bahan yang langsung terhubung ke dropdown pemilihan part di pendaftaran pekerjaan.
                 </p>
 
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {filteredParts.map((p) => (
                     <div
                       key={p.id}
-                      className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-xs hover:border-primary/40 dark:border-slate-700/80 dark:bg-slate-900/60 dark:hover:border-primary/60 transition-colors"
+                      className="group flex items-center justify-between rounded-2xl border border-slate-200/90 bg-card p-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-primary/60 transition-all dark:border-slate-700/90 dark:bg-slate-900 dark:hover:border-primary/60 dark:shadow-none ring-1 ring-black/[0.03] dark:ring-white/[0.05]"
                     >
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-1.5">
-                          <p className="truncate text-xs font-semibold text-foreground">{p.name}</p>
-                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[0.62rem] font-medium text-muted-foreground dark:bg-slate-800 dark:text-slate-300">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="truncate text-xs font-bold text-foreground">{p.name}</p>
+                          <span className="shrink-0 rounded-md bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                             {p.category}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[0.68rem] text-muted-foreground">
-                          <span>{p.sku}</span>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                          <span className="font-mono text-[10px] bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">{p.sku}</span>
                           <span>·</span>
-                          <span className={p.stock <= p.minStock ? "font-bold text-destructive" : ""}>
+                          <span
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-semibold border",
+                              p.stock <= p.minStock
+                                ? "bg-rose-500/10 text-rose-600 border-rose-500/25 dark:text-rose-400"
+                                : "bg-muted/40 text-muted-foreground border-border/40"
+                            )}
+                          >
                             Stok: {p.stock} (min {p.minStock})
                           </span>
                         </div>
-                        <p className="text-xs font-bold text-primary dark:text-blue-400 mt-1">{formatRupiah(p.price)}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-xs font-bold text-primary dark:text-blue-400">
+                            {formatRupiah(p.price)}
+                          </span>
+                        </div>
                       </div>
 
                       {canEdit && (
-                        <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
                             onClick={() => handleOpenEditPart(p)}
-                            className="flex size-7 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-colors"
+                            className="flex size-8 items-center justify-center rounded-xl border border-slate-200 bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white transition-all shadow-2xs active:scale-95"
                             title="Edit Part"
                           >
-                            <Pencil className="size-3" />
+                            <Pencil className="size-3.5" />
                           </button>
                           <button
                             type="button"
@@ -767,10 +861,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                 toast.success("Item Dihapus", `Item "${p.name}" telah dihapus dari katalog.`)
                               }
                             }}
-                            className="flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
+                            className="flex size-8 items-center justify-center rounded-xl border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-all shadow-2xs active:scale-95"
                             title="Hapus Part"
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 className="size-3.5" />
                           </button>
                         </div>
                       )}
@@ -778,7 +872,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   ))}
 
                   {filteredParts.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
+                    <div className="rounded-2xl border border-dashed border-border bg-card/60 py-8 text-center text-xs text-muted-foreground">
                       Tidak ada suku cadang/bahan yang cocok.
                     </div>
                   )}
@@ -790,14 +884,14 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
         {/* ================= TAB 2: VOUCHER & PROMO ================= */}
         {activeTab === "voucher" && (
-          <div className="space-y-4">
+          <div className="space-y-3.5">
             {/* Header Promo Banner */}
             {!isTipDismissed("settings_voucher_info") && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200 flex items-start justify-between gap-2 animate-in fade-in duration-200">
-                <div className="flex items-start gap-2 flex-1">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3.5 text-xs text-emerald-950 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200 flex items-start justify-between gap-2 animate-in fade-in duration-200 shadow-xs">
+                <div className="flex items-start gap-2.5 flex-1">
                   <Ticket className="size-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
                   <div className="space-y-1">
-                    <p className="font-semibold text-emerald-900 dark:text-emerald-200">
+                    <p className="font-bold text-emerald-900 dark:text-emerald-200">
                       Manajemen Kode Voucher &amp; Promo Diskon
                     </p>
                     <p className="text-[11px] opacity-90 leading-relaxed">
@@ -820,30 +914,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
             )}
 
-            {/* Quick Actions & Search */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Cari kode atau nama promo..."
-                  value={voucherSearch}
-                  onChange={(e) => setVoucherSearch(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs font-medium focus:border-primary focus:outline-none"
-                />
-              </div>
-              {canEdit && (
-                <button
-                  type="button"
-                  onClick={handleOpenAddVoucher}
-                  className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Buat Voucher</span>
-                </button>
-              )}
-            </div>
-
             {/* Voucher List */}
             <div className="space-y-2.5">
               {filteredVouchers.map((v) => {
@@ -853,38 +923,38 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <div
                     key={v.id}
                     className={cn(
-                      "flex flex-col gap-2 rounded-2xl border p-3.5 transition-all bg-card dark:bg-slate-900/70",
+                      "flex flex-col gap-2.5 rounded-2xl border p-4 transition-all bg-card dark:bg-slate-900 ring-1 ring-black/[0.03] dark:ring-white/[0.05]",
                       isExpired
-                        ? "border-destructive/30 bg-destructive/5 opacity-80"
+                        ? "border-destructive/40 bg-destructive/5 opacity-80"
                         : v.isActive
-                        ? "border-border shadow-xs hover:border-emerald-500/50"
-                        : "border-border/70 opacity-60 bg-muted/20"
+                        ? "border-emerald-500/40 shadow-[0_2px_8px_rgba(16,185,129,0.08)] hover:border-emerald-500/70 hover:shadow-md dark:border-emerald-500/40"
+                        : "border-slate-200/90 opacity-60 bg-muted/20 dark:border-slate-800"
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs font-bold tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-500/20">
+                        <span className="font-mono text-xs font-bold tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-500/30">
                           {v.code}
                         </span>
                         {v.targetService && v.targetService !== "Semua Layanan" ? (
-                          <span className="rounded-md bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 border border-blue-500/30">
+                          <span className="rounded-md bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 border border-blue-500/30">
                             Khusus: {v.targetService}
                           </span>
                         ) : (
-                          <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                          <span className="rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                             Semua Layanan (Umum)
                           </span>
                         )}
                         {isExpired ? (
-                          <span className="rounded-md bg-destructive/15 px-1.5 py-0.5 text-[10px] font-bold text-destructive">
+                          <span className="rounded-md bg-destructive/15 px-2 py-0.5 text-[10px] font-bold text-destructive border border-destructive/25">
                             Kadaluarsa
                           </span>
                         ) : v.isActive ? (
-                          <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                          <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-500/25">
                             Aktif
                           </span>
                         ) : (
-                          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border">
                             Nonaktif
                           </span>
                         )}
@@ -897,7 +967,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                             type="button"
                             onClick={() => toggleVoucherStatus(v.id)}
                             className={cn(
-                              "rounded-lg px-2 py-1 text-[10px] font-semibold border transition-all",
+                              "rounded-lg px-2.5 py-1 text-[10px] font-semibold border transition-all",
                               v.isActive
                                 ? "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
                                 : "border-muted-foreground/30 text-muted-foreground hover:bg-muted"
@@ -908,7 +978,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                           <button
                             type="button"
                             onClick={() => handleOpenEditVoucher(v)}
-                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            className="flex size-7.5 items-center justify-center rounded-lg border border-slate-200 bg-background text-muted-foreground hover:bg-accent hover:text-foreground dark:border-slate-700 dark:bg-slate-800 transition-colors"
                             title="Edit Voucher"
                           >
                             <Pencil className="size-3.5" />
@@ -929,7 +999,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                 toast.info("Voucher Dihapus", `Kode ${v.code} telah dihapus.`)
                               }
                             }}
-                            className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                            className="flex size-7.5 items-center justify-center rounded-lg border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-colors"
                             title="Hapus Voucher"
                           >
                             <Trash2 className="size-3.5" />
@@ -939,15 +1009,15 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     </div>
 
                     <div className="space-y-0.5">
-                      <p className="text-xs font-semibold text-foreground">{v.title}</p>
+                      <p className="text-xs font-bold text-foreground">{v.title}</p>
                       {v.description && (
-                        <p className="text-[11px] text-muted-foreground">{v.description}</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{v.description}</p>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-border/60 text-[11px] text-muted-foreground">
-                      <div className="flex items-center gap-1 font-semibold text-foreground">
-                        <Tag className="size-3 text-emerald-600" />
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border/70 text-[11px] text-muted-foreground">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+                        <Tag className="size-3.5" />
                         <span>
                           {v.type === "fixed"
                             ? `Potongan ${formatRupiah(v.value)}`
@@ -961,7 +1031,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Calendar className="size-3" />
+                        <Calendar className="size-3.5" />
                         <span>Berlaku s/d:</span>
                         <span className="font-medium text-foreground">{v.validUntil}</span>
                       </div>
@@ -971,7 +1041,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               })}
 
               {filteredVouchers.length === 0 && (
-                <div className="rounded-xl border border-dashed border-border py-8 text-center text-xs text-muted-foreground">
+                <div className="rounded-2xl border border-dashed border-border bg-card/60 py-8 text-center text-xs text-muted-foreground">
                   Tidak ada voucher promo yang ditemukan.
                 </div>
               )}
@@ -1521,6 +1591,35 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             )}
           </form>
         )}
+      </div>
+
+      {/* Sticky Bottom Footer */}
+      <div className="shrink-0 bg-card border-t border-border px-4 py-2.5 flex items-center justify-between text-[0.7rem] text-muted-foreground flex-wrap gap-2 shadow-xs">
+        <span className="font-semibold text-foreground/80">GTA GARAGE POS v2.4 (PWA Ready)</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              resetDismissedTips()
+              toast.success("Tips Bantuan Dipulihkan", "Kotak panduan info kini kembali ditampilkan.")
+            }}
+            className="text-muted-foreground hover:text-foreground hover:underline"
+            title="Tampilkan kembali semua kotak info & tips bantuan yang pernah ditutup"
+          >
+            Pulihkan Tips Info
+          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleResetDemo}
+              className="flex items-center gap-1 text-destructive/80 hover:text-destructive hover:underline"
+            >
+              <RotateCcw className="size-3" />
+              <span>Reset Data Demo</span>
+            </button>
+          )}
+        </div>
+      </div>
 
         {/* ================= MODAL SUB-FORM: TAMBAH/EDIT LAYANAN VAPOR/JASA ================= */}
         {serviceFormOpen && (
@@ -1939,34 +2038,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
         )}
 
-        {/* Footer Note & Reset Action */}
-        <div className="pt-3 border-t border-border flex items-center justify-between text-[0.7rem] text-muted-foreground flex-wrap gap-2">
-          <span>GTA GARAGE POS v2.4 (PWA Ready)</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                resetDismissedTips()
-                toast.success("Tips Bantuan Dipulihkan", "Kotak panduan info kini kembali ditampilkan.")
-              }}
-              className="text-muted-foreground hover:text-foreground hover:underline"
-              title="Tampilkan kembali semua kotak info & tips bantuan yang pernah ditutup"
-            >
-              Pulihkan Tips Info
-            </button>
-            {canEdit && (
-              <button
-                type="button"
-                onClick={handleResetDemo}
-                className="flex items-center gap-1 text-destructive/80 hover:text-destructive hover:underline"
-              >
-                <RotateCcw className="size-3" />
-                <span>Reset Data Demo</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
     </BottomSheet>
   )
 }

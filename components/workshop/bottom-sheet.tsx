@@ -8,15 +8,19 @@ export function BottomSheet({
   open,
   onClose,
   title,
+  header,
   children,
   className,
+  bodyClassName,
   full,
 }: {
   open: boolean
   onClose: () => void
   title?: string
+  header?: React.ReactNode
   children: React.ReactNode
   className?: string
+  bodyClassName?: string
   full?: boolean
 }) {
   useEffect(() => {
@@ -41,7 +45,7 @@ export function BottomSheet({
         aria-modal="true"
         aria-label={title || "Panel Dialog"}
         className={cn(
-          "relative mx-auto flex w-full flex-col bg-card shadow-2xl animate-sheet-mobile",
+          "relative mx-auto flex w-full flex-col bg-card shadow-2xl animate-sheet-mobile overflow-hidden",
           "max-w-[440px] md:max-w-[640px] lg:max-w-[720px]",
           full
             ? "h-full max-h-dvh md:max-h-[90dvh] rounded-none md:rounded-3xl border-0 md:border md:border-border"
@@ -53,7 +57,9 @@ export function BottomSheet({
           <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/30 md:hidden" />
         )}
 
-        {title && (
+        {header !== undefined ? (
+          header
+        ) : title ? (
           <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-5 py-3.5">
             <h2 className="text-base font-bold tracking-tight text-foreground">{title}</h2>
             <button
@@ -65,9 +71,14 @@ export function BottomSheet({
               <X className="size-4.5" />
             </button>
           </div>
-        )}
+        ) : null}
 
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] no-scrollbar">
+        <div
+          className={cn(
+            "flex-1 overflow-y-auto overscroll-contain p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] no-scrollbar",
+            bodyClassName
+          )}
+        >
           {children}
         </div>
       </div>
