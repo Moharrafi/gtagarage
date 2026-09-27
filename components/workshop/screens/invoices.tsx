@@ -502,6 +502,65 @@ export function InvoicesScreen() {
   const [method, setMethod] = useState<(typeof methods)[number]["key"] | null>(null)
   const [paid, setPaid] = useState(false)
 
+  // Auto-sync workOrders to invoiceList so any order that is ready or completed appears in invoices
+  useEffect(() => {
+    setInvoiceList((prevInvoices) => {
+      let updated = [...prevInvoices]
+      let hasChanges = false
+
+      workOrders.forEach((wo, idx) => {
+        const existingIdx = updated.findIndex((inv) => inv.workOrderCode === wo.code)
+
+        if (existingIdx === -1) {
+          if (wo.status === "Siap Diambil" || wo.status === "Selesai" || wo.status === "Dikerjakan") {
+            const laborItem = {
+              label: `Jasa ${wo.service}`,
+              qty: 1,
+              price: wo.laborCost || 90000,
+            }
+            const partItems = (wo.usedParts || []).map((p) => ({
+              label: p.name,
+              qty: p.qty,
+              price: p.price,
+            }))
+
+            const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
+            const isLunas = wo.status === "Selesai"
+
+            const newInvoice: Invoice = {
+              id: `inv-auto-${wo.id}`,
+              number: `INV/2026/09/0${143 + idx}`,
+              workOrderCode: wo.code,
+              customer: wo.customer,
+              vehicle: wo.vehicle,
+              service: wo.service,
+              date: wo.createdAt || "25 Sep 2026",
+              status: isLunas ? "Lunas" : "Belum Bayar",
+              paidAmount: isLunas ? invTotal : 0,
+              items: [laborItem, ...partItems],
+            }
+            updated = [newInvoice, ...updated]
+            hasChanges = true
+          }
+        } else {
+          const existingInv = updated[existingIdx]
+          if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
+            const total = invoiceTotal(existingInv)
+            updated[existingIdx] = {
+              ...existingInv,
+              status: "Lunas",
+              paidAmount: total,
+              paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            }
+            hasChanges = true
+          }
+        }
+      })
+
+      return hasChanges ? updated : prevInvoices
+    })
+  }, [workOrders])
+
   // Midtrans Payment Gateway state
   const [selectedBank, setSelectedBank] = useState<"BCA" | "Mandiri" | "BRI" | "BNI" | "Permata">("BCA")
   const [cashReceived, setCashReceived] = useState<number | "">("")
