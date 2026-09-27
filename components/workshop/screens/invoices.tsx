@@ -1365,13 +1365,17 @@ export function InvoicesScreen() {
                   {canEdit && (
                     <Button
                       variant="outline"
-                      className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
+                      className="flex-1 h-11 gap-2 rounded-xl border-emerald-600/30 bg-emerald-50/50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold text-sm shadow-xs active:scale-[0.98] transition-all"
                       onClick={() => openWa(active)}
                     >
-                      <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim Kwitansi WA
+                      <WhatsAppIcon className="size-4.5 text-emerald-600 dark:text-emerald-400 fill-emerald-600 dark:fill-emerald-400" /> Kirim Kwitansi WA
                     </Button>
                   )}
-                  <Button variant="outline" className={cn("gap-2 bg-transparent", canEdit ? "flex-1" : "w-full")} onClick={() => handlePrintInvoice(active)}>
+                  <Button
+                    variant="outline"
+                    className={cn("h-11 gap-2 rounded-xl bg-transparent font-semibold text-sm border-border hover:bg-muted active:scale-[0.98] transition-all", canEdit ? "flex-1" : "w-full")}
+                    onClick={() => handlePrintInvoice(active)}
+                  >
                     <Printer className="size-4" /> Cetak Struk
                   </Button>
                 </div>
@@ -1382,17 +1386,24 @@ export function InvoicesScreen() {
                   <>
                     <Button
                       variant="outline"
-                      className="flex-1 gap-2 border-emerald-600/30 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold"
+                      className="flex-1 h-11 gap-2 rounded-xl border-emerald-600/30 bg-emerald-50/50 hover:bg-emerald-100/60 dark:bg-emerald-950/20 text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 dark:border-emerald-500/40 font-semibold text-sm shadow-xs active:scale-[0.98] transition-all"
                       onClick={() => openWa(active)}
                     >
-                      <WhatsAppIcon className="size-4 text-emerald-500 fill-emerald-500" /> Kirim ke WA
+                      <WhatsAppIcon className="size-4.5 text-emerald-600 dark:text-emerald-400 fill-emerald-600 dark:fill-emerald-400" /> Kirim ke WA
                     </Button>
-                    <Button className="flex-1 gap-2" onClick={() => openPay(active)}>
-                      <Wallet className="size-4" /> Bayar Sekarang
+                    <Button
+                      className="flex-1 h-11 gap-2 rounded-xl font-semibold text-sm shadow-md shadow-primary/25 active:scale-[0.98] transition-all"
+                      onClick={() => openPay(active)}
+                    >
+                      <Wallet className="size-4.5" /> Bayar Sekarang
                     </Button>
                   </>
                 ) : (
-                  <Button variant="outline" className="w-full gap-2" onClick={() => handlePrintInvoice(active)}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 gap-2 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all"
+                    onClick={() => handlePrintInvoice(active)}
+                  >
                     <Printer className="size-4" /> Cetak Tagihan Thermal
                   </Button>
                 )}
@@ -1547,18 +1558,18 @@ export function InvoicesScreen() {
               <Button
                 variant="outline"
                 type="button"
-                className="flex-1 gap-1.5 text-xs bg-transparent dark:border-slate-700"
+                className="flex-1 h-11 gap-1.5 text-xs bg-transparent dark:border-slate-700 rounded-xl font-semibold active:scale-[0.98] transition-all"
                 onClick={handleCopyWa}
               >
-                {waCopied ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                {waCopied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
                 {waCopied ? "Teks Disalin!" : "Salin Teks"}
               </Button>
               <Button
                 type="button"
-                className="flex-[1.4] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 active:scale-98"
+                className="flex-[1.4] h-11 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
                 onClick={handleSendWa}
               >
-                <WhatsAppIcon className="size-4 fill-white" />
+                <WhatsAppIcon className="size-4.5 fill-white" />
                 Buka WhatsApp &amp; Kirim
               </Button>
             </div>
