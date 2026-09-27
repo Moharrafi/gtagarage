@@ -43,16 +43,18 @@ export function WhatsAppModal({ open, onClose, initialWorkOrderId }: WhatsAppMod
     const nama = customName || wo?.customer.name || "Pelanggan"
     const motor = wo ? `${wo.vehicle.brand} ${wo.vehicle.model}` : "Kendaraan"
     const plat = wo?.vehicle.plate || "-"
+    const layanan = wo?.service || "Layanan Servis"
     const total = wo ? formatRupiah(workOrderTotal(wo)) : "Rp 0"
-    const bengkel = profile.name || "MOTOCRAFT STUDIO & GARAGE"
+    const bengkel = profile.name || "GTA GARAGE"
 
     return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan dari *${bengkel}*:
-Pengerjaan kendaraan/mesin/komponen *${motor}* (${plat}) Anda telah *SELESAI & SIAP DIAMBIL*.
+Pengerjaan *${layanan}* pada unit *${motor}* (${plat}) Anda telah *SELESAI & SIAP DIAMBIL*.
 
-Berikut kami lampirkan gambar rincian invoice tagihannya.
-*Total Tagihan:* *${total}*
+Berikut kami lampirkan gambar rincian invoice tagihannya:
+• *Layanan:* ${layanan}
+• *Total Tagihan:* *${total}*
 
 Mohon untuk dapat segera melakukan pembayaran. Pembayaran bisa dilakukan via Transfer Bank / QRIS agar saat tiba di bengkel tinggal serah terima unit, atau bayar langsung di kasir saat pengambilan.
 

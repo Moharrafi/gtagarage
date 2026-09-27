@@ -363,6 +363,7 @@ function generateInvoiceWaMessage(
   const sisa = Math.max(0, total - inv.paidAmount)
   const isLunas = inv.status === "Lunas" || sisa === 0
   const bengkel = profile.name || "GTA GARAGE"
+  const layanan = inv.service || "Layanan Servis"
 
   if (isLunas) {
     const methodStr =
@@ -384,12 +385,12 @@ Pembayaran untuk invoice *${inv.number}* telah berhasil kami terima dan tercatat
 📋 *KWITANSI PEMBAYARAN RESMI (LUNAS)*
 • *No. Invoice:* ${inv.number}
 • *Kendaraan/Unit:* *${motor}* (${inv.vehicle.plate})
-• *Layanan:* ${inv.service}
+• *Layanan:* ${layanan}
 • *Total Tagihan:* *${formatRupiah(total)}*
 ${inv.adminFee && inv.adminFee > 0 ? `• *Biaya Admin (${inv.method || "Gateway"}):* ${formatRupiah(inv.adminFee)}\n• *Total Pembayaran:* *${formatRupiah(total + inv.adminFee)}*\n` : ""}• *Status Pembayaran:* *LUNAS* (Selesai & Lunas)
 • *Metode Bayar:* ${methodStr}
 ${paymentRef || inv.paymentRef ? `• *ID Transaksi:* \`${paymentRef || inv.paymentRef}\`\n` : ""}${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
-Berikut kami lampirkan gambar kwitansi pembayaran resmi (*LUNAS*). Kendaraan/mesin Anda sudah selesai diuji dan siap diserahterimakan kapan saja di bengkel kami.
+Berikut kami lampirkan gambar kwitansi pembayaran resmi (*LUNAS*). Pengerjaan *${layanan}* pada unit *${motor}* Anda sudah selesai dan siap diserahterimakan kapan saja di bengkel kami.
 
 ${profile.receiptWarranty ? `• *Garansi:* ${profile.receiptWarranty}\n` : ""}${profile.address ? `• *Alamat Bengkel:* ${profile.address}\n` : ""}${profile.phone ? `• *Telp/WA:* ${profile.phone}\n` : ""}${profile.receiptWebsite ? `• *Website:* ${profile.receiptWebsite}\n` : ""}
 Terima kasih banyak atas kepercayaan Anda kepada bengkel kami!`
@@ -398,9 +399,10 @@ Terima kasih banyak atas kepercayaan Anda kepada bengkel kami!`
   return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan dari *${bengkel}*:
-Pengerjaan kendaraan/mesin/komponen *${motor}* (${inv.vehicle.plate}) Anda telah *SELESAI & SIAP DIAMBIL*.
+Pengerjaan *${layanan}* pada unit *${motor}* (${inv.vehicle.plate}) Anda telah *SELESAI & SIAP DIAMBIL*.
 
 Berikut kami lampirkan gambar rincian invoice tagihannya:
+• *Layanan:* ${layanan}
 • *Total Tagihan:* ${formatRupiah(total)}
 ${inv.paidAmount > 0 ? `• *Sudah Dibayar (DP):* ${formatRupiah(inv.paidAmount)}\n` : ""}• *Sisa yang Harus Dibayar:* *${formatRupiah(sisa)}*
 ${inv.discountAmount && inv.discountAmount > 0 ? `• *Diskon Khusus:* -${formatRupiah(inv.discountAmount)} (${inv.discountCode || "Promo"})\n` : ""}
@@ -422,15 +424,17 @@ function generatePaymentInstructionWaMessage(
   const nama = inv.customer.name
   const bengkel = profile.name || "GTA GARAGE"
   const motor = [inv.vehicle.brand, inv.vehicle.model].filter(Boolean).join(" ") || "Kendaraan Pelanggan"
+  const layanan = inv.service || "Layanan Servis"
 
   if (methodKey === "QRIS") {
     return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan tagihan dari *${bengkel}*:
-Pengerjaan kendaraan/unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
+Pengerjaan *${layanan}* pada unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
 
 Berikut informasi rincian pembayaran via *QRIS Dynamic*:
 • *No. Invoice:* ${inv.number}
+• *Layanan:* ${layanan}
 • *Total Pembayaran:* *${formatRupiah(payAmount)}*
 • *Metode Bayar:* QRIS Midtrans (GoPay, OVO, Dana, ShopeePay, BCA, Livin', BRImo)
 • *Batas Waktu:* 15 Menit
@@ -450,10 +454,11 @@ Terima kasih!`
     return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan tagihan dari *${bengkel}*:
-Pengerjaan kendaraan/unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
+Pengerjaan *${layanan}* pada unit *${motor}* (${inv.vehicle.plate}) telah selesai & siap diambil.
 
 Berikut petunjuk transfer via *Virtual Account ${bankName}*:
 • *No. Invoice:* ${inv.number}
+• *Layanan:* ${layanan}
 • *Bank Tujuan:* *${bankName} Virtual Account*
 • *Nomor VA:* *${vaNumber}*
 • *Atas Nama:* MIDTRANS / ${nama.toUpperCase()}
@@ -475,7 +480,7 @@ Jika sudah berhasil transfer, mohon informasikan kembali ke kami ya. Terima kasi
     return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan tagihan dari *${bengkel}*:
-Tagihan invoice *${inv.number}* an. *${nama}* sebesar *${formatRupiah(payAmount)}* via Kartu Debit / Kredit (Midtrans 3D Secure).
+Tagihan invoice *${inv.number}* (${layanan} - ${motor}) an. *${nama}* sebesar *${formatRupiah(payAmount)}* via Kartu Debit / Kredit (Midtrans 3D Secure).
 
 Silakan hubungi kasir kami jika ingin melakukan konfirmasi transaksi online. Terima kasih!`
   }
@@ -483,8 +488,9 @@ Silakan hubungi kasir kami jika ingin melakukan konfirmasi transaksi online. Ter
   return `Halo Bpk/Ibu *${nama}*,
 
 Pemberitahuan dari *${bengkel}*:
-Pengerjaan unit *${motor}* (${inv.vehicle.plate}) telah selesai.
+Pengerjaan *${layanan}* pada unit *${motor}* (${inv.vehicle.plate}) telah selesai.
 • *No. Invoice:* ${inv.number}
+• *Layanan:* ${layanan}
 • *Total Tagihan:* *${formatRupiah(payAmount)}*
 • *Metode:* Tunai di Kasir saat serah terima unit kendaraan.
 
