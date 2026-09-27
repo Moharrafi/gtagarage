@@ -369,6 +369,22 @@ export function WorkOrdersScreen() {
                 </div>
               )}
 
+              {w.status === "Dikerjakan" && canEdit && (
+                <div className="px-3.5 pb-3 pt-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleQuickComplete(w)
+                    }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Selesaikan Pengerjaan
+                  </button>
+                </div>
+              )}
+
               {w.status === "Siap Diambil" && canEdit && (
                 <div className="px-3.5 pb-3 pt-0 flex gap-2">
                   <button
@@ -464,53 +480,14 @@ export function WorkOrdersScreen() {
                     </div>
 
                     <div className="flex gap-2 mt-2">
-                      {w.status === "Antrian" && canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => setAssignTargetWo(w)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <Zap className="size-3.5 fill-current" /> Mulai Kerjakan
-                        </button>
-                      )}
-                      {w.status === "Dikerjakan" && canEdit && (
-                        <button
-                          type="button"
-                          onClick={() => handleQuickComplete(w)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
-                        >
-                          <CheckCircle2 className="size-3.5" /> Selesaikan Pengerjaan
-                        </button>
-                      )}
                       {canEdit && (
                         <button
                           type="button"
                           onClick={() => openEdit(w)}
-                          className="flex items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800 cursor-pointer"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground shadow-xs transition-all hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800 cursor-pointer"
                         >
                           <Pencil className="size-3.5" /> Edit
                         </button>
-                      )}
-                      {w.status === "Siap Diambil" && canEdit && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleFinalComplete(w)}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 transition-all active:scale-[0.98] cursor-pointer"
-                          >
-                            <CheckCircle2 className="size-3.5" /> Selesai &amp; Serahkan
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setWaWoId(w.id)
-                              setWaOpen(true)
-                            }}
-                            className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 transition-all hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 cursor-pointer"
-                          >
-                            <WhatsAppIcon className="size-3.5 text-[#25D366]" /> WA Siap Diambil
-                          </button>
-                        </>
                       )}
                       {canEdit && (
                         <button
