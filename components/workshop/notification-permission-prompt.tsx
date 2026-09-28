@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, BellRing, Check, CheckCircle2, Volume2, X, ShieldCheck, Sparkles, Loader2 } from "lucide-react"
+import { Bell, BellRing, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/workshop/toast"
 import { playCashInSound } from "@/lib/sound"
@@ -149,23 +149,10 @@ export function NotificationPermissionPrompt() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl text-card-foreground animate-in zoom-in-95 duration-200">
-        {/* Close Button */}
-        <button
-          onClick={handleDismiss}
-          className="absolute top-4 right-4 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          aria-label="Tutup"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Icon & Glow Header */}
+        {/* Icon Header (Static, No Animation) */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/25 ring-8 ring-blue-500/10">
-            <BellRing className="w-8 h-8 animate-bounce" />
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 border-2 border-card"></span>
-            </span>
+          <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-500/20 ring-8 ring-blue-500/10">
+            <BellRing className="w-8 h-8" />
           </div>
 
           <div>
