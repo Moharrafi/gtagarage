@@ -90,6 +90,7 @@ export function PushSubscriber() {
             title: 'Pembayaran Lunas! ✅',
             body: 'Invoice INV-123 (Rp 248.000) telah dibayar oleh Customer.',
             url: '/?tab=invoices',
+            sound: '/media/cash-in.mp3', // Trigger the cash-in sound
           },
         }),
       })
