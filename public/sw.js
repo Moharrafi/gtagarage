@@ -116,6 +116,7 @@ self.addEventListener('push', (event) => {
           vibrate: data.sound ? [200, 100, 200, 100, 200, 100, 400] : [200, 100, 200],
           // Mute OS default sound only if the app is open and will play custom sound
           silent: isAppOpen && !!data.sound,
+          sound: data.sound, // Some OS might still support this
           data: {
             url: data.url || '/',
           },
@@ -123,12 +124,14 @@ self.addEventListener('push', (event) => {
 
         return self.registration.showNotification(data.title, options).then(() => {
           // Tell open windows to play the sound and vibrate
-          if (data.sound) {
-            clientList.forEach((client) => {
-              client.postMessage({
-                type: 'PLAY_SOUND',
-                sound: data.sound,
-                vibrate: true
+          if (data.sound && isAppOpen) {
+            return clients.matchAll({ type: 'window', includeUncontrolled: true }).then((activeClients) => {
+              activeClients.forEach((client) => {
+                client.postMessage({
+                  type: 'PLAY_SOUND',
+                  sound: data.sound,
+                  vibrate: true
+                })
               })
             })
           }

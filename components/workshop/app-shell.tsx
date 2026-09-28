@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Bell, Wrench, Home, Package, ReceiptText, BarChart3, Settings } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
@@ -101,6 +101,7 @@ function AppShellInner() {
   const { profile, currentUser, authLoaded, unreadNotifCount, workOrders, parts } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // Listen for Service Worker messages to play sound and vibrate
   useEffect(() => {
@@ -108,8 +109,14 @@ function AppShellInner() {
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'PLAY_SOUND' && event.data.sound) {
-        const audio = new Audio(event.data.sound);
-        audio.play().catch(e => console.error("Error playing sound:", e));
+        if (audioRef.current) {
+          audioRef.current.src = event.data.sound;
+          audioRef.current.currentTime = 0;
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(e => console.error("Error playing sound via DOM:", e));
+          }
+        }
         
         if (event.data.vibrate && 'vibrate' in navigator) {
           navigator.vibrate([200, 100, 200, 100, 200, 100, 400]);
@@ -137,6 +144,7 @@ function AppShellInner() {
 
   return (
     <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6">
+      <audio ref={audioRef} className="hidden" preload="auto" />
       <div className="relative flex h-dvh w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
         {/* Tablet / Desktop Sidebar Rail */}
         <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">
