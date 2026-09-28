@@ -2081,92 +2081,47 @@ export function InvoicesScreen() {
                         </div>
                       </div>
 
-                      {/* WhatsApp Remote Share Card */}
-                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5 dark:border-emerald-500/20 dark:bg-emerald-950/20">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                            <WhatsAppIcon className="size-4 fill-emerald-600 dark:fill-emerald-400" />
-                            <span>Customer Tidak di Tempat?</span>
-                          </span>
-                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            Kirim Gambar QRIS
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Bagikan gambar QRIS resmi &amp; instruksi pembayaran ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
-                        </p>
-
-                        {/* Action Buttons Grid */}
-                        <div className="space-y-1.5 pt-0.5">
-                          <Button
-                            type="button"
-                            onClick={() => handleSendPaymentInstructionToWa(payFor, "QRIS", "", finalPayAmount)}
-                            className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20 py-2.5"
-                          >
-                            <WhatsAppIcon className="size-4 fill-white" />
-                            <span>Buka WA &amp; Bagikan QRIS (Otomatis Salin)</span>
-                          </Button>
-
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCopyQrisCardImage(payFor, finalPayAmount)}
-                              className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5"
-                            >
-                              <Copy className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span>Salin Gambar QRIS</span>
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadQrisCard(payFor, finalPayAmount)}
-                              className="text-xs border-border bg-background hover:bg-muted font-semibold gap-1.5"
-                            >
-                              <Download className="size-3.5 text-blue-600 dark:text-blue-400" />
-                              <span>Unduh Gambar QRIS</span>
-                            </Button>
-                          </div>
-                        </div>
+                      {/* WhatsApp Remote Share Toolbar - Compact & Neat */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendPaymentInstructionToWa(payFor, "QRIS", "", finalPayAmount)}
+                          className="flex-1 h-9 gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
+                        >
+                          <WhatsAppIcon className="size-3.5 fill-current" />
+                          <span>Kirim QRIS ke WhatsApp</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyQrisCardImage(payFor, finalPayAmount)}
+                          title="Salin Gambar QRIS"
+                          className="h-9 px-3 text-xs gap-1 border-border bg-background hover:bg-muted font-medium"
+                        >
+                          <Copy className="size-3.5 text-muted-foreground" />
+                          <span>Salin</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDownloadQrisCard(payFor, finalPayAmount)}
+                          title="Unduh Gambar QRIS"
+                          className="h-9 px-3 text-xs gap-1 border-border bg-background hover:bg-muted font-medium"
+                        >
+                          <Download className="size-3.5 text-muted-foreground" />
+                          <span>Unduh</span>
+                        </Button>
                       </div>
 
-                      {/* Waiting Status Banner */}
-                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
-                        <div className="size-2 rounded-full bg-amber-500 mt-1.5 animate-ping shrink-0" />
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-xs">⏳ Menunggu Pembayaran dari Customer...</p>
-                            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-medium">Pending Scan</span>
-                          </div>
-                          <p className="text-[11px] text-amber-800/90 dark:text-amber-300/80 leading-relaxed">
-                            Customer sedang memindai QRIS. Setelah pembayaran masuk, klik tombol konfirmasi di bawah untuk menyelesaikan invoice.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Cashier simulation button */}
-                      <button
-                        type="button"
-                        onClick={handleSimulatePayment}
-                        disabled={isSimulatingPayment}
-                        className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/10 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-500/20 dark:text-blue-400 transition-colors shadow-xs"
-                      >
-                        <Sparkles className="size-3.5" />
-                        <span>
-                          {isSimulatingPayment
-                            ? "Memverifikasi notifikasi webhook Midtrans..."
-                            : "⚡ Simulasi Kasir: Pelanggan Selesai Scan QRIS (Sukses Lunas)"}
-                        </span>
-                      </button>
-
-                      {/* Main Confirm Button */}
+                      {/* Single Clean Confirmation Button */}
                       <Button
                         type="button"
-                        className="w-full gap-2 py-3 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="w-full h-11 gap-2 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white mt-1"
                         onClick={handleExecutePayment}
-                        disabled={isSimulatingPayment}
                       >
                         <ShieldCheck className="size-4" />
                         <span>Konfirmasi Pembayaran (Customer Sudah Bayar)</span>
@@ -2242,96 +2197,40 @@ export function InvoicesScreen() {
                         </div>
                       </div>
 
-                      {/* WhatsApp Remote Share Card */}
-                      <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5 dark:border-emerald-500/20 dark:bg-emerald-950/20">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                            <WhatsAppIcon className="size-4 fill-emerald-600 dark:fill-emerald-400" />
-                            <span>Customer Tidak di Tempat?</span>
-                          </span>
-                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            Bagikan ke WA
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Kirim nomor <strong>{selectedBank} Virtual Account</strong> &amp; instruksi transfer ke WhatsApp <strong>{payFor.customer.name}</strong> ({payFor.customer.phone || "No. WA Belum Ada"}).
-                        </p>
-                        <div className="flex gap-2 pt-0.5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              const vaNum = getVaNumber(selectedBank, payFor)
-                              const msg = generatePaymentInstructionWaMessage(payFor, profile, "Transfer", selectedBank, vaNum, finalPayAmount, paymentRefId)
-                              await navigator.clipboard.writeText(msg)
-                              toast.success("Pesan Disalin", "Teks instruksi transfer VA berhasil disalin ke clipboard.")
-                            }}
-                            className="flex-1 text-xs border-border bg-background hover:bg-muted font-medium"
-                          >
-                            <Copy className="size-3.5 mr-1.5" />
-                            Salin Pesan
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => handleSendPaymentInstructionToWa(payFor, "Transfer", selectedBank, finalPayAmount)}
-                            className="flex-[1.5] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm shadow-emerald-600/20"
-                          >
-                            <WhatsAppIcon className="size-3.5 fill-white" />
-                            Kirim ke WA Customer
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Waiting Status Banner */}
-                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
-                        <div className="size-2 rounded-full bg-amber-500 mt-1.5 animate-ping shrink-0" />
-                        <div className="space-y-0.5 min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-xs">⏳ Menunggu Transfer Masuk dari Customer...</p>
-                            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-mono font-medium">Pending Transfer</span>
-                          </div>
-                          <p className="text-[11px] text-amber-800/90 dark:text-amber-300/80 leading-relaxed">
-                            Customer mentransfer ke nomor Virtual Account di atas. Setelah dana masuk, klik tombol konfirmasi di bawah untuk menyelesaikan invoice.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Cashier simulation button & Sandbox Simulator link */}
-                      <div className="space-y-1.5">
-                        <button
+                      {/* WhatsApp Share Toolbar - Compact */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <Button
                           type="button"
-                          onClick={handleSimulatePayment}
-                          disabled={isSimulatingPayment}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendPaymentInstructionToWa(payFor, "Transfer", selectedBank, finalPayAmount)}
+                          className="flex-1 h-9 gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
                         >
-                          <Sparkles className="size-3.5" />
-                          <span>
-                            {isSimulatingPayment
-                              ? "Menerima notifikasi settlement VA..."
-                              : "⚡ Simulasi Kasir: Pelanggan Selesai Transfer VA"}
-                          </span>
-                        </button>
-                        <div className="flex items-center justify-center text-center">
-                          <a
-                            href="https://simulator.sandbox.midtrans.com/openapi/va/index"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                          >
-                            <span>Buka Simulator Virtual Account Midtrans Sandbox</span>
-                            <ExternalLink className="size-2.5" />
-                          </a>
-                        </div>
+                          <WhatsAppIcon className="size-3.5 fill-current" />
+                          <span>Kirim Instruksi ke WA</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            const vaNum = getVaNumber(selectedBank, payFor)
+                            const msg = generatePaymentInstructionWaMessage(payFor, profile, "Transfer", selectedBank, vaNum, finalPayAmount, paymentRefId)
+                            await navigator.clipboard.writeText(msg)
+                            toast.success("Pesan Disalin", "Teks instruksi transfer VA berhasil disalin ke clipboard.")
+                          }}
+                          className="h-9 px-3 text-xs gap-1 border-border bg-background hover:bg-muted font-medium"
+                        >
+                          <Copy className="size-3.5 text-muted-foreground" />
+                          <span>Salin Teks</span>
+                        </Button>
                       </div>
 
-                      {/* Main Confirm Button */}
+                      {/* Single Clean Confirmation Button */}
                       <Button
                         type="button"
-                        className="w-full gap-2 py-3 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white"
+                        className="w-full h-11 gap-2 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white mt-1"
                         onClick={handleExecutePayment}
-                        disabled={isSimulatingPayment}
                       >
                         <ShieldCheck className="size-4" />
                         <span>Konfirmasi Pembayaran (Customer Sudah Bayar)</span>
@@ -2388,32 +2287,15 @@ export function InvoicesScreen() {
                         <span>Diproteksi dengan Fraud Detection System Aegis &amp; One Time Password (OTP).</span>
                       </div>
 
-                      {/* Cashier simulation button & Test Cards */}
-                      <div className="space-y-1.5">
-                        <button
-                          type="button"
-                          onClick={handleSimulatePayment}
-                          disabled={isSimulatingPayment}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-blue-500/40 bg-blue-500/5 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-500/10 dark:text-blue-400 transition-colors"
-                        >
-                          <Sparkles className="size-3.5" />
-                          <span>
-                            {isSimulatingPayment
-                              ? "Memvalidasi OTP 3DS Midtrans..."
-                              : "⚡ Simulasi Kasir: Transaksi Kartu 3D Secure Berhasil"}
-                          </span>
-                        </button>
-                        <p className="text-center text-[10px] text-muted-foreground">
-                          Kartu Uji Coba Sandbox: <code className="font-mono bg-muted px-1 py-0.5 rounded text-[9.5px]">4811 1111 1111 1114</code> · Exp: 12/28 · CVV: 123 (OTP: 112233)
-                        </p>
-                      </div>
+                      <p className="text-center text-[10px] text-muted-foreground pt-1">
+                        Kartu Uji Coba Sandbox: <code className="font-mono bg-muted px-1 py-0.5 rounded text-[9.5px]">4811 1111 1111 1114</code> · Exp: 12/28 · CVV: 123 (OTP: 112233)
+                      </p>
 
                       {/* Main Confirm Button */}
                       <Button
                         type="button"
-                        className="w-full gap-2 py-3 text-xs font-bold shadow-md"
+                        className="w-full h-11 gap-2 text-xs font-bold shadow-md bg-emerald-600 hover:bg-emerald-700 text-white mt-1"
                         onClick={handleExecutePayment}
-                        disabled={isSimulatingPayment}
                       >
                         <ShieldCheck className="size-4" />
                         <span>Proses &amp; Konfirmasi Pembayaran Kartu</span>
