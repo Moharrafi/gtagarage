@@ -1,17 +1,30 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 
-webpush.setVapidDetails(
-  'mailto:admin@gtagarage.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-  process.env.VAPID_PRIVATE_KEY || ''
-)
+// Initialize lazily to prevent Next.js build errors when env vars are missing
+let isVapidSet = false
+function ensureVapidDetails() {
+  if (!isVapidSet) {
+    if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+      webpush.setVapidDetails(
+        'mailto:admin@gtagarage.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+      )
+      isVapidSet = true
+    } else {
+      console.warn('VAPID keys are missing. Web Push will not work.')
+    }
+  }
+}
 
 // In a real app, this should be stored in a database (e.g. PostgreSQL, MongoDB, etc.)
 // For demonstration, we use in-memory storage (will reset on server restart)
 let subscriptions: any[] = []
 
 export async function POST(req: Request) {
+  ensureVapidDetails()
+
   try {
     const { action, subscription, payload } = await req.json()
 
