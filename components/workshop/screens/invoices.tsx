@@ -500,7 +500,7 @@ Terima kasih!`
 
 export function InvoicesScreen() {
   const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig, workOrders, updateWorkOrder } = useWorkshop()
-  const [invoiceList, setInvoiceList] = useState<Invoice[]>(invoices)
+  const [invoiceList, setInvoiceList] = useState<Invoice[]>([])
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
   const [active, setActive] = useState<Invoice | null>(null)
   const [sheetTab, setSheetTab] = useState<"detail" | "struk">("detail")
@@ -515,7 +515,7 @@ export function InvoicesScreen() {
     fetch('/api/invoices')
       .then((r) => r.json())
       .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res?.success && Array.isArray(res.data)) {
           setInvoiceList(res.data)
           setDbLoadedTime(Date.now()) // Trigger auto-sync after DB load
         }
