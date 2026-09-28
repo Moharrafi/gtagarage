@@ -156,9 +156,7 @@ function AppShellInner() {
         <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">
           {/* Brand header */}
           <div className="flex items-center gap-3 p-4 border-b border-border/70">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-md shadow-primary/25">
-              <Wrench className="size-5" strokeWidth={2.4} />
-            </span>
+            <img src="/logo.png" alt="Logo" className="size-10 rounded-xl object-cover shadow-md shadow-primary/25 bg-white" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h2 className="truncate text-sm font-bold text-foreground tracking-tight">
@@ -280,9 +278,7 @@ function AppShellInner() {
             )}
           >
             {tab === "beranda" ? (
-              <span className="flex size-9 md:hidden items-center justify-center rounded-xl bg-white/20 text-white shadow-sm ring-1 ring-white/30 backdrop-blur-xs">
-                <Wrench className="size-5" strokeWidth={2.4} />
-              </span>
+              <img src="/logo.png" alt="Logo" className="size-9 md:hidden rounded-xl object-cover shadow-sm ring-1 ring-white/30 bg-white" />
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
