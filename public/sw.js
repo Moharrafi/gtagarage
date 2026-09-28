@@ -104,30 +104,35 @@ self.addEventListener('message', (event) => {
 self.addEventListener('push', (event) => {
   if (event.data) {
     const data = event.data.json()
-    const options = {
-      body: data.body,
-      icon: data.icon || '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      vibrate: data.sound ? [200, 100, 200, 100, 200, 100, 400] : [200, 100, 200], // Cha-ching pattern only if there's a sound
-      sound: data.sound, // e.g. '/media/cash-in.mp3'
-      data: {
-        url: data.url || '/',
-      },
-    }
 
     event.waitUntil(
-      self.registration.showNotification(data.title, options).then(() => {
-        // Also notify any open windows to play the sound if provided
-        if (data.sound) {
-          return clients.matchAll({ type: 'window' }).then((clientList) => {
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        const isAppOpen = clientList.length > 0;
+
+        const options = {
+          body: data.body,
+          icon: data.icon || '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          vibrate: data.sound ? [200, 100, 200, 100, 200, 100, 400] : [200, 100, 200],
+          // Mute OS default sound only if the app is open and will play custom sound
+          silent: isAppOpen && !!data.sound,
+          data: {
+            url: data.url || '/',
+          },
+        }
+
+        return self.registration.showNotification(data.title, options).then(() => {
+          // Tell open windows to play the sound and vibrate
+          if (data.sound) {
             clientList.forEach((client) => {
               client.postMessage({
                 type: 'PLAY_SOUND',
-                sound: data.sound
+                sound: data.sound,
+                vibrate: true
               })
             })
-          })
-        }
+          }
+        })
       })
     )
   }

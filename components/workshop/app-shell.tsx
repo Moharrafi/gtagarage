@@ -102,7 +102,7 @@ function AppShellInner() {
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
 
-  // Listen for Service Worker messages to play sound
+  // Listen for Service Worker messages to play sound and vibrate
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
@@ -110,6 +110,10 @@ function AppShellInner() {
       if (event.data && event.data.type === 'PLAY_SOUND' && event.data.sound) {
         const audio = new Audio(event.data.sound);
         audio.play().catch(e => console.error("Error playing sound:", e));
+        
+        if (event.data.vibrate && 'vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200, 100, 200, 100, 400]);
+        }
       }
     };
 
