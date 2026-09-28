@@ -1,5 +1,5 @@
 import pg from 'pg'
-import type { PoolClient, QueryResult } from 'pg'
+import type { PoolClient, QueryResult, QueryResultRow } from 'pg'
 
 const { Pool } = pg
 
@@ -7,7 +7,7 @@ const globalForPg = globalThis as unknown as {
   _pgPool?: pg.Pool
 }
 
-export function getPool(): Pool {
+export function getPool(): pg.Pool {
   if (!globalForPg._pgPool) {
     const rawConn = process.env.DATABASE_URL
     const connectionString = rawConn ? rawConn.replace(/[?&]sslmode=[^&]+/g, '') : undefined
@@ -40,7 +40,7 @@ export function getPool(): Pool {
   return globalForPg._pgPool
 }
 
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
