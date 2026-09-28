@@ -509,6 +509,18 @@ export function InvoicesScreen() {
   const [method, setMethod] = useState<(typeof methods)[number]["key"] | null>(null)
   const [paid, setPaid] = useState(false)
 
+  // Fetch initial invoices from PostgreSQL backend API
+  useEffect(() => {
+    fetch('/api/invoices')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setInvoiceList(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load invoices from DB', e))
+  }, [])
+
   // Auto-sync workOrders to invoiceList so any order that is ready or completed appears in invoices
   useEffect(() => {
     setInvoiceList((prevInvoices) => {
@@ -1685,6 +1697,13 @@ export function InvoicesScreen() {
               )
             )
 
+            // Save updated invoice to PostgreSQL database
+            fetch('/api/invoices', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedInvoice),
+            }).catch((e) => console.error('Failed to save invoice to DB:', e))
+
             addNotification({
               type: "push",
               title: "Pembayaran Lunas",
@@ -1697,27 +1716,32 @@ export function InvoicesScreen() {
             // 1. Play cash-in sound immediately (with 4s debounce guard to prevent double-play)
             playCashInSound()
 
-            // 2. Trigger Web Push API for heads-up notifications & any connected devices
-            if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
-              navigator.serviceWorker.ready.then((reg) => {
-                reg.pushManager.getSubscription().then((sub) => {
-                  fetch('/api/web-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      action: 'send',
-                      subscription: sub,
-                      payload: {
-                        title: 'Pembayaran Lunas! ✅',
-                        body: `Invoice ${payFor.number} (${formatRupiah(finalPayAmount)}) lunas via ${paidMethodLabel}`,
-                        url: '/?tab=invoices',
-                        sound: '/media/cash-in.mp3',
-                      },
-                    }),
-                  }).catch(e => console.error("Web Push Error:", e));
-                })
-              }).catch(() => {})
+            // 2. Trigger Web Push API to broadcast to all registered devices in PostgreSQL
+            const triggerPush = async () => {
+              let sub = null
+              try {
+                if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+                  const reg = await navigator.serviceWorker.ready
+                  sub = await reg.pushManager.getSubscription()
+                }
+              } catch {}
+
+              fetch('/api/web-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'send',
+                  subscription: sub,
+                  payload: {
+                    title: 'Pembayaran Lunas! ✅',
+                    body: `Invoice ${payFor.number} (${formatRupiah(finalPayAmount)}) lunas via ${paidMethodLabel}`,
+                    url: '/?tab=invoices',
+                    sound: '/media/cash-in.mp3',
+                  },
+                }),
+              }).catch((e) => console.error("Web Push Error:", e))
             }
+            triggerPush()
 
             // Otomatis sinkronisasi: update status Pekerjaan ke 'Selesai' (100%)
             if (payFor.workOrderCode) {

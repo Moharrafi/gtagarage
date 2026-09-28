@@ -274,6 +274,76 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
+  // Load initial data from PostgreSQL Backend API
+  useEffect(() => {
+    fetch('/api/work-orders')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setWorkOrders(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load work-orders from DB', e))
+
+    fetch('/api/inventory')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setParts(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load inventory from DB', e))
+
+    fetch('/api/service-rates')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setServiceRates(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load service-rates from DB', e))
+
+    fetch('/api/technicians')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setTechnicians(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load technicians from DB', e))
+
+    fetch('/api/vouchers')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setVouchers(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load vouchers from DB', e))
+
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && res.data) {
+          if (res.data.profile) setProfile(res.data.profile)
+          if (res.data.midtransConfig) setMidtransConfig(res.data.midtransConfig)
+          if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
+            setCategories(res.data.categories)
+          }
+        }
+      })
+      .catch((e) => console.error('Failed to load settings from DB', e))
+
+    fetch('/api/notifications')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setNotifications(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load notifications from DB', e))
+  }, [])
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bengkel_notifications")
@@ -315,6 +385,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         } catch {}
         return next
       })
+
+      fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newNotif),
+      }).catch((e) => console.error('Failed to sync notification to DB', e))
     },
     []
   )
@@ -327,6 +403,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch('/api/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark-all-read' }),
+    }).catch(console.error)
   }, [])
 
   const markNotifAsRead = useCallback((id: string) => {
@@ -337,6 +419,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch('/api/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark-read', id }),
+    }).catch(console.error)
   }, [])
 
   const clearNotifications = useCallback(() => {
@@ -344,6 +432,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem("bengkel_notifications", JSON.stringify([]))
     } catch {}
+
+    fetch('/api/notifications?action=clear-all', { method: 'DELETE' }).catch(console.error)
   }, [])
 
   const deleteNotification = useCallback((id: string) => {
@@ -354,6 +444,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch(`/api/notifications?id=${id}`, { method: 'DELETE' }).catch(console.error)
   }, [])
 
   const unreadNotifCount = useMemo(
@@ -382,6 +474,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       }
       return next
     })
+
+    fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: patch }),
+    }).catch((e) => console.error('Failed to sync profile to DB', e))
   }, [])
 
   // Midtrans Payment Gateway Configuration
@@ -420,16 +518,32 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       }
       return next
     })
+
+    fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ midtransConfig: patch }),
+    }).catch((e) => console.error('Failed to sync midtransConfig to DB', e))
   }, [])
 
   const addCategory = useCallback((category: string) => {
     const trimmed = category.trim()
     if (!trimmed) return
     setCategories((prev) => (prev.some((c) => c.toLowerCase() === trimmed.toLowerCase()) ? prev : [trimmed, ...prev]))
+
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add-category', name: trimmed }),
+    }).catch((e) => console.error('Failed to sync category to DB', e))
   }, [])
 
   const deleteCategory = useCallback((category: string) => {
     setCategories((prev) => prev.filter((c) => c.toLowerCase() !== category.trim().toLowerCase()))
+
+    fetch(`/api/settings?category=${encodeURIComponent(category.trim())}`, {
+      method: 'DELETE',
+    }).catch((e) => console.error('Failed to delete category from DB', e))
   }, [])
 
   const addWorkOrder = useCallback((input: WorkOrderInput) => {
@@ -474,6 +588,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         linkTab: "pekerjaan",
       })
 
+      fetch('/api/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(wo),
+      }).catch((e) => console.error('Failed to sync work order to DB', e))
+
       return [wo, ...prev]
     })
   }, [addNotification])
@@ -492,7 +612,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         })
       }
 
-      return prev.map((w) =>
+      const updatedList = prev.map((w) =>
         w.id === id
           ? {
               ...w,
@@ -508,11 +628,23 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
             }
           : w,
       )
+
+      return updatedList
     })
+
+    fetch('/api/work-orders', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    }).catch((e) => console.error('Failed to update work order in DB', e))
   }, [addNotification])
 
   const deleteWorkOrder = useCallback((id: string) => {
     setWorkOrders((prev) => prev.filter((w) => w.id !== id))
+
+    fetch(`/api/work-orders?id=${id}`, {
+      method: 'DELETE',
+    }).catch((e) => console.error('Failed to delete work order from DB', e))
   }, [])
 
   const addPart = useCallback((input: PartInput) => {
@@ -520,19 +652,23 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     if (cat) {
       setCategories((prev) => (prev.some((c) => c.toLowerCase() === cat.toLowerCase()) ? prev : [cat, ...prev]))
     }
-    setParts((prev) => [
-      {
-        id: `p-${Date.now()}`,
-        name: input.name,
-        sku: input.sku,
-        category: input.category,
-        stock: input.stock,
-        minStock: input.minStock,
-        price: input.price,
-        usedInOrders: [],
-      },
-      ...prev,
-    ])
+    const newPart: Part = {
+      id: `p-${Date.now()}`,
+      name: input.name,
+      sku: input.sku,
+      category: input.category,
+      stock: input.stock,
+      minStock: input.minStock,
+      price: input.price,
+      usedInOrders: [],
+    }
+    setParts((prev) => [newPart, ...prev])
+
+    fetch('/api/inventory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPart),
+    }).catch((e) => console.error('Failed to sync part to DB', e))
   }, [])
 
   const updatePart = useCallback((id: string, input: PartInput) => {
@@ -541,10 +677,20 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       setCategories((prev) => (prev.some((c) => c.toLowerCase() === cat.toLowerCase()) ? prev : [cat, ...prev]))
     }
     setParts((prev) => prev.map((p) => (p.id === id ? { ...p, ...input } : p)))
+
+    fetch('/api/inventory', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    }).catch((e) => console.error('Failed to update part in DB', e))
   }, [])
 
   const deletePart = useCallback((id: string) => {
     setParts((prev) => prev.filter((p) => p.id !== id))
+
+    fetch(`/api/inventory?id=${id}`, {
+      method: 'DELETE',
+    }).catch((e) => console.error('Failed to delete part from DB', e))
   }, [])
 
   const stockIn = useCallback(
@@ -563,19 +709,35 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         }
         return prev.map((p) => (p.id === id ? { ...p, stock: p.stock + qty } : p))
       })
+
+      fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stock-in', id, qty }),
+      }).catch((e) => console.error('Failed to sync stockIn to DB', e))
     },
     [addNotification]
   )
 
   const addServiceRate = useCallback((input: ServiceRateInput) => {
-    setServiceRates((prev) => [
-      { id: `sr-${Date.now()}`, ...input },
-      ...prev,
-    ])
+    const newRate = { id: `sr-${Date.now()}`, ...input }
+    setServiceRates((prev) => [newRate, ...prev])
+
+    fetch('/api/service-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newRate),
+    }).catch((e) => console.error('Failed to sync service rate to DB', e))
   }, [])
 
   const updateServiceRate = useCallback((id: string, input: ServiceRateInput) => {
     setServiceRates((prev) => prev.map((r) => (r.id === id ? { ...r, ...input } : r)))
+
+    fetch('/api/service-rates', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...input }),
+    }).catch((e) => console.error('Failed to update service rate in DB', e))
   }, [])
 
   const [vouchers, setVouchers] = useState<Voucher[]>(defaultVouchers)
@@ -629,18 +791,24 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   }
 
   const addVoucher = useCallback((input: Omit<Voucher, "id">) => {
+    const newVoucher: Voucher = {
+      id: `v-${Date.now()}`,
+      ...input,
+      code: input.code.trim().toUpperCase(),
+    }
     setVouchers((prev) => {
-      const newVoucher: Voucher = {
-        id: `v-${Date.now()}`,
-        ...input,
-        code: input.code.trim().toUpperCase(),
-      }
       const next = [newVoucher, ...prev]
       try {
         localStorage.setItem("bengkel_vouchers", JSON.stringify(next))
       } catch {}
       return next
     })
+
+    fetch('/api/vouchers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newVoucher),
+    }).catch((e) => console.error('Failed to sync voucher to DB', e))
   }, [])
 
   const updateVoucher = useCallback((id: string, patch: Partial<Voucher>) => {
@@ -653,6 +821,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch('/api/vouchers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...patch }),
+    }).catch((e) => console.error('Failed to update voucher in DB', e))
   }, [])
 
   const deleteVoucher = useCallback((id: string) => {
@@ -663,6 +837,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch(`/api/vouchers?id=${id}`, { method: 'DELETE' }).catch((e) => console.error('Failed to delete voucher from DB', e))
   }, [])
 
   const toggleVoucherStatus = useCallback((id: string) => {
@@ -673,10 +849,18 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch('/api/vouchers', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'toggle' }),
+    }).catch((e) => console.error('Failed to toggle voucher in DB', e))
   }, [])
 
   const deleteServiceRate = useCallback((id: string) => {
     setServiceRates((prev) => prev.filter((r) => r.id !== id))
+
+    fetch(`/api/service-rates?id=${id}`, { method: 'DELETE' }).catch((e) => console.error('Failed to delete service rate from DB', e))
   }, [])
 
   // Dismissible Tips State
@@ -749,26 +933,32 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addTechnician = useCallback((input: TechnicianInput) => {
+    const name = input.name.trim()
+    const newTech: Technician = {
+      id: `tech-${Date.now()}`,
+      name,
+      initials: initials(name),
+      activeJobs: 0,
+      completedThisMonth: 0,
+      avgHours: 3.5,
+      efficiency: 90,
+      phone: input.phone?.trim() || "",
+      specialty: input.specialty?.trim() || "Mekanik Umum & Servis",
+      status: input.status || "Aktif",
+    }
     setTechnicians((prev) => {
-      const name = input.name.trim()
-      const newTech: Technician = {
-        id: `tech-${Date.now()}`,
-        name,
-        initials: initials(name),
-        activeJobs: 0,
-        completedThisMonth: 0,
-        avgHours: 3.5,
-        efficiency: 90,
-        phone: input.phone?.trim() || "",
-        specialty: input.specialty?.trim() || "Mekanik Umum & Servis",
-        status: input.status || "Aktif",
-      }
       const next = [...prev, newTech]
       try {
         localStorage.setItem("bengkel_technicians_v1", JSON.stringify(next))
       } catch {}
       return next
     })
+
+    fetch('/api/technicians', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newTech),
+    }).catch((e) => console.error('Failed to sync technician to DB', e))
   }, [])
 
   const updateTechnician = useCallback((id: string, patch: Partial<TechnicianInput>) => {
@@ -788,6 +978,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch('/api/technicians', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...patch }),
+    }).catch((e) => console.error('Failed to update technician in DB', e))
   }, [])
 
   const deleteTechnician = useCallback((id: string) => {
@@ -798,6 +994,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       } catch {}
       return next
     })
+
+    fetch(`/api/technicians?id=${id}`, { method: 'DELETE' }).catch((e) => console.error('Failed to delete technician from DB', e))
   }, [])
 
   // Authentication & Role-Based Access Control State

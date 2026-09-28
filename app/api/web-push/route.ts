@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
+import { query } from '@/lib/db'
 
 const VAPID_PUBLIC_KEY =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
@@ -29,9 +30,6 @@ function ensureVapidDetails() {
   }
 }
 
-// In-memory cache of subscriptions (for single-instance or warm lambdas)
-let subscriptions: any[] = []
-
 export async function POST(req: Request) {
   ensureVapidDetails()
 
@@ -39,23 +37,40 @@ export async function POST(req: Request) {
     const { action, subscription, payload } = await req.json()
 
     if (action === 'subscribe') {
-      if (subscription && subscription.endpoint) {
-        const exists = subscriptions.find((sub) => sub.endpoint === subscription.endpoint)
-        if (!exists) {
-          subscriptions.push(subscription)
-        }
-        return NextResponse.json({ success: true, message: 'Berhasil mendaftarkan perangkat.' })
+      if (subscription && subscription.endpoint && subscription.keys) {
+        const userAgent = req.headers.get('user-agent') || ''
+        await query(
+          `INSERT INTO push_subscriptions (endpoint, keys, user_agent, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (endpoint) DO UPDATE SET
+             keys = EXCLUDED.keys,
+             user_agent = EXCLUDED.user_agent,
+             updated_at = NOW()`,
+          [subscription.endpoint, JSON.stringify(subscription.keys), userAgent]
+        )
+        return NextResponse.json({ success: true, message: 'Berhasil mendaftarkan perangkat ke database.' })
       }
       return NextResponse.json({ success: false, message: 'Objek subscription tidak valid.' }, { status: 400 })
     }
 
     if (action === 'send') {
-      // Build list of target subscriptions (include the one sent in the request if provided)
-      const targets = [...subscriptions]
-      if (subscription && subscription.endpoint) {
+      // 1. Fetch all registered subscriptions from PostgreSQL
+      const dbSubsRes = await query('SELECT endpoint, keys FROM push_subscriptions')
+      let targets: webpush.PushSubscription[] = dbSubsRes.rows.map((row) => ({
+        endpoint: row.endpoint,
+        keys: typeof row.keys === 'string' ? JSON.parse(row.keys) : row.keys,
+      }))
+
+      // If the incoming request carries a subscription not yet in DB, include and persist it
+      if (subscription && subscription.endpoint && subscription.keys) {
         if (!targets.some((s) => s.endpoint === subscription.endpoint)) {
           targets.push(subscription)
-          subscriptions.push(subscription)
+          await query(
+            `INSERT INTO push_subscriptions (endpoint, keys, updated_at)
+             VALUES ($1, $2, NOW())
+             ON CONFLICT (endpoint) DO UPDATE SET keys = EXCLUDED.keys, updated_at = NOW()`,
+            [subscription.endpoint, JSON.stringify(subscription.keys)]
+          ).catch((e) => console.error('Failed to persist incoming subscription:', e))
         }
       }
 
@@ -63,7 +78,7 @@ export async function POST(req: Request) {
         return NextResponse.json(
           {
             success: false,
-            message: 'Belum ada perangkat yang mengaktifkan notifikasi. Silakan klik "Aktifkan Notifikasi" terlebih dahulu.',
+            message: 'Belum ada perangkat yang terdaftar di database. Silakan klik "Aktifkan Notifikasi" terlebih dahulu.',
           },
           { status: 400 }
         )
@@ -82,17 +97,24 @@ export async function POST(req: Request) {
         targets.map((sub) => webpush.sendNotification(sub, notifPayload))
       )
 
-      // Prune dead subscriptions (404/410)
+      // Prune dead subscriptions from PostgreSQL (HTTP 404 or 410)
+      const deadEndpoints: string[] = []
       results.forEach((res, idx) => {
         if (res.status === 'rejected') {
           const err = res.reason
           if (err && (err.statusCode === 404 || err.statusCode === 410)) {
-            const deadSub = targets[idx]
-            subscriptions = subscriptions.filter((s) => s.endpoint !== deadSub.endpoint)
+            deadEndpoints.push(targets[idx].endpoint)
           }
           console.error('Push error for subscriber:', res.reason)
         }
       })
+
+      if (deadEndpoints.length > 0) {
+        await query(
+          'DELETE FROM push_subscriptions WHERE endpoint = ANY($1::text[])',
+          [deadEndpoints]
+        ).catch((e) => console.error('Failed to prune dead subscriptions:', e))
+      }
 
       const hasSuccess = results.some((r) => r.status === 'fulfilled')
       if (!hasSuccess) {
@@ -104,12 +126,27 @@ export async function POST(req: Request) {
         )
       }
 
-      return NextResponse.json({ success: true, message: 'Notifikasi berhasil dikirim.' })
+      return NextResponse.json({
+        success: true,
+        message: `Notifikasi berhasil dikirim ke ${results.filter((r) => r.status === 'fulfilled').length} perangkat.`,
+      })
     }
 
     return NextResponse.json({ success: false, message: 'Aksi tidak valid.' }, { status: 400 })
   } catch (error: any) {
     console.error('Web Push Error:', error)
     return NextResponse.json({ success: false, error: error?.message || 'Internal Server Error' }, { status: 500 })
+  }
+}
+
+export async function GET() {
+  try {
+    const res = await query('SELECT count(*) FROM push_subscriptions')
+    return NextResponse.json({
+      success: true,
+      subscriberCount: Number(res.rows[0].count),
+    })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
