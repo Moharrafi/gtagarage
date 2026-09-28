@@ -59,7 +59,7 @@ function ChartTooltip({
           <span className="size-2 rounded-full" style={{ background: p.color }} />
           {p.name}:{" "}
           <span className="font-medium text-foreground">
-            {currency ? formatRupiah(p.value) : p.value}
+            {currency && p.name !== "Kunjungan" ? formatRupiah(p.value) : p.value}
           </span>
         </p>
       ))}
