@@ -508,6 +508,7 @@ export function InvoicesScreen() {
   const [payStep, setPayStep] = useState<"select_method" | "pay_action">("select_method")
   const [method, setMethod] = useState<(typeof methods)[number]["key"] | null>(null)
   const [paid, setPaid] = useState(false)
+  const [dbLoadedTime, setDbLoadedTime] = useState(0)
 
   // Fetch initial invoices from PostgreSQL backend API
   useEffect(() => {
@@ -516,6 +517,7 @@ export function InvoicesScreen() {
       .then((res) => {
         if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
           setInvoiceList(res.data)
+          setDbLoadedTime(Date.now()) // Trigger auto-sync after DB load
         }
       })
       .catch((e) => console.error('Failed to load invoices from DB', e))
@@ -531,7 +533,7 @@ export function InvoicesScreen() {
         const existingIdx = updated.findIndex((inv) => inv.workOrderCode === wo.code)
 
         if (existingIdx === -1) {
-          if (wo.status === "Siap Diambil" || wo.status === "Selesai" || wo.status === "Dikerjakan") {
+          if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
             const laborItem = {
               label: `Jasa ${wo.service}`,
               qty: 1,
@@ -578,7 +580,7 @@ export function InvoicesScreen() {
 
       return hasChanges ? updated : prevInvoices
     })
-  }, [workOrders])
+  }, [workOrders, dbLoadedTime])
 
   // Midtrans Payment Gateway state
   const [selectedBank, setSelectedBank] = useState<"BCA" | "Mandiri" | "BRI" | "BNI" | "Permata">("BCA")
