@@ -101,6 +101,8 @@ export const defaultWorkshopProfile: WorkshopProfile = {
 
 interface WorkshopContextValue {
   workOrders: WorkOrder[]
+  invoices: Invoice[]
+  setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>
   parts: Part[]
   serviceRates: ServiceRate[]
   categories: string[]
@@ -265,11 +267,12 @@ export function getInitialRealNotifications(
 }
 
 export function WorkshopProvider({ children }: { children: ReactNode }) {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(seedWorkOrders)
-  const [parts, setParts] = useState<Part[]>(seedParts)
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [parts, setParts] = useState<Part[]>([])
   const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
+  const [invoicesData, setInvoicesData] = useState<Invoice[]>([])
 
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -279,11 +282,20 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     fetch('/api/work-orders')
       .then((r) => r.json())
       .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res?.success && Array.isArray(res.data)) {
           setWorkOrders(res.data)
         }
       })
       .catch((e) => console.error('Failed to load work-orders from DB', e))
+
+    fetch('/api/invoices')
+      .then((r) => r.json())
+      .then((res) => {
+        if (res?.success && Array.isArray(res.data)) {
+          setInvoicesData(res.data)
+        }
+      })
+      .catch((e) => console.error('Failed to load invoices from DB', e))
 
     fetch('/api/inventory')
       .then((r) => r.json())
@@ -1051,6 +1063,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       workOrders,
+      invoices: invoicesData,
+      setInvoices: setInvoicesData,
       parts,
       serviceRates,
       categories,
@@ -1103,6 +1117,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     }),
     [
       workOrders,
+      invoicesData,
       parts,
       serviceRates,
       categories,

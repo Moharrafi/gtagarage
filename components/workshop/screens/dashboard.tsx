@@ -27,36 +27,10 @@ const WhatsAppModal = dynamic(
   { ssr: false }
 )
 import {
-  workOrders,
-  parts,
-  invoices,
-  revenueTrend,
   formatRupiah,
-  invoiceTotal,
 } from "@/lib/data"
+import { getDashboardStats } from "@/lib/analytics"
 import type { TabKey } from "@/components/workshop/bottom-nav"
-
-const todayRevenue = invoices
-  .filter((i) => i.status === "Lunas" && i.date === "25 Sep 2026")
-  .reduce((s, i) => s + i.paidAmount, 0)
-
-const queuedJobs = workOrders.filter((w) => w.status === "Antrian")
-const activeJobs = workOrders.filter((w) => w.status === "Dikerjakan" || w.status === "Antrian" || w.status === "Menunggu Sparepart")
-const readyJobs = workOrders.filter((w) => w.status === "Siap Diambil")
-const lowStock = parts.filter((p) => p.stock <= p.minStock)
-
-const stats = [
-  {
-    label: "Antrian Masuk",
-    value: `${queuedJobs.length}`,
-    icon: Clock,
-    tint: "text-amber-500 dark:text-amber-400",
-    sub: "Menunggu giliran",
-  },
-  { label: "Pekerjaan Aktif", value: `${activeJobs.length}`, icon: Wrench, tint: "text-primary", sub: "Sedang berjalan" },
-  { label: "Siap Diambil", value: `${readyJobs.length}`, icon: PackageCheck, tint: "text-emerald-600 dark:text-emerald-400", sub: "Menunggu pelanggan" },
-  { label: "Stok Menipis", value: `${lowStock.length}`, icon: AlertTriangle, tint: "text-destructive", sub: "Perlu restock" },
-]
 
 interface QuickAction {
   label: string
@@ -72,7 +46,7 @@ const quickActions: QuickAction[] = [
   { label: "Kirim WA", icon: WhatsAppIcon, action: "wa" },
 ]
 
-const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
+
 
 function SparklineArea({ data }: { data: { month: string; v: number }[] }) {
   const width = 500
@@ -147,9 +121,24 @@ function SparklineArea({ data }: { data: { month: string; v: number }[] }) {
 }
 
 export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => void }) {
-  const { canEdit } = useWorkshop()
+  const { canEdit, workOrders, parts, invoices } = useWorkshop()
   const [waOpen, setWaOpen] = useState(false)
-  const monthRevenue = revenueTrend[revenueTrend.length - 1].pendapatan
+  
+  const { todayRevenue, monthRevenue, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = getDashboardStats(invoices, workOrders, parts)
+  const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
+  
+  const stats = [
+    {
+      label: "Antrian Masuk",
+      value: `${queuedJobs.length}`,
+      icon: Clock,
+      tint: "text-amber-500 dark:text-amber-400",
+      sub: "Menunggu giliran",
+    },
+    { label: "Pekerjaan Aktif", value: `${activeJobs.length}`, icon: Wrench, tint: "text-primary", sub: "Sedang berjalan" },
+    { label: "Siap Diambil", value: `${readyJobs.length}`, icon: PackageCheck, tint: "text-emerald-600 dark:text-emerald-400", sub: "Menunggu pelanggan" },
+    { label: "Stok Menipis", value: `${lowStock.length}`, icon: AlertTriangle, tint: "text-destructive", sub: "Perlu restock" },
+  ]
 
   const activeQuickActions: QuickAction[] = canEdit
     ? quickActions

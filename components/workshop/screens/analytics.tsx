@@ -31,14 +31,10 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { useWorkshop } from "@/lib/store"
-import {
-  revenueTrend,
-  dailyVisits,
-  serviceBreakdown,
-  monthlyReport,
   formatRupiah,
   formatCompact,
 } from "@/lib/data"
+import { getAnalyticsData } from "@/lib/analytics"
 
 const pieColors = ["var(--chart-3)", "var(--chart-2)", "var(--chart-5)", "var(--chart-1)"]
 
@@ -73,15 +69,18 @@ function ChartTooltip({
 const periods = ["Mingguan", "Bulanan", "Tahunan"] as const
 
 export function AnalyticsScreen() {
-  const { technicians } = useWorkshop()
+  const { technicians, invoices, workOrders } = useWorkshop()
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
+  
+  const { totalPendapatan, totalKunjungan, rataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport } = getAnalyticsData(invoices, workOrders, period)
+  
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)
 
   const kpis = [
     { label: "Pendapatan", value: formatCompact(monthlyReport.pendapatan), icon: TrendingUp, delta: "+6,8%", up: true },
     { label: "Kunjungan", value: `${monthlyReport.totalTransaksi}`, icon: Users, delta: "+7,7%", up: true },
-    { label: "Rata Servis", value: "3,7 jam", icon: Timer, delta: "-0,4 jam", up: true },
+    { label: "Rata Servis", value: `${rataServis} jam`, icon: Timer, delta: "-0,4 jam", up: true },
   ]
 
   return (
