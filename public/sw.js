@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gtagarage-pwa-v2'
+const CACHE_NAME = 'gtagarage-pwa-v3'
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -6,6 +6,7 @@ const PRECACHE_ASSETS = [
   '/icons/icon-512.png',
   '/apple-icon.png',
   '/apple-touch-icon.png',
+  '/media/cash-in.mp3',
 ]
 
 // Install: Cache core assets and activate immediately
@@ -102,41 +103,46 @@ self.addEventListener('message', (event) => {
 
 // Listen to Push Notifications
 self.addEventListener('push', (event) => {
-  if (event.data) {
-    const data = event.data.json()
-
-    event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-        const isAppOpen = clientList.length > 0;
-
-        const options = {
-          body: data.body,
-          icon: data.icon || '/icons/icon-192.png',
-          badge: '/icons/icon-192.png',
-          vibrate: data.sound ? [200, 100, 200, 100, 200, 100, 400] : [200, 100, 200],
-          sound: data.sound, // Some OS might still support this
-          data: {
-            url: data.url || '/',
-          },
-        }
-
-        return self.registration.showNotification(data.title, options).then(() => {
-          // Tell open windows to play the sound and vibrate
-          if (data.sound && isAppOpen) {
-            return clients.matchAll({ type: 'window', includeUncontrolled: true }).then((activeClients) => {
-              activeClients.forEach((client) => {
-                client.postMessage({
-                  type: 'PLAY_SOUND',
-                  sound: data.sound,
-                  vibrate: true
-                })
-              })
-            })
-          }
-        })
-      })
-    )
+  let data = {
+    title: 'Pembayaran Diterima! ✅',
+    body: 'Ada pembayaran baru yang telah diverifikasi.',
+    url: '/?tab=invoices',
+    sound: '/media/cash-in.mp3',
   }
+
+  if (event.data) {
+    try {
+      data = { ...data, ...event.data.json() }
+    } catch (e) {
+      data.body = event.data.text()
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    vibrate: [200, 100, 200, 100, 200, 100, 400],
+    requireInteraction: true,
+    data: {
+      url: data.url || '/',
+    },
+  }
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(data.title, options),
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({
+            type: 'PLAY_SOUND',
+            sound: data.sound || '/media/cash-in.mp3',
+            vibrate: true,
+          })
+        })
+      }),
+    ])
+  )
 })
 
 // Handle Notification Clicks

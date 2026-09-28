@@ -1689,20 +1689,33 @@ export function InvoicesScreen() {
               linkTab: "invoice",
             })
 
-            // Trigger Web Push API to play cash-in sound and show background notification
-            fetch('/api/web-push', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'send',
-                payload: {
-                  title: 'Pembayaran Lunas! ✅',
-                  body: `Invoice ${payFor.number} (${formatRupiah(finalPayAmount)}) lunas via ${paidMethodLabel}`,
-                  url: '/?tab=invoices',
-                  sound: '/media/cash-in.mp3',
-                },
-              }),
-            }).catch(e => console.error("Web Push Error:", e));
+            // 1. Play cash-in sound immediately on this device
+            try {
+              const cashAudio = new Audio('/media/cash-in.mp3')
+              cashAudio.play().catch((err) => console.log("Audio autoplay note:", err))
+            } catch (_) {}
+
+            // 2. Trigger Web Push API for heads-up notifications & any connected devices
+            if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
+              navigator.serviceWorker.ready.then((reg) => {
+                reg.pushManager.getSubscription().then((sub) => {
+                  fetch('/api/web-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'send',
+                      subscription: sub,
+                      payload: {
+                        title: 'Pembayaran Lunas! ✅',
+                        body: `Invoice ${payFor.number} (${formatRupiah(finalPayAmount)}) lunas via ${paidMethodLabel}`,
+                        url: '/?tab=invoices',
+                        sound: '/media/cash-in.mp3',
+                      },
+                    }),
+                  }).catch(e => console.error("Web Push Error:", e));
+                })
+              }).catch(() => {})
+            }
 
             // Otomatis sinkronisasi: update status Pekerjaan ke 'Selesai' (100%)
             if (payFor.workOrderCode) {
