@@ -13,6 +13,7 @@ import {
   CheckCheck,
   ChevronRight,
   Sparkles,
+  Volume2,
 } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
@@ -21,7 +22,7 @@ import { type NotificationItem } from "@/lib/data"
 import { useWorkshop } from "@/lib/store"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { toast } from "@/components/workshop/toast"
-import { PushSubscriber } from "@/components/workshop/push-subscriber"
+import { playCashInSound } from "@/lib/sound"
 
 const statusMeta: Record<NotificationItem["status"], { label: string; cls: string; icon: typeof Check }> = {
   terkirim: { label: "Terkirim", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20", icon: Check },
@@ -82,19 +83,6 @@ export function NotificationsPanel({ open, onClose, onNavigate }: NotificationsP
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Notifikasi Operasional" className="max-h-[85vh] overflow-y-auto">
-      {/* Top Banner for Push Subscription */}
-      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900/50 dark:bg-blue-950/20">
-        <div className="flex flex-col gap-2">
-          <div>
-            <h4 className="text-xs font-bold text-blue-900 dark:text-blue-400">Notifikasi Background (Web Push)</h4>
-            <p className="text-[10px] text-blue-700/80 dark:text-blue-300/70">
-              Aktifkan agar Anda menerima pop-up saat aplikasi tertutup (misal: ada pembayaran Midtrans yang lunas).
-            </p>
-          </div>
-          <PushSubscriber />
-        </div>
-      </div>
-
       {/* Filter Tabs & Top Actions */}
       <div className="space-y-3 mb-3">
         <div className="flex items-center justify-between gap-2">
@@ -142,6 +130,15 @@ export function NotificationsPanel({ open, onClose, onNavigate }: NotificationsP
 
           {/* Quick Header Actions */}
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={playCashInSound}
+              title="Tes Bunyi Cash-In"
+              className="flex size-7 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Volume2 className="size-3.5" />
+            </button>
+
             {unreadNotifCount > 0 && (
               <button
                 type="button"

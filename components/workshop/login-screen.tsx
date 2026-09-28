@@ -67,6 +67,9 @@ export function LoginScreen() {
       const ok = login(username, password)
       setLoading(false)
       if (ok) {
+        try {
+          sessionStorage.removeItem("notif_prompt_dismissed")
+        } catch {}
         toast.success(
           "Login Berhasil",
           `Selamat datang di sistem operasional ${profile.name || "GTA GARAGE"}!`
@@ -85,6 +88,9 @@ export function LoginScreen() {
     setTimeout(() => {
       loginAs(user)
       setLoading(false)
+      try {
+        sessionStorage.removeItem("notif_prompt_dismissed")
+      } catch {}
       toast.success(
         `Masuk sebagai ${user.name} (${user.role})`,
         user.role === "Mekanik"

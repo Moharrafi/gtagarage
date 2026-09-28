@@ -12,6 +12,7 @@ import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
 import { LoginScreen } from "@/components/workshop/login-screen"
 import { DashboardScreen } from "@/components/workshop/screens/dashboard"
 import { playCashInSound } from "@/lib/sound"
+import { NotificationPermissionPrompt } from "@/components/workshop/notification-permission-prompt"
 
 import { ScreenLoading } from "@/components/workshop/screen-loading"
 
@@ -344,6 +345,7 @@ function AppShellInner() {
         </div>
         <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} onNavigate={setTab} />
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        <NotificationPermissionPrompt />
         <Toaster />
         <ConfirmDialog />
       </div>
