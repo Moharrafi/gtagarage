@@ -103,9 +103,26 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
       revenueTrend.push({ month: dayName, pendapatan: total, kunjungan: visits })
     }
   } else if (filter === "Bulanan") {
-    // 4 weeks approx
-    for (let i = 3; i >= 0; i--) {
-      revenueTrend.push({ month: `Mg ${4-i}`, pendapatan: Math.floor(totalPendapatan / 4), kunjungan: Math.floor(totalKunjungan / 4) })
+    // Split last 30 days into 4 weeks
+    const bucketTotals = [0, 0, 0, 0]
+    const bucketVisits = [0, 0, 0, 0]
+    const MS_PER_DAY = 1000 * 60 * 60 * 24
+    
+    validInvoices.forEach(inv => {
+      const invDate = new Date(inv.createdAt || inv.date || Date.now())
+      const diffDays = Math.floor((invDate.getTime() - startDate.getTime()) / MS_PER_DAY)
+      let bucket = Math.floor(diffDays / 7)
+      if (bucket > 3) bucket = 3
+      if (bucket < 0) bucket = 0
+      
+      if (inv.status === "Lunas") {
+        bucketTotals[bucket] += inv.paidAmount
+      }
+      bucketVisits[bucket] += 1
+    })
+
+    for (let i = 0; i < 4; i++) {
+      revenueTrend.push({ month: `Mg ${i + 1}`, pendapatan: bucketTotals[i], kunjungan: bucketVisits[i] })
     }
   } else {
     // 12 months
