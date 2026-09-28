@@ -99,3 +99,47 @@ self.addEventListener('message', (event) => {
     self.skipWaiting()
   }
 })
+
+// Listen to Push Notifications
+self.addEventListener('push', (event) => {
+  if (event.data) {
+    const data = event.data.json()
+    const options = {
+      body: data.body,
+      icon: data.icon || '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      vibrate: [200, 100, 200],
+      data: {
+        url: data.url || '/',
+      },
+    }
+
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    )
+  }
+})
+
+// Handle Notification Clicks
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  const targetUrl = event.notification.data?.url || '/'
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window client is already open, focus it and navigate
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i]
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus()
+        }
+      }
+      // If no window is open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl)
+      }
+    })
+  )
+})
+
