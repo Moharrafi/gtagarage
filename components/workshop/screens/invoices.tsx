@@ -1584,7 +1584,11 @@ export function InvoicesScreen() {
       {/* Midtrans Payment BottomSheet */}
       <BottomSheet
         open={!!payFor}
-        onClose={() => setPayFor(null)}
+        onClose={() => {
+          setPayFor(null)
+          setPaid(false)
+          setActive(null)
+        }}
         title={
           paid
             ? undefined
@@ -1672,7 +1676,7 @@ export function InvoicesScreen() {
 
             setPaidInvoice(updatedInvoice)
             setPayFor(updatedInvoice)
-            setActive(updatedInvoice)
+            setActive(null)
             setPrintTargetInvoice(updatedInvoice)
 
             setInvoiceList((prev) =>
@@ -2492,6 +2496,7 @@ export function InvoicesScreen() {
                       }
                       setPayFor(null)
                       setPaid(false)
+                      setActive(null)
                       openWa(invToShare, paymentRefId)
                     }}
                   >
@@ -2526,7 +2531,11 @@ export function InvoicesScreen() {
                     type="button"
                     variant="secondary"
                     className="flex-1 text-xs font-semibold"
-                    onClick={() => setPayFor(null)}
+                    onClick={() => {
+                      setPayFor(null)
+                      setPaid(false)
+                      setActive(null)
+                    }}
                   >
                     Selesai &amp; Tutup
                   </Button>
