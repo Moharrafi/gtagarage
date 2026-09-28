@@ -279,32 +279,75 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
   // Load initial data from PostgreSQL Backend API
   useEffect(() => {
-    fetch('/api/work-orders')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data)) {
-          setWorkOrders(res.data)
-        }
-      })
-      .catch((e) => console.error('Failed to load work-orders from DB', e))
+    Promise.all([
+      fetch('/api/work-orders').then((r) => r.json()),
+      fetch('/api/invoices').then((r) => r.json()),
+      fetch('/api/inventory').then((r) => r.json())
+    ]).then(([woRes, invRes, invenRes]) => {
+      let fetchedWorkOrders: WorkOrder[] = []
+      let fetchedInvoices: Invoice[] = []
+      
+      if (woRes?.success && Array.isArray(woRes.data)) {
+        fetchedWorkOrders = woRes.data
+        setWorkOrders(fetchedWorkOrders)
+      }
+      if (invRes?.success && Array.isArray(invRes.data)) {
+        fetchedInvoices = invRes.data
+      }
+      if (invenRes?.success && Array.isArray(invenRes.data)) {
+        setParts(invenRes.data)
+      }
 
-    fetch('/api/invoices')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data)) {
-          setInvoicesData(res.data)
-        }
-      })
-      .catch((e) => console.error('Failed to load invoices from DB', e))
+      // Auto-sync workOrders to invoices
+      let updatedInvoices = [...fetchedInvoices]
+      fetchedWorkOrders.forEach((wo, idx) => {
+        const existingIdx = updatedInvoices.findIndex((inv) => inv.workOrderCode === wo.code)
 
-    fetch('/api/inventory')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setParts(res.data)
+        if (existingIdx === -1) {
+          if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
+            const laborItem = {
+              label: `Jasa ${wo.service}`,
+              qty: 1,
+              price: wo.laborCost || 90000,
+            }
+            const partItems = (wo.usedParts || []).map((p) => ({
+              label: p.name,
+              qty: p.qty,
+              price: p.price,
+            }))
+
+            const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
+            const isLunas = wo.status === "Selesai"
+
+            const newInvoice: Invoice = {
+              id: `inv-auto-${wo.id}`,
+              number: `INV/2026/09/0${143 + idx}`,
+              workOrderCode: wo.code,
+              customer: wo.customer,
+              vehicle: wo.vehicle,
+              service: wo.service,
+              date: wo.createdAt || "25 Sep 2026",
+              status: isLunas ? "Lunas" : "Belum Bayar",
+              paidAmount: isLunas ? invTotal : 0,
+              items: [laborItem, ...partItems],
+            }
+            updatedInvoices = [newInvoice, ...updatedInvoices]
+          }
+        } else {
+          const existingInv = updatedInvoices[existingIdx]
+          if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
+            const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
+            updatedInvoices[existingIdx] = {
+              ...existingInv,
+              status: "Lunas",
+              paidAmount: total,
+              paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            }
+          }
         }
       })
-      .catch((e) => console.error('Failed to load inventory from DB', e))
+      setInvoicesData(updatedInvoices)
+    }).catch(e => console.error("Failed to load initial data", e))
 
     fetch('/api/service-rates')
       .then((r) => r.json())
@@ -358,6 +401,66 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       })
       .catch((e) => console.error('Failed to load notifications from DB', e))
   }, [])
+
+  // Auto-sync workOrders to invoices
+  useEffect(() => {
+    if (workOrders.length === 0) return
+    setInvoicesData((prevInvoices) => {
+      let updated = [...prevInvoices]
+      let hasChanges = false
+
+      workOrders.forEach((wo, idx) => {
+        const existingIdx = updated.findIndex((inv) => inv.workOrderCode === wo.code)
+
+        if (existingIdx === -1) {
+          if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
+            const laborItem = {
+              label: `Jasa ${wo.service}`,
+              qty: 1,
+              price: wo.laborCost || 90000,
+            }
+            const partItems = (wo.usedParts || []).map((p) => ({
+              label: p.name,
+              qty: p.qty,
+              price: p.price,
+            }))
+
+            const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
+            const isLunas = wo.status === "Selesai"
+
+            const newInvoice: Invoice = {
+              id: `inv-auto-${wo.id}`,
+              number: `INV/2026/09/0${143 + idx}`,
+              workOrderCode: wo.code,
+              customer: wo.customer,
+              vehicle: wo.vehicle,
+              service: wo.service,
+              date: wo.createdAt || "25 Sep 2026",
+              status: isLunas ? "Lunas" : "Belum Bayar",
+              paidAmount: isLunas ? invTotal : 0,
+              items: [laborItem, ...partItems],
+            }
+            updated = [newInvoice, ...updated]
+            hasChanges = true
+          }
+        } else {
+          const existingInv = updated[existingIdx]
+          if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
+            const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
+            updated[existingIdx] = {
+              ...existingInv,
+              status: "Lunas",
+              paidAmount: total,
+              paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+            }
+            hasChanges = true
+          }
+        }
+      })
+
+      return hasChanges ? updated : prevInvoices
+    })
+  }, [workOrders])
 
   useEffect(() => {
     try {
