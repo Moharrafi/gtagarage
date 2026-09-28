@@ -8,19 +8,43 @@ export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], 
   // invoices.date might be "25 Sep 2026" or ISO string. We should robustly check if the invoice date falls in today
   
   let todayRevenue = 0
+  let yesterdayRevenue = 0
   let monthRevenue = 0
+  let lastMonthRevenue = 0
   
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  
+  const lastMonth = new Date(today)
+  lastMonth.setMonth(today.getMonth() - 1)
+
   invoices.forEach(inv => {
     if (inv.status === "Lunas") {
       const invDate = new Date(inv.createdAt || inv.date || Date.now())
       if (invDate.getDate() === today.getDate() && invDate.getMonth() === today.getMonth() && invDate.getFullYear() === today.getFullYear()) {
         todayRevenue += inv.paidAmount
       }
+      if (invDate.getDate() === yesterday.getDate() && invDate.getMonth() === yesterday.getMonth() && invDate.getFullYear() === yesterday.getFullYear()) {
+        yesterdayRevenue += inv.paidAmount
+      }
       if (invDate.getMonth() === today.getMonth() && invDate.getFullYear() === today.getFullYear()) {
         monthRevenue += inv.paidAmount
       }
+      if (invDate.getMonth() === lastMonth.getMonth() && invDate.getFullYear() === lastMonth.getFullYear()) {
+        lastMonthRevenue += inv.paidAmount
+      }
     }
   })
+
+  const calculateDelta = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? "+100%" : "0%"
+    const diff = current - previous
+    const perc = (diff / previous) * 100
+    return `${perc > 0 ? "+" : ""}${perc.toFixed(1).replace(".", ",")}%`
+  }
+
+  const todayRevenueDelta = calculateDelta(todayRevenue, yesterdayRevenue)
+  const monthRevenueDelta = calculateDelta(monthRevenue, lastMonthRevenue)
 
   const queuedJobs = workOrders.filter((w) => w.status === "Antrian")
   const activeJobs = workOrders.filter((w) => w.status === "Dikerjakan" || w.status === "Antrian" || w.status === "Menunggu Sparepart")
@@ -44,7 +68,7 @@ export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], 
     revenueTrend.push({ month, pendapatan: total, kunjungan: visits })
   }
 
-  return { todayRevenue, monthRevenue, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend }
+  return { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend }
 }
 
 export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], filter: "Mingguan" | "Bulanan" | "Tahunan") {
@@ -71,16 +95,53 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     return d >= startDate && d <= now
   })
 
+  // Previous period for delta calculation
+  let prevStartDate = new Date(startDate)
+  if (filter === "Mingguan") {
+    prevStartDate.setDate(prevStartDate.getDate() - 7)
+  } else if (filter === "Bulanan") {
+    prevStartDate.setMonth(prevStartDate.getMonth() - 1)
+  } else {
+    prevStartDate.setFullYear(prevStartDate.getFullYear() - 1)
+  }
+
+  const prevInvoices = invoices.filter(inv => {
+    const d = new Date(inv.createdAt || inv.date || Date.now())
+    return d >= prevStartDate && d < startDate
+  })
+
   // 1. Overview KPIs
   let totalPendapatan = 0
   let totalKunjungan = validInvoices.length
   let totalServisHours = 0
+  
+  let prevPendapatan = 0
+  let prevKunjungan = prevInvoices.length
+
+  prevInvoices.forEach(inv => {
+    if (inv.status === "Lunas") prevPendapatan += inv.paidAmount
+  })
   
   validInvoices.forEach(inv => {
     if (inv.status === "Lunas") totalPendapatan += inv.paidAmount
   })
   // fake average service time based on filter (could be real if we track timestamps)
   const rataServis = filter === "Mingguan" ? 2.5 : filter === "Bulanan" ? 3.7 : 4.1
+  const prevRataServis = filter === "Mingguan" ? 2.8 : filter === "Bulanan" ? 3.9 : 4.0
+
+  const calcDelta = (current: number, prev: number, isTime = false) => {
+    if (prev === 0) return current > 0 ? (isTime ? "+1,0" : "+100%") : "0%"
+    const diff = current - prev
+    if (isTime) {
+      return `${diff > 0 ? "+" : ""}${diff.toFixed(1).replace(".", ",")}`
+    }
+    const perc = (diff / prev) * 100
+    return `${perc > 0 ? "+" : ""}${perc.toFixed(1).replace(".", ",")}%`
+  }
+
+  const deltaPendapatan = calcDelta(totalPendapatan, prevPendapatan)
+  const deltaKunjungan = calcDelta(totalKunjungan, prevKunjungan)
+  const deltaRataServis = calcDelta(rataServis, prevRataServis, true) + " jam"
 
   // 2. Revenue Trend (6 data points)
   const revenueTrend = []
@@ -189,5 +250,10 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     piutang: piutang,
   }
 
-  return { totalPendapatan, totalKunjungan, rataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport }
+  return { 
+    totalPendapatan, deltaPendapatan,
+    totalKunjungan, deltaKunjungan,
+    rataServis, deltaRataServis,
+    revenueTrend, dailyVisits, serviceBreakdown, monthlyReport 
+  }
 }

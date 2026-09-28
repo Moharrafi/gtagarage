@@ -74,14 +74,14 @@ export function AnalyticsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
   
-  const { totalPendapatan, totalKunjungan, rataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport } = getAnalyticsData(invoices, workOrders, period)
+  const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport } = getAnalyticsData(invoices, workOrders, period)
   
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)
 
   const kpis = [
-    { label: "Pendapatan", value: formatCompact(monthlyReport.pendapatan), icon: TrendingUp, delta: "+6,8%", up: true },
-    { label: "Kunjungan", value: `${monthlyReport.totalTransaksi}`, icon: Users, delta: "+7,7%", up: true },
-    { label: "Rata Servis", value: `${rataServis} jam`, icon: Timer, delta: "-0,4 jam", up: true },
+    { label: "Pendapatan", value: formatCompact(monthlyReport.pendapatan), icon: TrendingUp, delta: deltaPendapatan, up: !deltaPendapatan.startsWith("-") },
+    { label: "Kunjungan", value: `${monthlyReport.totalTransaksi}`, icon: Users, delta: deltaKunjungan, up: !deltaKunjungan.startsWith("-") },
+    { label: "Rata Servis", value: `${rataServis} jam`, icon: Timer, delta: deltaRataServis, up: !deltaRataServis.startsWith("-") },
   ]
 
   return (

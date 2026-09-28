@@ -3,6 +3,7 @@
 import { useState } from "react"
 import {
   TrendingUp,
+  TrendingDown,
   Wrench,
   PackageCheck,
   AlertTriangle,
@@ -125,8 +126,11 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
   const { canEdit, workOrders, parts, invoices } = useWorkshop()
   const [waOpen, setWaOpen] = useState(false)
   
-  const { todayRevenue, monthRevenue, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = getDashboardStats(invoices, workOrders, parts)
+  const { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = getDashboardStats(invoices, workOrders, parts)
   const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
+  
+  const isTodayUp = !todayRevenueDelta.startsWith("-")
+  const isMonthUp = !monthRevenueDelta.startsWith("-")
   
   const stats = [
     {
@@ -164,8 +168,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
               <span className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
                 {formatRupiah(todayRevenue || 248000)}
               </span>
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
-                <TrendingUp className="size-3" /> +12%
+              <span className={cn("inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs", isTodayUp ? "" : "text-red-100 bg-red-500/30")}>
+                {isTodayUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />} {todayRevenueDelta}
               </span>
             </div>
           </div>
@@ -226,8 +230,8 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
               <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
               <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-              <TrendingUp className="size-3.5" /> +6,8%
+            <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold", isMonthUp ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive")}>
+              {isMonthUp ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />} {monthRevenueDelta}
             </span>
           </div>
           <SparklineArea data={chartData} />
