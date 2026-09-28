@@ -128,6 +128,17 @@ function AppShellInner() {
   const activeJobsCount = workOrders.filter((w) => w.status !== "Selesai").length
   const lowStockCount = parts.filter((p) => p.stock <= p.minStock).length
 
+  if (!authLoaded) {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-xs text-muted-foreground font-medium">Memuat sistem GTA GARAGE...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!currentUser) {
     return (
       <>
