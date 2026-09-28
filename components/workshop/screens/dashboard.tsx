@@ -28,6 +28,7 @@ const WhatsAppModal = dynamic(
 )
 import {
   formatRupiah,
+  invoiceTotal,
 } from "@/lib/data"
 import { getDashboardStats } from "@/lib/analytics"
 import type { TabKey } from "@/components/workshop/bottom-nav"
