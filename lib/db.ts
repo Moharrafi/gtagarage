@@ -7,7 +7,8 @@ let pool: pg.Pool | null = null
 
 export function getPool(): Pool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_URL
+    const rawConn = process.env.DATABASE_URL
+    const connectionString = rawConn ? rawConn.replace(/[?&]sslmode=[^&]+/g, '') : undefined
     const host = process.env.PGHOST
     const port = Number(process.env.PGPORT) || 21724
     const user = process.env.PGUSER
