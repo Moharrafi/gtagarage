@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic';
 import webpush from 'web-push'
 import { query } from '@/lib/db'
 
