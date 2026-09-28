@@ -1,7 +1,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bell, Wrench, Home, Package, ReceiptText, BarChart3, Settings } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { BottomNav, type TabKey } from "@/components/workshop/bottom-nav"
@@ -101,6 +101,23 @@ function AppShellInner() {
   const { profile, currentUser, authLoaded, unreadNotifCount, workOrders, parts } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
+
+  // Listen for Service Worker messages to play sound
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'PLAY_SOUND' && event.data.sound) {
+        const audio = new Audio(event.data.sound);
+        audio.play().catch(e => console.error("Error playing sound:", e));
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   const activeJobsCount = workOrders.filter((w) => w.status !== "Selesai").length
   const lowStockCount = parts.filter((p) => p.stock <= p.minStock).length

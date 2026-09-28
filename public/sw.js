@@ -108,14 +108,25 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: data.icon || '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
-      vibrate: [200, 100, 200],
+      vibrate: [200, 100, 200, 100, 200, 100, 400], // Cha-ching pattern
+      sound: '/media/cash-in.mp3', // For platforms that support it natively
       data: {
         url: data.url || '/',
       },
     }
 
     event.waitUntil(
-      self.registration.showNotification(data.title, options)
+      self.registration.showNotification(data.title, options).then(() => {
+        // Also notify any open windows to play the sound
+        return clients.matchAll({ type: 'window' }).then((clientList) => {
+          clientList.forEach((client) => {
+            client.postMessage({
+              type: 'PLAY_SOUND',
+              sound: '/media/cash-in.mp3'
+            })
+          })
+        })
+      })
     )
   }
 })
