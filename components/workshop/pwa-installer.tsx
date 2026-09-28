@@ -30,8 +30,8 @@ export function PwaInstaller() {
     const iosDevice = /iphone|ipad|ipod/.test(userAgent)
     setIsIos(iosDevice)
 
-    // 3. Register Service Worker
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
+    // 3. Register Service Worker (all environments for push notification support)
+    if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {

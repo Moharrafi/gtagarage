@@ -40,7 +40,10 @@ export async function registerPushSubscription(): Promise<{ success: boolean; me
       }
     }
 
-    const reg = await navigator.serviceWorker.ready
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Service Worker belum aktif. Coba muat ulang halaman.')), 5000)),
+    ])
     let subscription = await reg.pushManager.getSubscription()
 
     if (!subscription) {

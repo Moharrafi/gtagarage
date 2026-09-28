@@ -75,8 +75,15 @@ export function NotificationsPanel({ open, onClose, onNavigate }: NotificationsP
     try {
       let sub = null
       if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-        const reg = await navigator.serviceWorker.ready
-        sub = await reg.pushManager.getSubscription()
+        try {
+          const reg = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+          ])
+          sub = await reg.pushManager.getSubscription()
+        } catch {
+          // SW not ready, proceed without subscription — server will broadcast to all DB subs
+        }
       }
 
       const res = await fetch("/api/web-push", {
