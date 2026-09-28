@@ -1682,12 +1682,27 @@ export function InvoicesScreen() {
 
             addNotification({
               type: "push",
-              title: "Pembayaran Lunas (Midtrans)",
+              title: "Pembayaran Lunas",
               body: `Invoice ${payFor.number} an. ${payFor.customer.name} sebesar ${formatRupiah(finalPayAmount)} telah diterima lunas via ${paidMethodLabel}${adminFee > 0 ? ` (termasuk biaya admin ${formatRupiah(adminFee)})` : ""} (Ref: ${paymentRefId}).`,
               channel: "Payment Gateway",
               status: "terkirim",
               linkTab: "invoice",
             })
+
+            // Trigger Web Push API to play cash-in sound and show background notification
+            fetch('/api/web-push', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'send',
+                payload: {
+                  title: 'Pembayaran Lunas! ✅',
+                  body: `Invoice ${payFor.number} (${formatRupiah(finalPayAmount)}) lunas via ${paidMethodLabel}`,
+                  url: '/?tab=invoices',
+                  sound: '/media/cash-in.mp3',
+                },
+              }),
+            }).catch(e => console.error("Web Push Error:", e));
 
             // Otomatis sinkronisasi: update status Pekerjaan ke 'Selesai' (100%)
             if (payFor.workOrderCode) {
