@@ -110,7 +110,6 @@ function AppShellInner() {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'PLAY_SOUND' && event.data.sound) {
         if (audioRef.current) {
-          audioRef.current.src = event.data.sound;
           audioRef.current.currentTime = 0;
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
@@ -144,7 +143,7 @@ function AppShellInner() {
 
   return (
     <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6">
-      <audio ref={audioRef} className="hidden" preload="auto" />
+      <audio ref={audioRef} src="/media/cash-in.mp3" preload="auto" style={{ display: 'none' }} />
       <div className="relative flex h-dvh w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
         {/* Tablet / Desktop Sidebar Rail */}
         <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">

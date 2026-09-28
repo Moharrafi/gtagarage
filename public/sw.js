@@ -114,8 +114,6 @@ self.addEventListener('push', (event) => {
           icon: data.icon || '/icons/icon-192.png',
           badge: '/icons/icon-192.png',
           vibrate: data.sound ? [200, 100, 200, 100, 200, 100, 400] : [200, 100, 200],
-          // Mute OS default sound only if the app is open and will play custom sound
-          silent: isAppOpen && !!data.sound,
           sound: data.sound, // Some OS might still support this
           data: {
             url: data.url || '/',
