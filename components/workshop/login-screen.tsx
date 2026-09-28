@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from "react"
 import {
-  Wrench,
   ShieldCheck,
-  UserCheck,
   Eye,
   EyeOff,
   LogIn,
@@ -12,21 +10,16 @@ import {
   User,
   Sun,
   Moon,
-  CheckCircle2,
   HelpCircle,
-  ShieldAlert,
 } from "lucide-react"
 import { useWorkshop } from "@/lib/store"
-import { defaultUsers, type UserAccount } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/workshop/toast"
-import { cn } from "@/lib/utils"
 
 export function LoginScreen() {
-  const { profile, login, loginAs } = useWorkshop()
-  const [username, setUsername] = useState("owner")
-  const [password, setPassword] = useState("owner")
-  const [selectedUser, setSelectedUser] = useState<UserAccount | null>(defaultUsers[0])
+  const { profile, login } = useWorkshop()
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -48,17 +41,10 @@ export function LoginScreen() {
     } catch {}
   }
 
-  // Quick switch role
-  const handleSelectRole = (user: UserAccount) => {
-    setSelectedUser(user)
-    setUsername(user.username)
-    setPassword(user.password || user.username)
-  }
-
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault()
     if (!username.trim()) {
-      toast.error("Username Kosong", "Silakan masukkan username atau pilih salah satu akun.")
+      toast.error("Username Kosong", "Silakan masukkan nama pengguna atau ID akun.")
       return
     }
 
@@ -77,27 +63,10 @@ export function LoginScreen() {
       } else {
         toast.error(
           "Kredensial Tidak Sesuai",
-          "Username atau kata sandi tidak cocok. Gunakan pilihan profil di atas atau masukkan akun terdaftar."
+          "Username atau kata sandi tidak cocok. Silakan periksa kembali akun Anda."
         )
       }
     }, 300)
-  }
-
-  const handleDirectLogin = (user: UserAccount) => {
-    setLoading(true)
-    setTimeout(() => {
-      loginAs(user)
-      setLoading(false)
-      try {
-        sessionStorage.removeItem("notif_prompt_dismissed")
-      } catch {}
-      toast.success(
-        `Masuk sebagai ${user.name} (${user.role})`,
-        user.role === "Mekanik"
-          ? "Hak akses Mekanik: Mode hanya lihat (Read-Only) aktif."
-          : "Hak akses penuh aktif untuk operasional bengkel."
-      )
-    }, 200)
   }
 
   return (
@@ -139,76 +108,8 @@ export function LoginScreen() {
           </button>
         </div>
 
-        {/* Shift / User Quick Selector (POS Kiosk Style) */}
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              Pilih Pengguna / Shift
-            </span>
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500">
-              {defaultUsers.length} Akun Terdaftar
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-zinc-800/70 border border-slate-200/80 dark:border-zinc-700/60">
-            {defaultUsers.map((u) => {
-              const isSelected = selectedUser?.id === u.id
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => handleSelectRole(u)}
-                  className={cn(
-                    "flex flex-col items-center justify-center py-2 px-1.5 rounded-lg text-center transition-all",
-                    isSelected
-                      ? "bg-white dark:bg-zinc-900 text-slate-900 dark:text-white shadow-sm font-semibold border border-slate-200/80 dark:border-zinc-700"
-                      : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-white/50 dark:hover:bg-zinc-800"
-                  )}
-                >
-                  <span className="text-xs font-bold leading-tight truncate w-full">
-                    {u.name}
-                  </span>
-                  <span
-                    className={cn(
-                      "text-[10px] mt-0.5 font-medium",
-                      u.role === "Owner"
-                        ? "text-blue-600 dark:text-blue-400"
-                        : u.role === "Admin"
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-amber-600 dark:text-amber-400"
-                    )}
-                  >
-                    {u.role}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Role Access Information Box */}
-          {selectedUser && (
-            <div className="mt-2.5 rounded-lg border border-slate-200/80 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/60 p-2.5 text-[11px] text-slate-600 dark:text-zinc-400 flex items-start gap-2">
-              {selectedUser.role === "Mekanik" ? (
-                <ShieldAlert className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
-              ) : (
-                <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0 mt-0.5" />
-              )}
-              <div className="leading-relaxed">
-                <span className="font-semibold text-slate-900 dark:text-zinc-200">
-                  {selectedUser.role === "Mekanik" ? "Akses Terbatas:" : "Akses Penuh:"}
-                </span>{" "}
-                {selectedUser.role === "Owner"
-                  ? "Kendali finansial, tarif jasa, konfigurasi sistem, dan seluruh operasional."
-                  : selectedUser.role === "Admin"
-                  ? "Kasir, transaksi invoice, cetak SPK, kelola suku cadang, dan pengiriman WhatsApp."
-                  : "Hanya lihat (Read-Only) antrian pengerjaan & stok. Dibatasi dari pengeditan atau kirim pesan."}
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Authentication Form */}
-        <form onSubmit={handleManualLogin} className="space-y-3.5">
+        <form onSubmit={handleManualLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-700 dark:text-zinc-300 mb-1.5">
               Nama Pengguna / ID Akun
@@ -218,13 +119,10 @@ export function LoginScreen() {
               <input
                 type="text"
                 value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value)
-                  setSelectedUser(null)
-                }}
+                onChange={(e) => setUsername(e.target.value)}
                 required
                 placeholder="mis. owner / admin / mekanik"
-                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-3 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
             </div>
           </div>
@@ -250,8 +148,8 @@ export function LoginScreen() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="Kata sandi"
-                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2 pl-9 pr-9 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
+                placeholder="Kata sandi akun"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-9 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
               <button
                 type="button"
@@ -280,7 +178,7 @@ export function LoginScreen() {
           )}
 
           {/* Remember me & submit */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2 pt-0.5">
             <input
               type="checkbox"
               id="remember"
@@ -293,30 +191,15 @@ export function LoginScreen() {
             </label>
           </div>
 
-          <div className="pt-2 space-y-2">
+          <div className="pt-2">
             <Button
               type="submit"
               disabled={loading}
               className="w-full gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 py-2.5 text-xs font-semibold shadow-sm transition-all"
             >
               <LogIn className="size-4" />
-              {loading
-                ? "Memverifikasi..."
-                : selectedUser
-                ? `Masuk sebagai ${selectedUser.name}`
-                : "Masuk ke Sistem Bengkel"}
+              {loading ? "Memverifikasi..." : "Masuk ke Sistem Bengkel"}
             </Button>
-
-            {selectedUser && (
-              <button
-                type="button"
-                onClick={() => handleDirectLogin(selectedUser)}
-                disabled={loading}
-                className="w-full text-center text-[11px] text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 py-1 transition-colors font-medium"
-              >
-                Masuk Langsung 1-Klik →
-              </button>
-            )}
           </div>
         </form>
 
@@ -331,4 +214,3 @@ export function LoginScreen() {
     </div>
   )
 }
-
