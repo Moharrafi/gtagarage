@@ -1,7 +1,14 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { PwaInstaller } from '@/components/workshop/pwa-installer'
 import './globals.css'
+
+const fontSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+})
 
 export const metadata: Metadata = {
   title: 'GTA GARAGE — Sistem Manajemen Bengkel',
@@ -61,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="id" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning className={fontSans.variable}>
       <head>
         <meta name="theme-color" content="#2563eb" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#2563eb" />
