@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, BellRing, Loader2, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { playCashInSound } from '@/lib/sound'
 
 const PUBLIC_VAPID_KEY =
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
@@ -145,12 +146,8 @@ export function PushSubscriber() {
 
   const testDirectSound = () => {
     try {
-      const audio = new Audio('/media/cash-in.mp3')
-      audio.play().then(() => {
-        setStatusMessage('Suara cash-in berhasil diputar!')
-      }).catch((e) => {
-        alert('Gagal memutar audio: ' + e.message)
-      })
+      playCashInSound()
+      setStatusMessage('Suara cash-in berhasil diputar!')
     } catch (e: any) {
       alert('Error audio: ' + e.message)
     }

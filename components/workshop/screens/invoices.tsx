@@ -59,6 +59,7 @@ import {
   buildQrisPayload,
   generateQrisDataUrlSync,
 } from "@/lib/invoice-canvas"
+import { playCashInSound } from "@/lib/sound"
 
 export type InvoiceFilter = "Belum Lunas" | "Belum Bayar" | "Sebagian" | "Jatuh Tempo" | "Lunas" | "Semua"
 
@@ -1689,11 +1690,8 @@ export function InvoicesScreen() {
               linkTab: "invoice",
             })
 
-            // 1. Play cash-in sound immediately on this device
-            try {
-              const cashAudio = new Audio('/media/cash-in.mp3')
-              cashAudio.play().catch((err) => console.log("Audio autoplay note:", err))
-            } catch (_) {}
+            // 1. Play cash-in sound immediately (with 4s debounce guard to prevent double-play)
+            playCashInSound()
 
             // 2. Trigger Web Push API for heads-up notifications & any connected devices
             if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {

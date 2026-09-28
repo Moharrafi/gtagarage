@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { WorkshopProvider, useWorkshop, initials } from "@/lib/store"
 import { LoginScreen } from "@/components/workshop/login-screen"
 import { DashboardScreen } from "@/components/workshop/screens/dashboard"
+import { playCashInSound } from "@/lib/sound"
 
 import { ScreenLoading } from "@/components/workshop/screen-loading"
 
@@ -108,14 +109,8 @@ function AppShellInner() {
     if (!('serviceWorker' in navigator)) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'PLAY_SOUND' && event.data.sound) {
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          const playPromise = audioRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(e => console.error("Error playing sound via DOM:", e));
-          }
-        }
+      if (event.data && event.data.type === 'PLAY_SOUND') {
+        playCashInSound();
         
         if (event.data.vibrate && 'vibrate' in navigator) {
           navigator.vibrate([200, 100, 200, 100, 200, 100, 400]);
