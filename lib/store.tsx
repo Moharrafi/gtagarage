@@ -632,7 +632,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     fetch('/api/work-orders', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, ...input }),
+      body: JSON.stringify({ id, ...input, progress: progressForStatus(input.status) }),
     }).catch((e) => console.error('Failed to update work order in DB', e))
   }, [addNotification])
 
