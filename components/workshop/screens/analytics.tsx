@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { useWorkshop } from "@/lib/store"
+import {
   formatRupiah,
   formatCompact,
 } from "@/lib/data"
