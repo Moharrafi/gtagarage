@@ -3,10 +3,12 @@ import type { PoolClient, QueryResult } from 'pg'
 
 const { Pool } = pg
 
-let pool: pg.Pool | null = null
+const globalForPg = globalThis as unknown as {
+  _pgPool?: pg.Pool
+}
 
 export function getPool(): Pool {
-  if (!pool) {
+  if (!globalForPg._pgPool) {
     const rawConn = process.env.DATABASE_URL
     const connectionString = rawConn ? rawConn.replace(/[?&]sslmode=[^&]+/g, '') : undefined
     const host = process.env.PGHOST
@@ -15,7 +17,7 @@ export function getPool(): Pool {
     const password = process.env.PGPASSWORD
     const database = process.env.PGDATABASE
 
-    pool = new Pool({
+    globalForPg._pgPool = new Pool({
       connectionString: connectionString || undefined,
       host: !connectionString ? host : undefined,
       port: !connectionString ? port : undefined,
@@ -25,17 +27,17 @@ export function getPool(): Pool {
       ssl: {
         rejectUnauthorized: false,
       },
-      max: 15,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 10000,
+      max: 2, // Conservative limit to avoid exhausting Aiven connection slots
+      idleTimeoutMillis: 2000,
+      connectionTimeoutMillis: 5000,
     })
 
-    pool.on('error', (err) => {
+    globalForPg._pgPool.on('error', (err) => {
       console.error('Unexpected error on idle PostgreSQL client:', err)
     })
   }
 
-  return pool
+  return globalForPg._pgPool
 }
 
 export async function query<T = any>(

@@ -337,8 +337,11 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     fetch('/api/notifications')
       .then((r) => r.json())
       .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+        if (res?.success && Array.isArray(res.data)) {
           setNotifications(res.data)
+          try {
+            localStorage.setItem("bengkel_notifications", JSON.stringify(res.data))
+          } catch {}
         }
       })
       .catch((e) => console.error('Failed to load notifications from DB', e))
@@ -347,9 +350,9 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bengkel_notifications")
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setNotifications(parsed)
           return
         }
@@ -357,12 +360,6 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       console.error("Failed to load bengkel_notifications", e)
     }
-
-    const initial = getInitialRealNotifications(seedWorkOrders, seedParts, invoices)
-    setNotifications(initial)
-    try {
-      localStorage.setItem("bengkel_notifications", JSON.stringify(initial))
-    } catch {}
   }, [])
 
   const addNotification = useCallback(

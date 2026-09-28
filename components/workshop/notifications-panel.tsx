@@ -23,6 +23,7 @@ import { useWorkshop } from "@/lib/store"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { toast } from "@/components/workshop/toast"
 import { playCashInSound } from "@/lib/sound"
+import { registerPushSubscription, getPushPermission, isPushSupported } from "@/lib/push-client"
 
 const statusMeta: Record<NotificationItem["status"], { label: string; cls: string; icon: typeof Check }> = {
   terkirim: { label: "Terkirim", cls: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20", icon: Check },
@@ -47,6 +48,64 @@ export function NotificationsPanel({ open, onClose, onNavigate }: NotificationsP
   } = useWorkshop()
 
   const [filterType, setFilterType] = useState<"all" | "whatsapp" | "push">("all")
+  const [pushPerm, setPushPerm] = useState<string>("default")
+  const [pushLoading, setPushLoading] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setPushPerm(getPushPermission())
+    }
+  }, [open])
+
+  const handleEnablePush = async () => {
+    setPushLoading(true)
+    const res = await registerPushSubscription()
+    setPushLoading(false)
+    setPushPerm(getPushPermission())
+    if (res.success) {
+      playCashInSound()
+      toast.success("Notifikasi Push Aktif!", res.message)
+    } else {
+      toast.error("Izin Belum Aktif", res.message)
+    }
+  }
+
+  const handleTestPush = async () => {
+    setPushLoading(true)
+    try {
+      let sub = null
+      if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready
+        sub = await reg.pushManager.getSubscription()
+      }
+
+      const res = await fetch("/api/web-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send",
+          subscription: sub,
+          payload: {
+            title: "Tes Pembayaran Lunas! 💰",
+            body: "Tes notifikasi berhasil diterima di HP/perangkat ini.",
+            url: "/?tab=invoices",
+            sound: "/media/cash-in.mp3",
+          },
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        playCashInSound()
+        toast.success("Berhasil Dikirim!", data.message)
+      } else {
+        toast.error("Gagal Mengirim", data.message || "Pastikan izin notifikasi aktif.")
+      }
+    } catch (err: any) {
+      toast.error("Error", err.message || "Gagal menghubungi server push.")
+    } finally {
+      setPushLoading(false)
+    }
+  }
 
   const waCount = useMemo(() => notifications.filter((n) => n.type === "whatsapp").length, [notifications])
   const pushCount = useMemo(() => notifications.filter((n) => n.type === "push").length, [notifications])
@@ -164,6 +223,39 @@ export function NotificationsPanel({ open, onClose, onNavigate }: NotificationsP
           </div>
         </div>
       </div>
+
+      {/* Device Push Notification Status Banner */}
+      {pushPerm !== "granted" ? (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/60 p-2.5 text-xs text-blue-900 dark:text-blue-300 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Bell className="size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+            <span className="truncate">Notifikasi HP belum aktif di perangkat ini</span>
+          </div>
+          <button
+            type="button"
+            disabled={pushLoading}
+            onClick={handleEnablePush}
+            className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 text-[11px] font-semibold transition-colors disabled:opacity-50"
+          >
+            {pushLoading ? "Mengaktifkan..." : "Aktifkan"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 px-3 py-1.5 text-xs text-emerald-800 dark:text-emerald-300 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-[11px] font-medium truncate">Notifikasi Perangkat Aktif</span>
+          </div>
+          <button
+            type="button"
+            disabled={pushLoading}
+            onClick={handleTestPush}
+            className="shrink-0 text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 dark:hover:text-emerald-100 underline decoration-dotted transition-colors"
+          >
+            {pushLoading ? "Mengirim..." : "Kirim Tes ke HP"}
+          </button>
+        </div>
+      )}
 
       {/* Notifications List */}
       {filteredList.length === 0 ? (
