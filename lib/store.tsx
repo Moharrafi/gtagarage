@@ -267,12 +267,12 @@ export function getInitialRealNotifications(
 }
 
 export function WorkshopProvider({ children }: { children: ReactNode }) {
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>(seedWorkOrders)
-  const [parts, setParts] = useState<Part[]>(seedParts)
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [parts, setParts] = useState<Part[]>([])
   const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
-  const [invoicesData, setInvoicesData] = useState<Invoice[]>(invoices)
+  const [invoicesData, setInvoicesData] = useState<Invoice[]>([])
 
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -284,18 +284,18 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       fetch('/api/invoices').then((r) => (r.ok ? r.json() : null)).catch(() => null),
       fetch('/api/inventory').then((r) => (r.ok ? r.json() : null)).catch(() => null)
     ]).then(([woRes, invRes, invenRes]) => {
-      let fetchedWorkOrders: WorkOrder[] = seedWorkOrders
-      let fetchedInvoices: Invoice[] = invoices
+      let fetchedWorkOrders: WorkOrder[] = []
+      let fetchedInvoices: Invoice[] = []
       
-      if (woRes?.success && Array.isArray(woRes.data) && woRes.data.length > 0) {
+      if (woRes?.success && Array.isArray(woRes.data)) {
         fetchedWorkOrders = woRes.data
         setWorkOrders(fetchedWorkOrders)
       }
-      if (invRes?.success && Array.isArray(invRes.data) && invRes.data.length > 0) {
+      if (invRes?.success && Array.isArray(invRes.data)) {
         fetchedInvoices = invRes.data
         setInvoicesData(fetchedInvoices)
       }
-      if (invenRes?.success && Array.isArray(invenRes.data) && invenRes.data.length > 0) {
+      if (invenRes?.success && Array.isArray(invenRes.data)) {
         setParts(invenRes.data)
       }
 

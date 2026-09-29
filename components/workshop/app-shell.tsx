@@ -273,7 +273,9 @@ function AppShellInner() {
           <header
             className={cn(
               "z-20 flex items-center gap-3 bg-primary px-4 md:px-6 text-white shrink-0 shadow-xs",
-              tab === "beranda" ? "border-b-0 pt-3.5 pb-2" : "border-b border-primary/20 py-3.5 shadow-sm shadow-primary/20",
+              tab === "beranda" 
+                ? "border-b-0 pt-[calc(env(safe-area-inset-top)+0.875rem)] pb-2" 
+                : "border-b border-primary/20 pt-[calc(env(safe-area-inset-top)+0.875rem)] pb-3.5 shadow-sm shadow-primary/20",
               "dark:border-slate-800 dark:bg-slate-900"
             )}
           >
