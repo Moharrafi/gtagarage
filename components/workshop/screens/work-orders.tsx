@@ -104,6 +104,27 @@ export function WorkOrdersScreen() {
   const [waWoId, setWaWoId] = useState<string | undefined>(undefined)
   const [assignTargetWo, setAssignTargetWo] = useState<WorkOrder | null>(null)
 
+  // Searchable spareparts state in form
+  const [partSearch, setPartSearch] = useState("")
+  const [selectedPartId, setSelectedPartId] = useState("")
+  const [partQty, setPartQty] = useState(1)
+  const [partDropdownOpen, setPartDropdownOpen] = useState(false)
+
+  const filteredParts = useMemo(() => {
+    const q = partSearch.trim().toLowerCase()
+    if (!q) return parts.slice(0, 20)
+    return parts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    )
+  }, [parts, partSearch])
+
+  const activeSelectedPart = useMemo(() => {
+    return parts.find((p) => p.id === selectedPartId)
+  }, [parts, selectedPartId])
+
   const activeJobsByTech = useMemo(() => {
     const counts: Record<string, number> = {}
     workOrders.forEach((order) => {
@@ -195,12 +216,20 @@ export function WorkOrdersScreen() {
       ...emptyForm,
       technician: technicians[0]?.name || "Agus Pratama",
     })
+    setPartSearch("")
+    setSelectedPartId("")
+    setPartQty(1)
+    setPartDropdownOpen(false)
     setSheetOpen(true)
   }
 
   function openEdit(w: WorkOrder) {
     setEditId(w.id)
     setForm(fromWorkOrder(w))
+    setPartSearch("")
+    setSelectedPartId("")
+    setPartQty(1)
+    setPartDropdownOpen(false)
     setSheetOpen(true)
   }
 
@@ -639,15 +668,20 @@ export function WorkOrdersScreen() {
           </div>
 
           <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
-            <label className={labelCls}>Suku Cadang Terpakai (Spareparts)</label>
+            <div className="flex items-center justify-between">
+              <label className={labelCls}>Suku Cadang Terpakai (Spareparts)</label>
+              <span className="text-[10px] text-muted-foreground font-normal">
+                Opsional · Kosongkan jika order jasa saja
+              </span>
+            </div>
             
             {form.usedParts && form.usedParts.length > 0 && (
               <div className="space-y-2">
                 {form.usedParts.map((p, idx) => (
-                  <div key={idx} className="flex items-center justify-between rounded-lg bg-card p-2 text-xs ring-1 ring-black/[0.04] shadow-sm">
-                    <div>
-                      <p className="font-medium">{p.name}</p>
-                      <p className="text-muted-foreground">{p.qty}x @ {formatRupiah(p.price)}</p>
+                  <div key={idx} className="flex items-center justify-between rounded-lg bg-card p-2 text-xs ring-1 ring-border shadow-xs">
+                    <div className="min-w-0 pr-2">
+                      <p className="font-semibold text-foreground truncate">{p.name}</p>
+                      <p className="text-muted-foreground text-[11px]">{p.qty}x @ {formatRupiah(p.price)} = <strong className="text-foreground">{formatRupiah(p.qty * p.price)}</strong></p>
                     </div>
                     <button
                       type="button"
@@ -657,6 +691,7 @@ export function WorkOrdersScreen() {
                         setForm({ ...form, usedParts: newParts })
                       }}
                       className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      title="Hapus part"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -664,39 +699,129 @@ export function WorkOrdersScreen() {
                 ))}
               </div>
             )}
-            
-            <div className="flex gap-2">
-              <select id="wo-add-part" className={cn(selectCls, "flex-1")} defaultValue="">
-                <option value="" disabled>Pilih part...</option>
-                {parts.map(p => (
-                  <option key={p.id} value={p.id}>{p.name} - {formatRupiah(p.price)}</option>
-                ))}
-              </select>
-              <Input id="wo-add-qty" type="number" min={1} defaultValue={1} className="w-16 px-2 text-center" />
-              <button
-                type="button"
-                onClick={() => {
-                  const select = document.getElementById("wo-add-part") as HTMLSelectElement
-                  const qtyInput = document.getElementById("wo-add-qty") as HTMLInputElement
-                  if (!select.value || !qtyInput.value) return
-                  const part = parts.find(p => p.id === select.value)
-                  if (!part) return
-                  const qty = Number(qtyInput.value)
-                  const newParts = [...(form.usedParts || [])]
-                  const existing = newParts.find(p => p.partId === part.id)
-                  if (existing) {
-                    existing.qty += qty
-                  } else {
-                    newParts.push({ partId: part.id, name: part.name, price: part.price, qty })
-                  }
-                  setForm({ ...form, usedParts: newParts })
-                  select.value = ""
-                  qtyInput.value = "1"
-                }}
-                className="flex items-center justify-center rounded-lg bg-primary/10 px-3 text-primary transition-colors hover:bg-primary/20"
-              >
-                <Plus className="size-4" />
-              </button>
+
+            {/* Searchable Combobox Picker */}
+            <div className="space-y-2">
+              <div className="relative">
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={activeSelectedPart ? activeSelectedPart.name : partSearch}
+                      onChange={(e) => {
+                        setPartSearch(e.target.value)
+                        if (selectedPartId) setSelectedPartId("")
+                        setPartDropdownOpen(true)
+                      }}
+                      onFocus={() => setPartDropdownOpen(true)}
+                      placeholder="Cari sparepart (ketik nama / SKU)..."
+                      className="w-full rounded-lg border border-input bg-card pl-8.5 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {(partSearch || selectedPartId) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPartSearch("")
+                          setSelectedPartId("")
+                          setPartDropdownOpen(false)
+                        }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={partQty}
+                      onChange={(e) => setPartQty(Math.max(1, Number(e.target.value)))}
+                      className="w-14 px-1.5 text-center text-xs h-9 bg-card"
+                    />
+                    <button
+                      type="button"
+                      disabled={!activeSelectedPart}
+                      onClick={() => {
+                        if (!activeSelectedPart) return
+                        const qty = Math.max(1, partQty)
+                        const newParts = [...(form.usedParts || [])]
+                        const existing = newParts.find((p) => p.partId === activeSelectedPart.id)
+                        if (existing) {
+                          existing.qty += qty
+                        } else {
+                          newParts.push({ partId: activeSelectedPart.id, name: activeSelectedPart.name, price: activeSelectedPart.price, qty })
+                        }
+                        setForm({ ...form, usedParts: newParts })
+                        setPartSearch("")
+                        setSelectedPartId("")
+                        setPartQty(1)
+                        setPartDropdownOpen(false)
+                        toast.success("Sparepart Ditambahkan", `+${qty} ${activeSelectedPart.name} masuk ke SPK.`)
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-1 rounded-lg px-3 h-9 text-xs font-semibold transition-all",
+                        activeSelectedPart
+                          ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
+                          : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
+                      )}
+                    >
+                      <Plus className="size-3.5" /> Tambah
+                    </button>
+                  </div>
+                </div>
+
+                {/* Floating Search Results */}
+                {partDropdownOpen && !selectedPartId && (
+                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg">
+                    {filteredParts.length > 0 ? (
+                      filteredParts.map((p) => {
+                        const isBulkConsumable = p.price === 0 || /pasir|silika|garnet|glass bead/i.test(p.name)
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPartId(p.id)
+                              setPartSearch(p.name)
+                              setPartDropdownOpen(false)
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs hover:bg-accent transition-colors"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <p className="font-medium text-foreground truncate">{p.name}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {p.sku} · Stok: <strong className={cn(p.stock <= p.minStock ? "text-destructive" : "text-foreground")}>{p.stock}</strong>
+                                {isBulkConsumable && <span className="ml-1 text-amber-600 dark:text-amber-400 font-semibold">(Bahan Operasional)</span>}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-semibold text-primary">{formatRupiah(p.price)}</span>
+                            </div>
+                          </button>
+                        )
+                      })
+                    ) : (
+                      <div className="p-3 text-center text-xs text-muted-foreground">
+                        {partSearch ? `Tidak ada suku cadang cocok dengan "${partSearch}"` : "Belum ada data suku cadang di stok"}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {activeSelectedPart && (
+                <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs">
+                  <span className="text-foreground">
+                    Terpilih: <strong>{activeSelectedPart.name}</strong> ({formatRupiah(activeSelectedPart.price)})
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Sisa stok: {activeSelectedPart.stock}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
