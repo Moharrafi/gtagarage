@@ -350,8 +350,33 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     svc.jobs += 1
   })
 
-  // 5. Financial Summary
-  let pengeluaran = totalPendapatan * 0.55 // approximate real expenses
+  // 5. Stock / Sparepart Expenses from completed work orders in this period
+  const partExpensesMap: Record<string, { name: string; qty: number; totalCost: number }> = {}
+  let totalBebanStok = 0
+
+  validWorkOrders.forEach(wo => {
+    if (wo.status === "Selesai" || wo.status === "Siap Diambil") {
+      (wo.usedParts || []).forEach(p => {
+        const cost = (p.qty || 1) * (p.price || 0)
+        totalBebanStok += cost
+        const key = p.name || "Suku Cadang"
+        if (!partExpensesMap[key]) {
+          partExpensesMap[key] = { name: key, qty: 0, totalCost: 0 }
+        }
+        partExpensesMap[key].qty += p.qty || 1
+        partExpensesMap[key].totalCost += cost
+      })
+    }
+  })
+
+  const stockExpenseBreakdown = Object.values(partExpensesMap).map(p => ({
+    name: p.name,
+    qty: p.qty,
+    amount: p.totalCost,
+    pct: totalBebanStok > 0 ? ((p.totalCost / totalBebanStok) * 100).toFixed(1) : "0.0",
+  }))
+
+  const pengeluaran = totalBebanStok
   let piutang = 0
   validInvoices.forEach(inv => {
     if (inv.status !== "Lunas") piutang += inv.paidAmount || 0
@@ -376,7 +401,8 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     totalPendapatan, deltaPendapatan,
     totalKunjungan, deltaKunjungan,
     rataServis: rataServisFormatted, deltaRataServis,
-    revenueTrend, dailyVisits, serviceBreakdown, monthlyReport 
+    revenueTrend, dailyVisits, serviceBreakdown, monthlyReport,
+    stockExpenseBreakdown
   }
 }
 

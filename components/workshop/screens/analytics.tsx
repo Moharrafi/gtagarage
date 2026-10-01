@@ -74,7 +74,7 @@ export function AnalyticsScreen() {
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
   
-  const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport } = getAnalyticsData(invoices, workOrders, period)
+  const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport, stockExpenseBreakdown } = getAnalyticsData(invoices, workOrders, period)
   const realTechnicians = getTechnicianStats(technicians, workOrders)
   
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)
@@ -307,6 +307,7 @@ export function AnalyticsScreen() {
         onClose={() => setExportOpen(false)}
         monthlyReport={monthlyReport}
         serviceBreakdown={serviceBreakdown}
+        stockExpenseBreakdown={stockExpenseBreakdown}
       />
     </div>
   )

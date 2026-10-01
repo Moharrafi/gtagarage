@@ -30,47 +30,22 @@ import {
 } from "@/lib/data"
 import { cn } from "@/lib/utils"
 
-export const expenseBreakdown = [
-  {
-    category: "Belanja Sparepart & Pelumas",
-    description: "Restock oli mesin, kampas rem, busi, aki, rantai & filter",
-    amount: 22800000,
-    pct: "55.2",
-  },
-  {
-    category: "Kompensasi & Komisi Mekanik",
-    description: "Gaji pokok teknisi, insentif produktivitas & uang makan",
-    amount: 12500000,
-    pct: "30.3",
-  },
-  {
-    category: "Media Blasting & Kimia",
-    description: "Glass beads, garnet sand, chemical degreaser & cleaner",
-    amount: 3200000,
-    pct: "7.7",
-  },
-  {
-    category: "Listrik, Kompresor & Utilitas",
-    description: "Listrik industri 3-phase kompresor, air cuci, wifi",
-    amount: 1800000,
-    pct: "4.4",
-  },
-  {
-    category: "Pemeliharaan Alat & Operasional",
-    description: "Servis kompresor, oli mesin blaster, tools & ATK kasir",
-    amount: 1000000,
-    pct: "2.4",
-  },
-]
+export interface StockExpenseItem {
+  name: string
+  qty: number
+  amount: number
+  pct: string
+}
 
 interface ReportExportModalProps {
   open: boolean
   onClose: () => void
   monthlyReport: { period: string; pendapatan: number; pengeluaran: number; laba: number; labaMargin: number; totalTransaksi: number; rataTransaksi: number; piutang: number }
   serviceBreakdown: { name: string; value: number; jobs: number }[]
+  stockExpenseBreakdown?: StockExpenseItem[]
 }
 
-export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdown }: ReportExportModalProps) {
+export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdown, stockExpenseBreakdown = [] }: ReportExportModalProps) {
   const { profile, technicians } = useWorkshop()
   const [copiedWa, setCopiedWa] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
@@ -127,13 +102,17 @@ export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdo
       lines.push(`;TOTAL PENDAPATAN;${totalJobs};${monthlyReport.pendapatan};100.0%`)
       lines.push("")
 
-      // Rincian Beban Operasional
-      lines.push("=== RINCIAN BEBAN OPERASIONAL (OPEX) ===")
-      lines.push("No;Kategori Pengeluaran;Deskripsi Beban;Jumlah Pengeluaran (IDR);Proporsi (%)")
-      expenseBreakdown.forEach((e, idx) => {
-        lines.push(`${idx + 1};${e.category};${e.description};${e.amount};${e.pct}%`)
-      })
-      lines.push(`;TOTAL PENGELUARAN;;${monthlyReport.pengeluaran};100.0%`)
+      // Rincian Beban Suku Cadang & Bahan (Menu Stok)
+      lines.push("=== RINCIAN BEBAN SUKU CADANG & BAHAN (MENU STOK) ===")
+      lines.push("No;Nama Suku Cadang / Barang Stok;Jumlah Unit Terpakai;Total Biaya (IDR);Proporsi (%)")
+      if (stockExpenseBreakdown.length > 0) {
+        stockExpenseBreakdown.forEach((e, idx) => {
+          lines.push(`${idx + 1};${e.name};${e.qty};${e.amount};${e.pct}%`)
+        })
+      } else {
+        lines.push("1;Tidak ada pemakaian suku cadang dari stok;0;0;0.0%")
+      }
+      lines.push(`;TOTAL BEBAN SUKU CADANG;;${monthlyReport.pengeluaran};100.0%`)
       lines.push("")
 
       // Kinerja Tim Mekanik
@@ -183,8 +162,11 @@ _Tanggal: ${currentDateStr}_
 🛠️ *PENDAPATAN PER LAYANAN*
 ${serviceBreakdown.map((s) => `• ${s.name}: ${formatRupiah(s.value)} (${s.jobs} unit - ${monthlyReport.pendapatan > 0 ? ((s.value / monthlyReport.pendapatan) * 100).toFixed(1) : "0.0"}%)`).join("\n")}
 
-📉 *PENGELUARAN OPERASIONAL (OPEX)*
-${expenseBreakdown.map((e) => `• ${e.category}: ${formatRupiah(e.amount)} (${e.pct}%)`).join("\n")}
+📉 *BEBAN SUKU CADANG & BAHAN (MENU STOK)*
+${stockExpenseBreakdown.length > 0
+  ? stockExpenseBreakdown.map((e) => `• ${e.name}: ${formatRupiah(e.amount)} (${e.qty} unit - ${e.pct}%)`).join("\n")
+  : "• Tidak ada pemakaian suku cadang dari stok pada periode ini (Rp 0)"}
+• *Total Beban:* ${formatRupiah(monthlyReport.pengeluaran)}
 
 👥 *PRODUKTIVITAS TEKNISI*
 ${technicians.map((t) => `• ${t.name}: ${t.completedThisMonth} order | ${t.avgHours} jam/order | Efisiensi ${t.efficiency}%`).join("\n")}
@@ -369,6 +351,7 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
                   technicians={technicians}
                   monthlyReport={monthlyReport}
                   serviceBreakdown={serviceBreakdown}
+                  stockExpenseBreakdown={stockExpenseBreakdown}
                 />
               </div>
             </div>
@@ -392,6 +375,7 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
             technicians={technicians}
             monthlyReport={monthlyReport}
             serviceBreakdown={serviceBreakdown}
+            stockExpenseBreakdown={stockExpenseBreakdown}
             isPrint
           />
         </div>
@@ -410,6 +394,7 @@ function DocumentPrintLayout({
   technicians = [],
   monthlyReport,
   serviceBreakdown,
+  stockExpenseBreakdown = [],
   isPrint = false,
 }: {
   profile: ReturnType<typeof useWorkshop>["profile"]
@@ -418,6 +403,7 @@ function DocumentPrintLayout({
   technicians?: ReturnType<typeof useWorkshop>["technicians"]
   monthlyReport: { period: string; pendapatan: number; pengeluaran: number; laba: number; labaMargin: number; totalTransaksi: number; rataTransaksi: number; piutang: number }
   serviceBreakdown: { name: string; value: number; jobs: number }[]
+  stockExpenseBreakdown?: StockExpenseItem[]
   isPrint?: boolean
 }) {
   return (
@@ -478,18 +464,20 @@ function DocumentPrintLayout({
             {formatRupiah(monthlyReport.pendapatan)}
           </p>
           <p className="text-[9px] font-bold text-emerald-600 mt-0.5 flex items-center gap-0.5">
-            <ArrowUpRight className="size-2.5" /> +6,8% vs Agustus
+            <ArrowUpRight className="size-2.5" /> Terverifikasi
           </p>
         </div>
 
         <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2.5">
           <p className="text-[9px] sm:text-[10px] font-semibold text-slate-500 uppercase">
-            Beban Operasional
+            Beban Suku Cadang
           </p>
           <p className="text-xs sm:text-sm font-black text-rose-700 mt-0.5">
             {formatRupiah(monthlyReport.pengeluaran)}
           </p>
-          <p className="text-[9px] text-slate-500 mt-0.5">55,7% rasio beban</p>
+          <p className="text-[9px] text-slate-500 mt-0.5">
+            {monthlyReport.pendapatan > 0 ? ((monthlyReport.pengeluaran / monthlyReport.pendapatan) * 100).toFixed(1) : "0.0"}% rasio beban
+          </p>
         </div>
 
         <div className="rounded-lg border border-emerald-300 bg-emerald-50/70 p-2.5">
@@ -563,41 +551,54 @@ function DocumentPrintLayout({
           </table>
         </div>
 
-        {/* Tabel 2: Rincian Beban Operasional */}
+        {/* Tabel 2: Rincian Beban Suku Cadang & Bahan dari Menu Stok */}
         <div className="rounded-lg border border-slate-200 overflow-hidden">
           <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center">
             <h3 className="text-[11px] font-bold text-slate-900 uppercase">
-              2. Beban Operasional (OPEX)
+              2. Beban Suku Cadang & Bahan (Menu Stok)
             </h3>
-            <span className="text-[9px] font-semibold text-slate-500">Realisasi</span>
+            <span className="text-[9px] font-semibold text-slate-500">Pemakaian Stok</span>
           </div>
           <table className="w-full text-[10px] sm:text-[11px] text-left border-collapse">
             <thead className="bg-slate-50 text-[9px] text-slate-600 uppercase border-b border-slate-200">
               <tr>
-                <th className="px-2.5 py-1.5 font-bold">Kategori Beban</th>
+                <th className="px-2.5 py-1.5 font-bold">Nama Suku Cadang / Barang Stok</th>
+                <th className="px-1.5 py-1.5 text-center font-bold">Unit</th>
                 <th className="px-2 py-1.5 text-right font-bold">Jumlah (Rp)</th>
                 <th className="px-2 py-1.5 text-right font-bold">%</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {expenseBreakdown.map((e) => (
-                <tr key={e.category}>
-                  <td className="px-2.5 py-1 font-medium text-slate-800">{e.category}</td>
-                  <td className="px-2 py-1 text-right font-semibold text-slate-900">
-                    {e.amount.toLocaleString("id-ID")}
-                  </td>
-                  <td className="px-2 py-1 text-right font-mono text-[9px] text-slate-500">
-                    {e.pct}%
+              {stockExpenseBreakdown.length > 0 ? (
+                stockExpenseBreakdown.map((e) => (
+                  <tr key={e.name}>
+                    <td className="px-2.5 py-1 font-medium text-slate-800">{e.name}</td>
+                    <td className="px-1.5 py-1 text-center text-slate-600">{e.qty}</td>
+                    <td className="px-2 py-1 text-right font-semibold text-slate-900">
+                      {e.amount.toLocaleString("id-ID")}
+                    </td>
+                    <td className="px-2 py-1 text-right font-mono text-[9px] text-slate-500">
+                      {e.pct}%
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-3 py-3 text-center text-slate-500 italic text-[10px]">
+                    Tidak ada pemakaian suku cadang dari stok pada periode ini
                   </td>
                 </tr>
-              ))}
+              )}
               <tr className="bg-slate-50 font-bold border-t border-slate-300 text-rose-700">
                 <td className="px-2.5 py-1.5 text-slate-950">TOTAL BEBAN</td>
+                <td className="px-1.5 py-1.5 text-center text-slate-950">
+                  {stockExpenseBreakdown.reduce((acc, x) => acc + x.qty, 0)}
+                </td>
                 <td className="px-2 py-1.5 text-right">
                   {monthlyReport.pengeluaran.toLocaleString("id-ID")}
                 </td>
                 <td className="px-2 py-1.5 text-right font-mono text-[9px] text-slate-950">
-                  100%
+                  {monthlyReport.pengeluaran > 0 ? "100%" : "0%"}
                 </td>
               </tr>
             </tbody>
