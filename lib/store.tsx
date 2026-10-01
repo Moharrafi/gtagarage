@@ -277,130 +277,120 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
 
-  // Load initial data from PostgreSQL Backend API
+  // Load initial data from PostgreSQL Backend API (Sequential to prevent Connection Limit Exhaustion)
   useEffect(() => {
-    Promise.all([
-      fetch('/api/work-orders').then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/invoices').then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch('/api/inventory').then((r) => (r.ok ? r.json() : null)).catch(() => null)
-    ]).then(([woRes, invRes, invenRes]) => {
-      let fetchedWorkOrders: WorkOrder[] = []
-      let fetchedInvoices: Invoice[] = []
-      
-      if (woRes?.success && Array.isArray(woRes.data)) {
-        fetchedWorkOrders = woRes.data
-        setWorkOrders(fetchedWorkOrders)
-      }
-      if (invRes?.success && Array.isArray(invRes.data)) {
-        fetchedInvoices = invRes.data
-        setInvoicesData(fetchedInvoices)
-      }
-      if (invenRes?.success && Array.isArray(invenRes.data)) {
-        setParts(invenRes.data)
-      }
+    let isMounted = true;
+    (async () => {
+      try {
+        // 1. Fetch Core Data Sequentially
+        const woRes = await fetch('/api/work-orders').then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        if (!isMounted) return;
+        const invRes = await fetch('/api/invoices').then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        if (!isMounted) return;
+        const invenRes = await fetch('/api/inventory').then((r) => (r.ok ? r.json() : null)).catch(() => null)
+        if (!isMounted) return;
 
-      // Auto-sync workOrders to invoices
-      let updatedInvoices = [...fetchedInvoices]
-      fetchedWorkOrders.forEach((wo, idx) => {
-        const existingIdx = updatedInvoices.findIndex((inv) => inv.workOrderCode === wo.code)
+        let fetchedWorkOrders: WorkOrder[] = []
+        let fetchedInvoices: Invoice[] = []
+        
+        if (woRes?.success && Array.isArray(woRes.data)) {
+          fetchedWorkOrders = woRes.data
+          setWorkOrders(fetchedWorkOrders)
+        }
+        if (invRes?.success && Array.isArray(invRes.data)) {
+          fetchedInvoices = invRes.data
+          setInvoicesData(fetchedInvoices)
+        }
+        if (invenRes?.success && Array.isArray(invenRes.data)) {
+          setParts(invenRes.data)
+        }
 
-        if (existingIdx === -1) {
-          if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
-            const laborItem = {
-              label: `Jasa ${wo.service}`,
-              qty: 1,
-              price: wo.laborCost || 90000,
+        // Auto-sync workOrders to invoices
+        let updatedInvoices = [...fetchedInvoices]
+        fetchedWorkOrders.forEach((wo, idx) => {
+          const existingIdx = updatedInvoices.findIndex((inv) => inv.workOrderCode === wo.code)
+
+          if (existingIdx === -1) {
+            if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
+              const laborItem = {
+                label: `Jasa ${wo.service}`,
+                qty: 1,
+                price: wo.laborCost || 90000,
+              }
+              const partItems = (wo.usedParts || []).map((p) => ({
+                label: p.name,
+                qty: p.qty,
+                price: p.price,
+              }))
+
+              const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
+              const isLunas = wo.status === "Selesai"
+
+              const newInvoice: Invoice = {
+                id: `inv-auto-${wo.id}`,
+                number: `INV/2026/09/0${143 + idx}`,
+                workOrderCode: wo.code,
+                customer: wo.customer,
+                vehicle: wo.vehicle,
+                service: wo.service,
+                date: wo.createdAt || "25 Sep 2026",
+                status: isLunas ? "Lunas" : "Belum Bayar",
+                paidAmount: isLunas ? invTotal : 0,
+                items: [laborItem, ...partItems],
+              }
+              updatedInvoices = [newInvoice, ...updatedInvoices]
             }
-            const partItems = (wo.usedParts || []).map((p) => ({
-              label: p.name,
-              qty: p.qty,
-              price: p.price,
-            }))
-
-            const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
-            const isLunas = wo.status === "Selesai"
-
-            const newInvoice: Invoice = {
-              id: `inv-auto-${wo.id}`,
-              number: `INV/2026/09/0${143 + idx}`,
-              workOrderCode: wo.code,
-              customer: wo.customer,
-              vehicle: wo.vehicle,
-              service: wo.service,
-              date: wo.createdAt || "25 Sep 2026",
-              status: isLunas ? "Lunas" : "Belum Bayar",
-              paidAmount: isLunas ? invTotal : 0,
-              items: [laborItem, ...partItems],
+          } else {
+            const existingInv = updatedInvoices[existingIdx]
+            if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
+              const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
+              updatedInvoices[existingIdx] = {
+                ...existingInv,
+                status: "Lunas",
+                paidAmount: total,
+                paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+              }
             }
-            updatedInvoices = [newInvoice, ...updatedInvoices]
           }
-        } else {
-          const existingInv = updatedInvoices[existingIdx]
-          if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
-            const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
-            updatedInvoices[existingIdx] = {
-              ...existingInv,
-              status: "Lunas",
-              paidAmount: total,
-              paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
-            }
-          }
-        }
-      })
-      setInvoicesData(updatedInvoices)
-    }).catch(e => console.error("Failed to load initial data", e))
+        })
+        setInvoicesData(updatedInvoices)
 
-    fetch('/api/service-rates')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setServiceRates(res.data)
-        }
-      })
-      .catch((e) => console.error('Failed to load service-rates from DB', e))
+        // 2. Fetch Other Configs Sequentially
+        const svcRes = await fetch('/api/service-rates').then(r => r.ok ? r.json() : null).catch(() => null)
+        if (!isMounted) return;
+        if (svcRes?.success && Array.isArray(svcRes.data) && svcRes.data.length > 0) setServiceRates(svcRes.data)
 
-    fetch('/api/technicians')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setTechnicians(res.data)
-        }
-      })
-      .catch((e) => console.error('Failed to load technicians from DB', e))
+        const techRes = await fetch('/api/technicians').then(r => r.ok ? r.json() : null).catch(() => null)
+        if (!isMounted) return;
+        if (techRes?.success && Array.isArray(techRes.data) && techRes.data.length > 0) setTechnicians(techRes.data)
 
-    fetch('/api/vouchers')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setVouchers(res.data)
-        }
-      })
-      .catch((e) => console.error('Failed to load vouchers from DB', e))
+        const vouRes = await fetch('/api/vouchers').then(r => r.ok ? r.json() : null).catch(() => null)
+        if (!isMounted) return;
+        if (vouRes?.success && Array.isArray(vouRes.data) && vouRes.data.length > 0) setVouchers(vouRes.data)
 
-    fetch('/api/settings')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && res.data) {
-          if (res.data.profile) setProfile(res.data.profile)
-          if (res.data.midtransConfig) setMidtransConfig(res.data.midtransConfig)
-          if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
-            setCategories(res.data.categories)
+        const setRes = await fetch('/api/settings').then(r => r.ok ? r.json() : null).catch(() => null)
+        if (!isMounted) return;
+        if (setRes?.success && setRes.data) {
+          if (setRes.data.profile) setProfile(setRes.data.profile)
+          if (setRes.data.midtransConfig) setMidtransConfig(setRes.data.midtransConfig)
+          if (Array.isArray(setRes.data.categories) && setRes.data.categories.length > 0) {
+            setCategories(setRes.data.categories)
           }
         }
-      })
-      .catch((e) => console.error('Failed to load settings from DB', e))
 
-    fetch('/api/notifications')
-      .then((r) => r.json())
-      .then((res) => {
-        if (res?.success && Array.isArray(res.data)) {
-          setNotifications(res.data)
+        const notifRes = await fetch('/api/notifications').then(r => r.ok ? r.json() : null).catch(() => null)
+        if (!isMounted) return;
+        if (notifRes?.success && Array.isArray(notifRes.data)) {
+          setNotifications(notifRes.data)
           try {
-            localStorage.setItem("bengkel_notifications", JSON.stringify(res.data))
+            localStorage.setItem("bengkel_notifications", JSON.stringify(notifRes.data))
           } catch {}
         }
-      })
-      .catch((e) => console.error('Failed to load notifications from DB', e))
+      } catch (e) {
+        console.error("Failed to load initial data sequentially", e)
+      }
+    })();
+    return () => { isMounted = false; }
   }, [])
 
   // Auto-sync workOrders to invoices
