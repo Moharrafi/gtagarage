@@ -166,7 +166,7 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             </p>
             <div className="flex items-baseline gap-2 mt-0.5">
               <span className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                {formatRupiah(todayRevenue || 248000)}
+                {formatRupiah(todayRevenue || 0)}
               </span>
               <span className={cn("inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs", isTodayUp ? "" : "text-red-100 bg-red-500/30")}>
                 {isTodayUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />} {todayRevenueDelta}
