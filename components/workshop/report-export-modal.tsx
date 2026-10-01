@@ -26,8 +26,6 @@ import { toast } from "@/components/workshop/toast"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { useWorkshop } from "@/lib/store"
 import {
-  monthlyReport,
-  serviceBreakdown,
   formatRupiah,
 } from "@/lib/data"
 import { cn } from "@/lib/utils"
@@ -68,9 +66,11 @@ export const expenseBreakdown = [
 interface ReportExportModalProps {
   open: boolean
   onClose: () => void
+  monthlyReport: { period: string; pendapatan: number; pengeluaran: number; laba: number; labaMargin: number; totalTransaksi: number; rataTransaksi: number; piutang: number }
+  serviceBreakdown: { name: string; value: number; jobs: number }[]
 }
 
-export function ReportExportModal({ open, onClose }: ReportExportModalProps) {
+export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdown }: ReportExportModalProps) {
   const { profile, technicians } = useWorkshop()
   const [copiedWa, setCopiedWa] = useState(false)
   const [showPreview, setShowPreview] = useState(true)

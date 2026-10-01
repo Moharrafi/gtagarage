@@ -294,6 +294,8 @@ export function AnalyticsScreen() {
       <ReportExportModal
         open={exportOpen}
         onClose={() => setExportOpen(false)}
+        monthlyReport={monthlyReport}
+        serviceBreakdown={serviceBreakdown}
       />
     </div>
   )
