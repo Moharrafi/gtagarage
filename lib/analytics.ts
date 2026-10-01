@@ -126,8 +126,8 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     if (inv.status === "Lunas") totalPendapatan += inv.paidAmount
   })
   // fake average service time based on filter (could be real if we track timestamps)
-  const rataServis = filter === "Mingguan" ? 2.5 : filter === "Bulanan" ? 3.7 : 4.1
-  const prevRataServis = filter === "Mingguan" ? 2.8 : filter === "Bulanan" ? 3.9 : 4.0
+  const rataServis = totalKunjungan > 0 ? (filter === "Mingguan" ? 2.5 : filter === "Bulanan" ? 3.7 : 4.1) : 0
+  const prevRataServis = prevKunjungan > 0 ? (filter === "Mingguan" ? 2.8 : filter === "Bulanan" ? 3.9 : 4.0) : 0
 
   const calcDelta = (current: number, prev: number, isTime = false) => {
     if (prev === 0) return current > 0 ? (isTime ? "+1,0" : "+100%") : "0%"
