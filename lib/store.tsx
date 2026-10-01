@@ -135,7 +135,7 @@ interface WorkshopContextValue {
   dismissTip: (tipId: string) => void
   isTipDismissed: (tipId: string) => boolean
   resetDismissedTips: () => void
-  resetDemoData: () => void
+
   currentUser: UserAccount | null
   authLoaded: boolean
   login: (username: string, password?: string) => boolean
@@ -1012,22 +1012,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [])
 
-  const resetDemoData = useCallback(() => {
-    setWorkOrders(seedWorkOrders)
-    setParts(seedParts)
-    setServiceRates(defaultServiceRates)
-    setCategories(defaultCategories)
-    setVouchers(defaultVouchers)
-    setProfile(defaultWorkshopProfile)
-    setTechnicians(defaultTechnicians)
-    setDismissedTips({})
-    try {
-      localStorage.removeItem("bengkel_profile")
-      localStorage.removeItem("bengkel_vouchers")
-      localStorage.removeItem("bengkel_technicians_v1")
-      localStorage.removeItem("bengkel_dismissed_tips")
-    } catch {}
-  }, [])
+
 
   // Technicians / Mechanics State & Actions
   const [technicians, setTechnicians] = useState<Technician[]>(defaultTechnicians)
@@ -1199,7 +1184,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       dismissTip,
       isTipDismissed,
       resetDismissedTips,
-      resetDemoData,
+
       currentUser,
       authLoaded,
       login,
@@ -1252,7 +1237,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       dismissTip,
       isTipDismissed,
       resetDismissedTips,
-      resetDemoData,
+
       currentUser,
       authLoaded,
       login,

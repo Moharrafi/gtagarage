@@ -288,7 +288,7 @@ export function AnalyticsScreen() {
       </div>
 
       <p className="pb-2 text-center text-[0.7rem] text-muted-foreground">
-        Data ditampilkan sebagai demo. Hubungkan database untuk laporan real-time.
+        Data laporan ini bersumber dari database dan diperbarui secara berkala.
       </p>
 
       <ReportExportModal

@@ -80,7 +80,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     dismissTip,
     isTipDismissed,
     resetDismissedTips,
-    resetDemoData,
+    clearNotifications,
     midtransConfig,
     updateMidtransConfig,
   } = useWorkshop()
@@ -485,21 +485,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     setProfileSaved(true)
     toast.success("Profil & Struk Disimpan", "Informasi bengkel dan format struk berhasil diperbarui.")
     setTimeout(() => setProfileSaved(false), 2500)
-  }
-
-  const handleResetDemo = async () => {
-    const ok = await confirmModal({
-      title: "Reset Seluruh Data Demo?",
-      description: "Seluruh data order pekerjaan, stok sparepart, dan tarif akan dikembalikan ke kondisi awal demo.",
-      confirmText: "Reset Data",
-      cancelText: "Batal",
-      variant: "destructive",
-      icon: "reset",
-    })
-    if (ok) {
-      resetDemoData()
-      toast.info("Data Direset", "Seluruh data bengkel telah dikembalikan ke kondisi awal demo.")
-    }
   }
 
   return (
@@ -1913,16 +1898,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           >
             Pulihkan Tips Info
           </button>
-          {canEdit && (
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              className="flex items-center gap-1 text-destructive/80 hover:text-destructive hover:underline"
-            >
-              <RotateCcw className="size-3" />
-              <span>Reset Data Demo</span>
-            </button>
-          )}
         </div>
       </div>
 
