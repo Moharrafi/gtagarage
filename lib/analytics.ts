@@ -1,4 +1,4 @@
-import type { Invoice, WorkOrder, Part, Technician } from "./data"
+import type { Invoice, WorkOrder, Part, Technician, StockInLog } from "./data"
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
@@ -139,7 +139,12 @@ export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], 
   return { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend }
 }
 
-export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], filter: "Mingguan" | "Bulanan" | "Tahunan") {
+export function getAnalyticsData(
+  invoices: Invoice[],
+  workOrders: WorkOrder[],
+  filter: "Mingguan" | "Bulanan" | "Tahunan",
+  stockInLogs: StockInLog[] = []
+) {
   const now = new Date()
   
   // Calculate period boundaries based on filter
@@ -350,24 +355,44 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     svc.jobs += 1
   })
 
-  // 5. Stock / Sparepart Expenses from completed work orders in this period
+  // 5. Stock & Consumables Expenses (Barang Masuk / Pembelian Pasir, Cat & Sparepart)
   const partExpensesMap: Record<string, { name: string; qty: number; totalCost: number }> = {}
   let totalBebanStok = 0
 
-  validWorkOrders.forEach(wo => {
-    if (wo.status === "Selesai" || wo.status === "Siap Diambil") {
-      (wo.usedParts || []).forEach(p => {
-        const cost = (p.qty || 1) * (p.price || 0)
-        totalBebanStok += cost
-        const key = p.name || "Suku Cadang"
-        if (!partExpensesMap[key]) {
-          partExpensesMap[key] = { name: key, qty: 0, totalCost: 0 }
-        }
-        partExpensesMap[key].qty += p.qty || 1
-        partExpensesMap[key].totalCost += cost
-      })
-    }
+  const validStockLogs = stockInLogs.filter(log => {
+    const d = parseDateFlexible(log.createdAt)
+    if (!d) return true
+    return d >= startDate && d <= now
   })
+
+  if (validStockLogs.length > 0) {
+    validStockLogs.forEach(log => {
+      const cost = Number(log.totalCost) || (Number(log.qty) * Number(log.unitCost)) || 0
+      totalBebanStok += cost
+      const key = log.partName || "Bahan & Suku Cadang"
+      if (!partExpensesMap[key]) {
+        partExpensesMap[key] = { name: key, qty: 0, totalCost: 0 }
+      }
+      partExpensesMap[key].qty += Number(log.qty) || 0
+      partExpensesMap[key].totalCost += cost
+    })
+  } else {
+    // Fallback: if no stock_in_logs recorded yet in this period, check work order used parts
+    validWorkOrders.forEach(wo => {
+      if (wo.status === "Selesai" || wo.status === "Siap Diambil") {
+        (wo.usedParts || []).forEach(p => {
+          const cost = (p.qty || 1) * (p.price || 0)
+          totalBebanStok += cost
+          const key = p.name || "Suku Cadang"
+          if (!partExpensesMap[key]) {
+            partExpensesMap[key] = { name: key, qty: 0, totalCost: 0 }
+          }
+          partExpensesMap[key].qty += p.qty || 1
+          partExpensesMap[key].totalCost += cost
+        })
+      }
+    })
+  }
 
   const stockExpenseBreakdown = Object.values(partExpensesMap).map(p => ({
     name: p.name,

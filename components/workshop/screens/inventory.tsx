@@ -11,10 +11,10 @@ import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { useWorkshop, type PartInput } from "@/lib/store"
 
-const emptyForm: PartInput = { name: "", sku: "", category: "Vapor Blasting", stock: 0, minStock: 0, price: 0 }
+const emptyForm: PartInput = { name: "", sku: "", category: "Vapor Blasting", stock: 0, minStock: 0, price: 0, buyPrice: 0 }
 
 function fromPart(p: Part): PartInput {
-  return { name: p.name, sku: p.sku, category: p.category, stock: p.stock, minStock: p.minStock, price: p.price }
+  return { name: p.name, sku: p.sku, category: p.category, stock: p.stock, minStock: p.minStock, price: p.price, buyPrice: p.buyPrice || 0 }
 }
 
 function matchesPillar(p: Part, pillarId: string): boolean {
@@ -52,6 +52,7 @@ export function InventoryScreen() {
 
   const [stockSheetId, setStockSheetId] = useState<string | null>(null)
   const [stockQty, setStockQty] = useState(1)
+  const [stockUnitCost, setStockUnitCost] = useState<number>(0)
 
   const countVapor = useMemo(() => parts.filter((p) => matchesPillar(p, "vapor")).length, [parts])
   const countSand = useMemo(() => parts.filter((p) => matchesPillar(p, "sand")).length, [parts])
@@ -121,7 +122,7 @@ export function InventoryScreen() {
   function handleStockIn(e: React.FormEvent) {
     e.preventDefault()
     if (stockSheetId && stockQty > 0) {
-      stockIn(stockSheetId, stockQty)
+      stockIn(stockSheetId, stockQty, stockUnitCost)
       const targetName = stockTarget?.name || "suku cadang"
       toast.success("Stok Ditambahkan", `+${stockQty} unit berhasil masuk untuk "${targetName}".`)
     } else {
@@ -129,6 +130,7 @@ export function InventoryScreen() {
     }
     setStockSheetId(null)
     setStockQty(1)
+    setStockUnitCost(0)
   }
 
   return (
@@ -323,6 +325,7 @@ export function InventoryScreen() {
                           onClick={() => {
                             setStockSheetId(p.id)
                             setStockQty(1)
+                            setStockUnitCost(p.buyPrice || 0)
                           }}
                           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-brand-2-foreground shadow-sm transition-transform active:scale-98"
                           style={{ backgroundColor: "var(--brand-2)" }}
@@ -531,7 +534,7 @@ export function InventoryScreen() {
               </datalist>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div>
               <label className={labelCls} htmlFor="pt-stock">Stok</label>
               <Input id="pt-stock" type="number" min={0} value={form.stock || ""} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} placeholder="0" />
@@ -541,7 +544,11 @@ export function InventoryScreen() {
               <Input id="pt-min" type="number" min={0} value={form.minStock || ""} onChange={(e) => setForm({ ...form, minStock: Number(e.target.value) })} placeholder="0" />
             </div>
             <div>
-              <label className={labelCls} htmlFor="pt-price">Harga (Rp)</label>
+              <label className={labelCls} htmlFor="pt-buy-price">Harga Modal (Rp)</label>
+              <Input id="pt-buy-price" type="number" min={0} value={form.buyPrice || ""} onChange={(e) => setForm({ ...form, buyPrice: Number(e.target.value) })} placeholder="0" />
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="pt-price">Harga Jual (Rp)</label>
               <Input id="pt-price" type="number" min={0} value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} placeholder="0" />
             </div>
           </div>
@@ -559,22 +566,47 @@ export function InventoryScreen() {
           <form onSubmit={handleStockIn} className="space-y-4">
             <div className="rounded-xl border border-border bg-muted/40 p-3">
               <p className="text-sm font-medium">{stockTarget.name}</p>
-              <p className="text-xs text-muted-foreground">{stockTarget.sku} · Stok saat ini {stockTarget.stock}</p>
+              <p className="text-xs text-muted-foreground">{stockTarget.sku} · {stockTarget.category} · Stok saat ini: <strong className="text-foreground">{stockTarget.stock}</strong></p>
             </div>
-            <div>
-              <label className={labelCls} htmlFor="stock-qty">Jumlah Masuk</label>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => setStockQty((q) => Math.max(1, q - 1))} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">−</button>
-                <Input id="stock-qty" type="number" min={1} value={stockQty} onChange={(e) => setStockQty(Math.max(1, Number(e.target.value)))} className="text-center" />
-                <button type="button" onClick={() => setStockQty((q) => q + 1)} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">+</button>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls} htmlFor="stock-qty">Jumlah Masuk</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setStockQty((q) => Math.max(1, q - 1))} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">−</button>
+                  <Input id="stock-qty" type="number" min={1} value={stockQty} onChange={(e) => setStockQty(Math.max(1, Number(e.target.value)))} className="text-center" />
+                  <button type="button" onClick={() => setStockQty((q) => q + 1)} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">+</button>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls} htmlFor="stock-cost">Harga Beli Satuan (Rp)</label>
+                <Input
+                  id="stock-cost"
+                  type="number"
+                  min={0}
+                  value={stockUnitCost || ""}
+                  onChange={(e) => setStockUnitCost(Number(e.target.value))}
+                  placeholder="Misal: 250000"
+                  className="h-10"
+                />
               </div>
             </div>
+
+            <div className="rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 p-2.5 text-xs space-y-1">
+              <div className="flex justify-between items-center text-sky-900 dark:text-sky-200">
+                <span>Total Biaya Belanja Masuk:</span>
+                <span className="font-bold text-sm">{formatRupiah(stockQty * stockUnitCost)}</span>
+              </div>
+              <p className="text-[11px] text-sky-700 dark:text-sky-300">
+                Biaya ini otomatis tercatat di Laporan Keuangan sebagai belanja bahan/stok periode berjalan.
+              </p>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               Stok setelah masuk: <span className="font-semibold text-foreground">{stockTarget.stock + stockQty}</span>
             </p>
             <button
               type="submit"
-              className="w-full rounded-xl py-3 text-sm font-semibold text-brand-2-foreground shadow-md"
+              className="w-full rounded-xl py-3 text-sm font-semibold text-brand-2-foreground shadow-md transition-transform active:scale-[0.99]"
               style={{ backgroundColor: "var(--brand-2)" }}
             >
               Konfirmasi Barang Masuk

@@ -23,6 +23,7 @@ import {
   type NotificationItem,
   type Technician,
   type TechnicianInput,
+  type StockInLog,
 } from "@/lib/data"
 
 export interface WorkOrderInput {
@@ -46,6 +47,7 @@ export interface PartInput {
   stock: number
   minStock: number
   price: number
+  buyPrice?: number
 }
 
 export interface ServiceRateInput {
@@ -123,7 +125,8 @@ interface WorkshopContextValue {
   addPart: (input: PartInput) => void
   updatePart: (id: string, input: PartInput) => void
   deletePart: (id: string) => void
-  stockIn: (id: string, qty: number) => void
+  stockIn: (id: string, qty: number, unitCost?: number) => void
+  stockInLogs: StockInLog[]
   addCategory: (category: string) => void
   deleteCategory: (category: string) => void
   addServiceRate: (input: ServiceRateInput) => void
@@ -271,6 +274,7 @@ export function getInitialRealNotifications(
 export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [parts, setParts] = useState<Part[]>([])
+  const [stockInLogs, setStockInLogs] = useState<StockInLog[]>([])
   const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
@@ -305,6 +309,9 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         }
         if (invenRes?.success && Array.isArray(invenRes.data)) {
           setParts(invenRes.data)
+          if (Array.isArray(invenRes.stockInLogs)) {
+            setStockInLogs(invenRes.stockInLogs)
+          }
         }
 
         // Auto-sync workOrders to invoices
@@ -771,6 +778,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       stock: input.stock,
       minStock: input.minStock,
       price: input.price,
+      buyPrice: input.buyPrice || 0,
       usedInOrders: [],
     }
     setParts((prev) => [newPart, ...prev])
@@ -805,29 +813,47 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const stockIn = useCallback(
-    (id: string, qty: number) => {
+    (id: string, qty: number, unitCost?: number) => {
+      const cost = unitCost ?? 0
       setParts((prev) => {
         const part = prev.find((p) => p.id === id)
         if (part) {
           addNotification({
             type: "push",
-            title: "Restok Suku Cadang",
-            body: `Penambahan stok ${part.name} sebanyak +${qty} unit berhasil dicatat (Total sekarang: ${part.stock + qty} unit).`,
+            title: "Restok Suku Cadang & Bahan",
+            body: `Penambahan stok ${part.name} sebanyak +${qty} unit berhasil dicatat.`,
             channel: "Gudang Suku Cadang",
             status: "terkirim",
             linkTab: "stok",
           })
         }
-        return prev.map((p) => (p.id === id ? { ...p, stock: p.stock + qty } : p))
+        return prev.map((p) => (p.id === id ? { ...p, stock: p.stock + qty, buyPrice: unitCost !== undefined ? unitCost : p.buyPrice } : p))
       })
+
+      if (qty > 0) {
+        setStockInLogs((prev) => {
+          const found = parts.find((p) => p.id === id)
+          const newLog: StockInLog = {
+            id: `sil-${Date.now()}`,
+            partId: id,
+            partName: found ? found.name : "Barang",
+            category: found ? found.category : "Lainnya",
+            qty,
+            unitCost: cost,
+            totalCost: qty * cost,
+            createdAt: new Date().toISOString(),
+          }
+          return [newLog, ...prev]
+        })
+      }
 
       fetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'stock-in', id, qty }),
+        body: JSON.stringify({ action: 'stock-in', id, qty, unitCost: cost }),
       }).catch((e) => console.error('Failed to sync stockIn to DB', e))
     },
-    [addNotification]
+    [addNotification, parts]
   )
 
   const addServiceRate = useCallback((input: ServiceRateInput) => {
@@ -1169,6 +1195,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       updatePart,
       deletePart,
       stockIn,
+      stockInLogs,
       addCategory,
       deleteCategory,
       addServiceRate,
@@ -1222,6 +1249,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       updatePart,
       deletePart,
       stockIn,
+      stockInLogs,
       addCategory,
       deleteCategory,
       addServiceRate,

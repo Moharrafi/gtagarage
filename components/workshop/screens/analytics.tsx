@@ -70,11 +70,11 @@ function ChartTooltip({
 const periods = ["Mingguan", "Bulanan", "Tahunan"] as const
 
 export function AnalyticsScreen() {
-  const { technicians, invoices, workOrders } = useWorkshop()
+  const { technicians, invoices, workOrders, stockInLogs } = useWorkshop()
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
   
-  const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport, stockExpenseBreakdown } = getAnalyticsData(invoices, workOrders, period)
+  const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport, stockExpenseBreakdown } = getAnalyticsData(invoices, workOrders, period, stockInLogs)
   const realTechnicians = getTechnicianStats(technicians, workOrders)
   
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)

@@ -63,8 +63,20 @@ export interface Part {
   category: string
   stock: number
   minStock: number
-  price: number
+  price: number // harga jual
+  buyPrice?: number // harga beli / modal kulakan
   usedInOrders: string[] // work order codes that consumed this part
+}
+
+export interface StockInLog {
+  id: string
+  partId: string
+  partName: string
+  category: string
+  qty: number
+  unitCost: number
+  totalCost: number
+  createdAt: string
 }
 
 export interface InvoiceItem {
