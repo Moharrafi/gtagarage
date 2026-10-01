@@ -24,6 +24,7 @@ import {
   type Technician,
   type TechnicianInput,
   type StockInLog,
+  type StockOutLog,
 } from "@/lib/data"
 
 export interface WorkOrderInput {
@@ -127,6 +128,8 @@ interface WorkshopContextValue {
   deletePart: (id: string) => void
   stockIn: (id: string, qty: number, unitCost?: number) => void
   stockInLogs: StockInLog[]
+  stockOut: (id: string, qty: number, reason?: string) => void
+  stockOutLogs: StockOutLog[]
   addCategory: (category: string) => void
   deleteCategory: (category: string) => void
   addServiceRate: (input: ServiceRateInput) => void
@@ -275,6 +278,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [parts, setParts] = useState<Part[]>([])
   const [stockInLogs, setStockInLogs] = useState<StockInLog[]>([])
+  const [stockOutLogs, setStockOutLogs] = useState<StockOutLog[]>([])
   const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
@@ -311,6 +315,9 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
           setParts(invenRes.data)
           if (Array.isArray(invenRes.stockInLogs)) {
             setStockInLogs(invenRes.stockInLogs)
+          }
+          if (Array.isArray(invenRes.stockOutLogs)) {
+            setStockOutLogs(invenRes.stockOutLogs)
           }
         }
 
@@ -856,6 +863,51 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     [addNotification, parts]
   )
 
+  const stockOut = useCallback(
+    (id: string, qty: number, reason?: string) => {
+      const logReason = reason?.trim() || "Pemakaian Operasional"
+      setParts((prev) => {
+        const part = prev.find((p) => p.id === id)
+        if (part) {
+          const newStock = Math.max(0, part.stock - qty)
+          addNotification({
+            type: "push",
+            title: "Pemakaian Bahan / Suku Cadang",
+            body: `Pemakaian ${part.name} sebanyak -${qty} unit dicatat (${logReason}). Sisa stok: ${newStock} unit.`,
+            channel: "Gudang Suku Cadang",
+            status: "terkirim",
+            linkTab: "stok",
+          })
+          return prev.map((p) => (p.id === id ? { ...p, stock: newStock } : p))
+        }
+        return prev
+      })
+
+      if (qty > 0) {
+        setStockOutLogs((prev) => {
+          const found = parts.find((p) => p.id === id)
+          const newLog: StockOutLog = {
+            id: `sol-${Date.now()}`,
+            partId: id,
+            partName: found ? found.name : "Barang",
+            category: found ? found.category : "Lainnya",
+            qty,
+            reason: logReason,
+            createdAt: new Date().toISOString(),
+          }
+          return [newLog, ...prev]
+        })
+      }
+
+      fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stock-out', id, qty, reason: logReason }),
+      }).catch((e) => console.error('Failed to sync stockOut to DB', e))
+    },
+    [addNotification, parts]
+  )
+
   const addServiceRate = useCallback((input: ServiceRateInput) => {
     const newRate = { id: `sr-${Date.now()}`, ...input }
     setServiceRates((prev) => [newRate, ...prev])
@@ -1196,6 +1248,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       deletePart,
       stockIn,
       stockInLogs,
+      stockOut,
+      stockOutLogs,
       addCategory,
       deleteCategory,
       addServiceRate,
@@ -1250,6 +1304,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       deletePart,
       stockIn,
       stockInLogs,
+      stockOut,
+      stockOutLogs,
       addCategory,
       deleteCategory,
       addServiceRate,

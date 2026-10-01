@@ -79,6 +79,16 @@ export interface StockInLog {
   createdAt: string
 }
 
+export interface StockOutLog {
+  id: string
+  partId: string
+  partName: string
+  category: string
+  qty: number
+  reason?: string
+  createdAt: string
+}
+
 export interface InvoiceItem {
   label: string
   qty: number

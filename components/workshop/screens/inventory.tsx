@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Search, AlertTriangle, History, Boxes, TrendingDown, Plus, Pencil, Trash2, PackagePlus, ChevronDown, Sparkles, RefreshCw, Eye } from "lucide-react"
+import { Search, AlertTriangle, History, Boxes, TrendingDown, Plus, Pencil, Trash2, PackagePlus, PackageMinus, ChevronDown, Sparkles, RefreshCw, Eye } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -38,7 +38,7 @@ function matchesPillar(p: Part, pillarId: string): boolean {
 const labelCls = "mb-1 block text-xs font-medium text-muted-foreground"
 
 export function InventoryScreen() {
-  const { parts, categories, addPart, updatePart, deletePart, stockIn, canEdit } = useWorkshop()
+  const { parts, categories, addPart, updatePart, deletePart, stockIn, stockOut, canEdit, stockInLogs, stockOutLogs } = useWorkshop()
   const [query, setQuery] = useState("")
   const [lowOnly, setLowOnly] = useState(false)
   const [selectedPillar, setSelectedPillar] = useState<string>("all")
@@ -53,6 +53,11 @@ export function InventoryScreen() {
   const [stockSheetId, setStockSheetId] = useState<string | null>(null)
   const [stockQty, setStockQty] = useState(1)
   const [stockUnitCost, setStockUnitCost] = useState<number>(0)
+
+  const [stockOutSheetId, setStockOutSheetId] = useState<string | null>(null)
+  const [stockOutQty, setStockOutQty] = useState(1)
+  const [stockOutReason, setStockOutReason] = useState("Dituang ke Mesin Blasting")
+  const stockOutTarget = stockOutSheetId ? parts.find((p) => p.id === stockOutSheetId) : null
 
   const countVapor = useMemo(() => parts.filter((p) => matchesPillar(p, "vapor")).length, [parts])
   const countSand = useMemo(() => parts.filter((p) => matchesPillar(p, "sand")).length, [parts])
@@ -131,6 +136,20 @@ export function InventoryScreen() {
     setStockSheetId(null)
     setStockQty(1)
     setStockUnitCost(0)
+  }
+
+  function handleStockOut(e: React.FormEvent) {
+    e.preventDefault()
+    if (stockOutSheetId && stockOutQty > 0) {
+      stockOut(stockOutSheetId, stockOutQty, stockOutReason)
+      const targetName = stockOutTarget?.name || "suku cadang"
+      toast.success("Pemakaian Dicatat", `-${stockOutQty} unit berhasil dikeluarkan untuk "${targetName}".`)
+    } else {
+      toast.error("Gagal Mengurangi Stok", "Jumlah unit harus lebih dari 0.")
+    }
+    setStockOutSheetId(null)
+    setStockOutQty(1)
+    setStockOutReason("Dituang ke Mesin Blasting")
   }
 
   return (
@@ -297,29 +316,47 @@ export function InventoryScreen() {
               >
                 <div className="overflow-hidden">
                   <div className="border-t border-border bg-muted/40 p-3.5 dark:bg-slate-900/60 dark:border-slate-700/80">
-                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium">
-                      <History className="size-3.5 text-primary dark:text-blue-400" /> Riwayat Pemakaian
+                    <div className="mb-2 flex items-center justify-between text-xs font-medium">
+                      <span className="flex items-center gap-1.5">
+                        <History className="size-3.5 text-primary dark:text-blue-400" /> Riwayat & Mutasi
+                      </span>
                     </div>
-                    {p.usedInOrders.length ? (
-                      <ul className="flex flex-wrap gap-1.5">
-                        {p.usedInOrders.map((code) => (
-                          <li
-                            key={code}
-                            className="rounded-md bg-card px-2 py-1 text-[0.7rem] font-medium text-muted-foreground ring-1 ring-border dark:ring-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                          >
-                            {code}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Belum pernah dipakai.</p>
-                    )}
-                    <p className="mt-2 text-[0.7rem] text-muted-foreground">
-                      Terpakai pada {p.usedInOrders.length} perbaikan terakhir.
-                    </p>
+
+                    {(() => {
+                      const itemInLogs = (stockInLogs || []).filter((l) => l.partId === p.id).slice(0, 3)
+                      const itemOutLogs = (stockOutLogs || []).filter((l) => l.partId === p.id).slice(0, 3)
+                      const hasLogs = itemInLogs.length > 0 || itemOutLogs.length > 0 || p.usedInOrders.length > 0
+
+                      if (!hasLogs) {
+                        return <p className="text-xs text-muted-foreground">Belum ada riwayat mutasi.</p>
+                      }
+
+                      return (
+                        <div className="space-y-1.5 text-[0.7rem]">
+                          {itemInLogs.map((l) => (
+                            <div key={l.id} className="flex items-center justify-between rounded bg-emerald-500/10 px-2 py-1 text-emerald-800 dark:text-emerald-300">
+                              <span>📥 Masuk: +{l.qty} unit</span>
+                              <span className="font-semibold">{formatRupiah(l.totalCost)}</span>
+                            </div>
+                          ))}
+                          {itemOutLogs.map((l) => (
+                            <div key={l.id} className="flex items-center justify-between rounded bg-amber-500/10 px-2 py-1 text-amber-800 dark:text-amber-300">
+                              <span>📤 Keluar: -{l.qty} unit</span>
+                              <span className="italic truncate max-w-[150px]">{l.reason || 'Operasional'}</span>
+                            </div>
+                          ))}
+                          {p.usedInOrders.length > 0 && (
+                            <div className="pt-1 text-muted-foreground">
+                              <span>Terpakai pada {p.usedInOrders.length} SPK: </span>
+                              <span className="font-medium text-foreground">{p.usedInOrders.slice(0, 3).join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
 
                     {canEdit && (
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -327,10 +364,30 @@ export function InventoryScreen() {
                             setStockQty(1)
                             setStockUnitCost(p.buyPrice || 0)
                           }}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-brand-2-foreground shadow-sm transition-transform active:scale-98"
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 px-2.5 text-xs font-semibold text-brand-2-foreground shadow-xs transition-transform active:scale-98"
                           style={{ backgroundColor: "var(--brand-2)" }}
                         >
-                          <PackagePlus className="size-3.5" /> Barang Masuk
+                          <PackagePlus className="size-3.5" /> Masuk
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStockOutSheetId(p.id)
+                            setStockOutQty(1)
+                            const catStr = `${p.category} ${p.name}`.toLowerCase()
+                            if (catStr.includes("vapor") || catStr.includes("glass")) {
+                              setStockOutReason("Dituang ke Mesin Vapor Blasting")
+                            } else if (catStr.includes("sand") || catStr.includes("silika") || catStr.includes("garnet")) {
+                              setStockOutReason("Dituang ke Mesin Sandblasting")
+                            } else if (catStr.includes("cat") || catStr.includes("paint") || catStr.includes("epoxy")) {
+                              setStockOutReason("Bahan Pengecatan / Kustom")
+                            } else {
+                              setStockOutReason("Pemakaian Operasional")
+                            }
+                          }}
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 py-2 px-2.5 text-xs font-semibold text-amber-700 dark:text-amber-300 shadow-xs transition-transform active:scale-98 hover:bg-amber-500/20"
+                        >
+                          <PackageMinus className="size-3.5" /> Keluar
                         </button>
                         <button
                           type="button"
@@ -610,6 +667,75 @@ export function InventoryScreen() {
               style={{ backgroundColor: "var(--brand-2)" }}
             >
               Konfirmasi Barang Masuk
+            </button>
+          </form>
+        )}
+      </BottomSheet>
+
+      <BottomSheet open={stockOutSheetId !== null} onClose={() => setStockOutSheetId(null)} title="Barang Keluar (Catat Pemakaian)">
+        {stockOutTarget && (
+          <form onSubmit={handleStockOut} className="space-y-4">
+            <div className="rounded-xl border border-border bg-muted/40 p-3">
+              <p className="text-sm font-medium">{stockOutTarget.name}</p>
+              <p className="text-xs text-muted-foreground">{stockOutTarget.sku} · {stockOutTarget.category} · Stok saat ini: <strong className="text-foreground">{stockOutTarget.stock}</strong></p>
+            </div>
+            
+            <div>
+              <label className={labelCls} htmlFor="stock-out-qty">Jumlah Keluar / Dipakai</label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setStockOutQty((q) => Math.max(1, q - 1))} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">−</button>
+                <Input id="stock-out-qty" type="number" min={1} max={Math.max(1, stockOutTarget.stock)} value={stockOutQty} onChange={(e) => setStockOutQty(Math.max(1, Number(e.target.value)))} className="text-center" />
+                <button type="button" onClick={() => setStockOutQty((q) => Math.min(Math.max(1, stockOutTarget.stock), q + 1))} className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-lg font-semibold text-foreground">+</button>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Keperluan / Alasan Pemakaian</label>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                {[
+                  "Dituang ke Mesin Blasting",
+                  "Bahan Pengerjaan Cat",
+                  "Pemakaian Operasional",
+                  "Bahan Kustom & Modifikasi",
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setStockOutReason(preset)}
+                    className={cn(
+                      "rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all text-left truncate",
+                      stockOutReason === preset
+                        ? "border-amber-500 bg-amber-500/15 text-amber-800 dark:text-amber-200 font-bold"
+                        : "border-border bg-card text-muted-foreground hover:bg-accent"
+                    )}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <Input
+                value={stockOutReason}
+                onChange={(e) => setStockOutReason(e.target.value)}
+                placeholder="Ketik keperluan pemakaian..."
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-2.5 text-xs space-y-1">
+              <div className="flex justify-between items-center text-amber-900 dark:text-amber-200">
+                <span>Sisa Stok Fisik Setelah Keluar:</span>
+                <span className="font-bold text-sm text-foreground">{Math.max(0, stockOutTarget.stock - stockOutQty)} unit</span>
+              </div>
+              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                Pencatatan ini akan langsung menyesuaikan sisa stok fisik di bengkel tanpa mengubah catatan belanja yang sudah terjadi.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-xl py-3 text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md transition-transform active:scale-[0.99]"
+            >
+              Konfirmasi Barang Keluar (-{stockOutQty} unit)
             </button>
           </form>
         )}
