@@ -58,6 +58,19 @@ const emptyForm: WorkOrderInput = {
   status: "Antrian",
 }
 
+function formatWorkOrderDate(dateStr?: string) {
+  if (!dateStr) return "-"
+  if (!dateStr.includes("T") && !dateStr.includes("-")) return dateStr
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).replace(".", ":")
+}
+
 function fromWorkOrder(w: WorkOrder): WorkOrderInput {
   return {
     customerName: w.customer.name,
@@ -437,7 +450,7 @@ export function WorkOrdersScreen() {
                         <Wrench className="size-3.5" /> {w.technician}
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="size-3.5" /> Masuk {w.createdAt}
+                        <Clock className="size-3.5" /> Masuk {formatWorkOrderDate(w.createdAt)}
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Clock className="size-3.5" /> Estimasi {w.estimatedDone}

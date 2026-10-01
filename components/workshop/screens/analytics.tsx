@@ -125,7 +125,13 @@ export function AnalyticsScreen() {
       <Card className="gap-3 p-4">
         <div>
           <h2 className="text-sm font-semibold">Tren Pendapatan & Kunjungan</h2>
-          <p className="text-xs text-muted-foreground">6 bulan terakhir</p>
+          <p className="text-xs text-muted-foreground">
+            {period === "Mingguan"
+              ? "7 hari terakhir"
+              : period === "Bulanan"
+              ? `Bulan ${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`
+              : `Tahun ${new Date().getFullYear()}`}
+          </p>
         </div>
         <div className="h-52 w-full">
           <ResponsiveContainer width="100%" height="100%">

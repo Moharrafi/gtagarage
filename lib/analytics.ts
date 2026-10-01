@@ -144,12 +144,25 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   
   // Calculate period boundaries based on filter
   let startDate = new Date(now)
+  let prevStartDate = new Date(startDate)
+  let prevEndDate = new Date(startDate)
+
   if (filter === "Mingguan") {
     startDate.setDate(now.getDate() - 7)
+    prevStartDate = new Date(startDate)
+    prevStartDate.setDate(prevStartDate.getDate() - 7)
+    prevEndDate = new Date(startDate)
   } else if (filter === "Bulanan") {
-    startDate.setMonth(now.getMonth() - 1)
+    // Current calendar month: from 1st of month 00:00:00
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+    // Previous calendar month: from 1st of last month to last day of last month
+    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0)
+    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
   } else {
-    startDate.setFullYear(now.getFullYear() - 1)
+    // Current calendar year: from Jan 1 00:00:00
+    startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0)
+    prevStartDate = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0)
+    prevEndDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59)
   }
 
   // Filter data within the period
@@ -163,19 +176,9 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     return d >= startDate && d <= now
   })
 
-  // Previous period for delta calculation
-  let prevStartDate = new Date(startDate)
-  if (filter === "Mingguan") {
-    prevStartDate.setDate(prevStartDate.getDate() - 7)
-  } else if (filter === "Bulanan") {
-    prevStartDate.setMonth(prevStartDate.getMonth() - 1)
-  } else {
-    prevStartDate.setFullYear(prevStartDate.getFullYear() - 1)
-  }
-
   const prevInvoices = invoices.filter(inv => {
     const d = parseInvoiceDate(inv)
-    return !isNaN(d.getTime()) && d >= prevStartDate && d < startDate
+    return !isNaN(d.getTime()) && d >= prevStartDate && d <= prevEndDate
   })
 
   // 1. Overview KPIs
@@ -275,17 +278,22 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
       revenueTrend.push({ month: dayName, pendapatan: total, kunjungan: visits })
     }
   } else if (filter === "Bulanan") {
-    // Split last 30 days into 4 weeks
+    // Divide current month into 4 calendar weeks:
+    // Mg 1: Tanggal 1 - 7
+    // Mg 2: Tanggal 8 - 14
+    // Mg 3: Tanggal 15 - 21
+    // Mg 4: Tanggal 22 - akhir bulan
     const bucketTotals = [0, 0, 0, 0]
     const bucketVisits = [0, 0, 0, 0]
-    const MS_PER_DAY = 1000 * 60 * 60 * 24
     
     validInvoices.forEach(inv => {
       const invDate = parseInvoiceDate(inv)
-      const diffDays = Math.floor((invDate.getTime() - startDate.getTime()) / MS_PER_DAY)
-      let bucket = Math.floor(diffDays / 7)
-      if (bucket > 3) bucket = 3
-      if (bucket < 0) bucket = 0
+      const day = invDate.getDate()
+      let bucket = 0
+      if (day <= 7) bucket = 0
+      else if (day <= 14) bucket = 1
+      else if (day <= 21) bucket = 2
+      else bucket = 3
       
       if (inv.status === "Lunas") {
         bucketTotals[bucket] += inv.paidAmount
@@ -297,15 +305,14 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
       revenueTrend.push({ month: `Mg ${i + 1}`, pendapatan: bucketTotals[i], kunjungan: bucketVisits[i] })
     }
   } else {
-    // 12 months
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-      const month = monthNames[d.getMonth()]
+    // 12 months (Jan - Des) of current year
+    for (let i = 0; i < 12; i++) {
+      const month = monthNames[i]
       let total = 0
       let visits = 0
       validInvoices.forEach(inv => {
         const invDate = parseInvoiceDate(inv)
-        if (invDate.getMonth() === d.getMonth() && invDate.getFullYear() === d.getFullYear()) {
+        if (invDate.getFullYear() === now.getFullYear() && invDate.getMonth() === i) {
           if (inv.status === "Lunas") total += inv.paidAmount
           visits += 1
         }
@@ -351,7 +358,11 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   })
 
   const monthlyReport = {
-    period: filter === "Mingguan" ? "7 Hari Terakhir" : filter === "Bulanan" ? "30 Hari Terakhir" : "1 Tahun Terakhir",
+    period: filter === "Mingguan"
+      ? "7 Hari Terakhir"
+      : filter === "Bulanan"
+      ? `Bulan ${monthNames[now.getMonth()]} ${now.getFullYear()}`
+      : `Tahun ${now.getFullYear()}`,
     pendapatan: totalPendapatan,
     pengeluaran: pengeluaran,
     laba: totalPendapatan - pengeluaran,
