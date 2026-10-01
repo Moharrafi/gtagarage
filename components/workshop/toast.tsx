@@ -73,7 +73,8 @@ export function Toaster() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[420px] px-3.5 flex flex-col gap-2"
+      className="pointer-events-none fixed left-1/2 -translate-x-1/2 z-[100] w-full max-w-[420px] px-3.5 flex flex-col gap-2"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
     >
       {toasts.map((t) => {
         return (

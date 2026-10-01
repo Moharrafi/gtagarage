@@ -508,7 +508,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       onClose={onClose}
       full={true}
       header={
-        <div className="shrink-0 bg-primary text-white dark:bg-slate-900 border-b border-primary/20 dark:border-slate-800 px-4 pt-3.5 pb-3">
+        <div className="shrink-0 bg-primary text-white dark:bg-slate-900 border-b border-primary/20 dark:border-slate-800 px-4 pb-3" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.875rem)' }}>
           {/* Header Row */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -853,7 +853,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       </div>
 
       {/* Scrollable Content Container (Only the list & forms scroll!) */}
-      <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 bg-slate-50/60 dark:bg-slate-950/40 p-4 space-y-3.5 no-scrollbar">
+      <div className="flex-1 overflow-y-auto overscroll-contain min-h-0 bg-slate-50/60 dark:bg-slate-950/40 p-4 space-y-3.5 no-scrollbar" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}>
         {/* ================= TAB 1: KATALOG & HARGA ================= */}
         {activeTab === "harga" && (
           <div className="space-y-3">

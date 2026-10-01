@@ -17,7 +17,7 @@ export function BottomNav({ active, onChange }: { active: TabKey; onChange: (t: 
   return (
     <nav
       aria-label="Navigasi utama"
-      className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 backdrop-blur-md"
+      className="shrink-0 z-30 border-t border-border bg-card/95 backdrop-blur-md"
     >
       <ul className="flex items-stretch justify-around px-1 pt-1.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {tabs.map(({ key, label, icon: Icon }) => {

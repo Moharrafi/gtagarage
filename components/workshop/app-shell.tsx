@@ -337,7 +337,7 @@ function AppShellInner() {
           </header>
 
           {/* Scrollable content */}
-          <main className="relative flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-24 md:pb-6 pt-4 no-scrollbar bg-background">
+          <main className="relative flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pb-4 md:pb-6 pt-4 no-scrollbar bg-background">
             <div className="relative mx-auto w-full max-w-5xl">
               {tab === "beranda" && <DashboardScreen onNavigate={setTab} />}
               {tab === "pekerjaan" && <WorkOrdersScreen />}
