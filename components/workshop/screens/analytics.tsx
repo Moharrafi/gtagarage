@@ -183,32 +183,36 @@ export function AnalyticsScreen() {
         <Card className="gap-3 p-4">
           <h2 className="text-sm font-semibold">Pendapatan per Layanan</h2>
           <div className="flex items-center gap-2">
-            <div className="h-40 w-1/2">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={serviceBreakdown}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={38}
-                    outerRadius={62}
-                    paddingAngle={2}
-                    stroke="none"
-                  >
-                    {serviceBreakdown.map((_, i) => (
-                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip currency />} />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="h-40 w-1/2 flex items-center justify-center">
+              {totalJobs > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={serviceBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={38}
+                      outerRadius={62}
+                      paddingAngle={2}
+                      stroke="none"
+                    >
+                      {serviceBreakdown.map((_, i) => (
+                        <Cell key={i} fill={pieColors[i % pieColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip currency />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <span className="text-xs text-muted-foreground">Belum ada data</span>
+              )}
             </div>
             <ul className="flex-1 space-y-2">
               {serviceBreakdown.map((s, i) => (
                 <li key={s.name} className="flex items-center gap-2 text-xs">
                   <span className="size-2.5 shrink-0 rounded-full" style={{ background: pieColors[i] }} />
                   <span className="flex-1 truncate text-muted-foreground">{s.name}</span>
-                  <span className="font-medium">{Math.round((s.jobs / totalJobs) * 100)}%</span>
+                  <span className="font-medium">{totalJobs > 0 ? Math.round((s.jobs / totalJobs) * 100) : 0}%</span>
                 </li>
               ))}
             </ul>

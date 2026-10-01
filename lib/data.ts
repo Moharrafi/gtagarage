@@ -109,70 +109,7 @@ export interface Voucher {
   description?: string
 }
 
-export const defaultVouchers: Voucher[] = [
-  {
-    id: "v-1",
-    code: "VAPOR25K",
-    title: "Promo Spesial Vapor Blasting",
-    type: "fixed",
-    value: 25000,
-    minPurchase: 150000,
-    validUntil: "2026-12-31",
-    isActive: true,
-    targetService: "Vapor Blasting",
-    description: "Potongan Rp 25.000 khusus pengerjaan mesin & restorasi vapor blasting",
-  },
-  {
-    id: "v-2",
-    code: "MEMBER10",
-    title: "Diskon Member & Komunitas Motor",
-    type: "percent",
-    value: 10,
-    maxDiscount: 50000,
-    minPurchase: 100000,
-    validUntil: "2026-12-31",
-    isActive: true,
-    targetService: "Semua Layanan",
-    description: "Diskon 10% (maksimal Rp 50.000) umum untuk seluruh layanan bengkel",
-  },
-  {
-    id: "v-3",
-    code: "OJOL15",
-    title: "Diskon Khusus Mitra Ojol (Grab/Gojek)",
-    type: "percent",
-    value: 15,
-    maxDiscount: 35000,
-    minPurchase: 50000,
-    validUntil: "2026-12-31",
-    isActive: true,
-    targetService: "Semua Layanan",
-    description: "Diskon 15% (maks Rp 35.000) umum untuk driver ojek online & delivery",
-  },
-  {
-    id: "v-4",
-    code: "SERVIS20K",
-    title: "Promo Servis Rutin & Tune Up",
-    type: "fixed",
-    value: 20000,
-    minPurchase: 100000,
-    validUntil: "2026-12-31",
-    isActive: true,
-    targetService: "Servis",
-    description: "Potongan Rp 20.000 khusus pengerjaan servis berkala, oli & tune up motor",
-  },
-  {
-    id: "v-5",
-    code: "SANDBLAST50",
-    title: "Voucher Paket Sand Blasting Sasis",
-    type: "fixed",
-    value: 50000,
-    minPurchase: 300000,
-    validUntil: "2026-12-31",
-    isActive: true,
-    targetService: "Sand Blasting",
-    description: "Potongan Rp 50.000 khusus pengerjaan sasis dan kaki-kaki sandblasting",
-  },
-]
+export const defaultVouchers: Voucher[] = []
 
 export interface Technician {
   id: string
@@ -216,19 +153,7 @@ export interface ServiceRate {
   description?: string
 }
 
-export const defaultServiceRates: ServiceRate[] = [
-  { id: "sr-1", name: "Vapor Blasting Blok Mesin Bebek/Matic", category: "Vapor Blasting", price: 250000, description: "Pembersihan kerak kusam blok & kop silinder" },
-  { id: "sr-2", name: "Vapor Blasting Blok Mesin Sport 250cc", category: "Vapor Blasting", price: 450000, description: "Crankcase, blok silinder & kop 2 silinder" },
-  { id: "sr-3", name: "Vapor Blasting Cover CVT / Bak Mesin", category: "Vapor Blasting", price: 150000, description: "Cover CVT kiri / bak kopling kanan" },
-  { id: "sr-4", name: "Vapor Blasting Tromol & Kaliper Rem", category: "Vapor Blasting", price: 90000, description: "Sepasang tromol roda atau kaliper rem" },
-  { id: "sr-5", name: "Vapor Blasting Karburator / Throttle Body", category: "Vapor Blasting", price: 120000, description: "Pembersihan kerak ruang bakar luar dalam" },
-  { id: "sr-6", name: "Sand Blasting Rangka Motor Full", category: "Sand Blasting", price: 400000, description: "Kupas cat lama & karat sasis utama" },
-  { id: "sr-7", name: "Sand Blasting Swing Arm & Kaki-kaki", category: "Sand Blasting", price: 150000, description: "Lengan ayun & segitiga shock depan" },
-  { id: "sr-8", name: "Servis Berkala & Tune Up Ringan", category: "Servis", price: 75000, description: "Pembersihan injeksi/karbu, filter & busi" },
-  { id: "sr-9", name: "Servis Besar / Turun Mesin (Overhaul)", category: "Servis", price: 350000, description: "Bongkar total mesin, skir klep, ring piston" },
-  { id: "sr-10", name: "Powder Coating Velg (Sepasang)", category: "Kustomisasi", price: 400000, description: "Cat oven velg depan & belakang" },
-  { id: "sr-11", name: "Repaint Tangki Powder Coating", category: "Kustomisasi", price: 350000, description: "Cat oven tangki motor kustom/sport" },
-]
+export const defaultServiceRates: ServiceRate[] = []
 
 // ---------- Workshop Category Pillars & Presets ----------
 
