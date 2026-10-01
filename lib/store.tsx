@@ -10,6 +10,8 @@ import {
   defaultVouchers,
   defaultUsers,
   invoices,
+  type Invoice,
+  type InvoiceItem,
   type WorkOrder,
   type Part,
   type ServiceType,
@@ -344,7 +346,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
           } else {
             const existingInv = updatedInvoices[existingIdx]
             if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
-              const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
+              const total = existingInv.items.reduce((s: number, i: InvoiceItem) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
               updatedInvoices[existingIdx] = {
                 ...existingInv,
                 status: "Lunas",
@@ -439,7 +441,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         } else {
           const existingInv = updated[existingIdx]
           if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
-            const total = existingInv.items.reduce((s, i) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
+            const total = existingInv.items.reduce((s: number, i: InvoiceItem) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
             updated[existingIdx] = {
               ...existingInv,
               status: "Lunas",
@@ -678,7 +680,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         status: input.status,
         technician: input.technician,
         progress: progressForStatus(input.status),
-        createdAt: timeLabel,
+        createdAt: now.toISOString(),
         estimatedDone: "Belum ditentukan",
         laborCost: input.laborCost,
         usedParts: input.usedParts || [],
@@ -1034,8 +1036,8 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       initials: initials(name),
       activeJobs: 0,
       completedThisMonth: 0,
-      avgHours: 3.5,
-      efficiency: 90,
+      avgHours: 0,
+      efficiency: 0,
       phone: input.phone?.trim() || "",
       specialty: input.specialty?.trim() || "Mekanik Umum & Servis",
       status: input.status || "Aktif",

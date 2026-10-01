@@ -2,54 +2,70 @@ import type { Invoice, WorkOrder, Part, Technician } from "./data"
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
+const idMonths: Record<string, number> = {
+  'jan': 0, 'januari': 0,
+  'feb': 1, 'februari': 1,
+  'mar': 2, 'maret': 2,
+  'apr': 3, 'april': 3,
+  'mei': 4, 'may': 4,
+  'jun': 5, 'juni': 5,
+  'jul': 6, 'juli': 6,
+  'agu': 7, 'ags': 7, 'agustus': 7,
+  'sep': 8, 'september': 8,
+  'okt': 9, 'oktober': 9, 'oct': 9,
+  'nov': 10, 'november': 10,
+  'des': 11, 'desember': 11, 'dec': 11,
+}
+
 // Robust date parser: handles ISO strings, Indonesian locale strings like "1 Okt, 11.04", and timestamps
-function parseInvoiceDate(inv: Invoice): Date {
-  // 1. Try createdAt (ISO string from DB)
+export function parseDateFlexible(dateVal?: any): Date | null {
+  if (!dateVal) return null
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal
+
+  const str = String(dateVal).trim()
+  if (!str) return null
+
+  // 1. Direct standard parse (ISO 8601, RFC2822, YYYY-MM-DD)
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) return d
+
+  // 2. Match day, monthName, optional year, optional time
+  // Examples: "1 Okt, 11.04", "1 Okt 2026", "01 Oktober 2026, 11:04", "Kam, 1 Okt 2026"
+  const cleanStr = str.toLowerCase()
+  const m = cleanStr.match(/(\d{1,2})\s+([a-z]{3,9})(?:\s+(\d{4}))?(?:,?\s*(\d{1,2})[.:](\d{2}))?/)
+  if (m) {
+    const day = parseInt(m[1], 10)
+    const monthKey = m[2]
+    const year = m[3] ? parseInt(m[3], 10) : new Date().getFullYear()
+    const hour = m[4] ? parseInt(m[4], 10) : 0
+    const minute = m[5] ? parseInt(m[5], 10) : 0
+
+    const month = idMonths[monthKey] ?? idMonths[monthKey.slice(0, 3)]
+    if (month !== undefined) {
+      return new Date(year, month, day, hour, minute)
+    }
+  }
+
+  return null
+}
+
+export function parseInvoiceDate(inv: Invoice): Date {
   if (inv.createdAt) {
-    const d = new Date(inv.createdAt)
-    if (!isNaN(d.getTime())) return d
+    const d = parseDateFlexible(inv.createdAt)
+    if (d) return d
   }
-  // 2. Try paidAt combined with date if date contains a day reference
-  // 3. Try the date field
   if (inv.date) {
-    // Try direct parse first (ISO format)
-    const d1 = new Date(inv.date)
-    if (!isNaN(d1.getTime())) return d1
-
-    // Try parsing Indonesian date format like "1 Okt, 11.04" or "25 Sep 2026"
-    const idMonths: Record<string, number> = {
-      'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mei': 4, 'jun': 5,
-      'jul': 6, 'agu': 7, 'ags': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
-    }
-
-    // Pattern: "1 Okt, 11.04" (day month, time)
-    const shortMatch = inv.date.match(/^(\d{1,2})\s+(\w{3}),?\s*(\d{1,2})\.(\d{2})$/i)
-    if (shortMatch) {
-      const day = parseInt(shortMatch[1])
-      const monthKey = shortMatch[2].toLowerCase()
-      const hour = parseInt(shortMatch[3])
-      const minute = parseInt(shortMatch[4])
-      const month = idMonths[monthKey]
-      if (month !== undefined) {
-        const now = new Date()
-        return new Date(now.getFullYear(), month, day, hour, minute)
-      }
-    }
-
-    // Pattern: "25 Sep 2026"
-    const longMatch = inv.date.match(/^(\d{1,2})\s+(\w{3})\s+(\d{4})$/i)
-    if (longMatch) {
-      const day = parseInt(longMatch[1])
-      const monthKey = longMatch[2].toLowerCase()
-      const year = parseInt(longMatch[3])
-      const month = idMonths[monthKey]
-      if (month !== undefined) {
-        return new Date(year, month, day)
-      }
-    }
+    const d = parseDateFlexible(inv.date)
+    if (d) return d
   }
+  return new Date()
+}
 
-  // 4. Fallback to now
+export function parseWorkOrderDate(wo: WorkOrder): Date {
+  if (wo.createdAt) {
+    const d = parseDateFlexible(wo.createdAt)
+    if (d) return d
+  }
   return new Date()
 }
 
@@ -143,7 +159,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   })
   
   const validWorkOrders = workOrders.filter(wo => {
-    const d = new Date(wo.createdAt || Date.now())
+    const d = parseWorkOrderDate(wo)
     return d >= startDate && d <= now
   })
 
@@ -177,18 +193,18 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     if (inv.status === "Lunas") totalPendapatan += inv.paidAmount
   })
   
-  // Calculate real average service time from work orders (in hours)
+  // Calculate real average service time from work orders
   let totalServiceMinutes = 0
   let completedJobCount = 0
   validWorkOrders.forEach(wo => {
-    if ((wo.status === "Selesai" || wo.status === "Siap Diambil") && wo.createdAt) {
-      const created = new Date(wo.createdAt)
-      const completed = wo.completedAt ? new Date(wo.completedAt) : now
+    if (wo.status === "Selesai" || wo.status === "Siap Diambil") {
+      const created = parseWorkOrderDate(wo)
+      const completed = wo.completedAt ? (parseDateFlexible(wo.completedAt) || now) : now
       if (!isNaN(created.getTime()) && !isNaN(completed.getTime())) {
         const diffMs = completed.getTime() - created.getTime()
-        const diffMinutes = diffMs / (1000 * 60)
-        // Only count if within reasonable range (1 min to 30 days)
-        if (diffMinutes > 1 && diffMinutes < 43200) {
+        const diffMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)))
+        // Count if reasonable (1 min to 30 days)
+        if (diffMinutes >= 1 && diffMinutes < 43200) {
           totalServiceMinutes += diffMinutes
           completedJobCount++
         }
@@ -196,28 +212,33 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     }
   })
   
-  const rataServis = completedJobCount > 0 ? Math.round((totalServiceMinutes / completedJobCount / 60) * 10) / 10 : 0
+  const avgMinutes = completedJobCount > 0 ? totalServiceMinutes / completedJobCount : 0
+  const rataServisHours = Math.round((avgMinutes / 60) * 10) / 10
+  const rataServisFormatted = completedJobCount === 0
+    ? "0 jam"
+    : avgMinutes < 60
+    ? `${Math.max(1, Math.round(avgMinutes))} mnt`
+    : `${rataServisHours} jam`
   
   // Previous period rata servis
   const prevCompletedWOs = workOrders.filter(wo => {
-    const d = new Date(wo.createdAt || Date.now())
+    const d = parseWorkOrderDate(wo)
     return d >= prevStartDate && d < startDate && (wo.status === "Selesai" || wo.status === "Siap Diambil")
   })
   let prevServiceMinutes = 0
   let prevCompletedCount = 0
   prevCompletedWOs.forEach(wo => {
-    if (wo.createdAt) {
-      const created = new Date(wo.createdAt)
-      const completed = wo.completedAt ? new Date(wo.completedAt) : new Date(created.getTime() + 3 * 60 * 60 * 1000)
-      const diffMs = completed.getTime() - created.getTime()
-      const diffMinutes = diffMs / (1000 * 60)
-      if (diffMinutes > 1 && diffMinutes < 43200) {
-        prevServiceMinutes += diffMinutes
-        prevCompletedCount++
-      }
+    const created = parseWorkOrderDate(wo)
+    const completed = wo.completedAt ? (parseDateFlexible(wo.completedAt) || new Date(created.getTime() + 3600000)) : new Date(created.getTime() + 3600000)
+    const diffMs = completed.getTime() - created.getTime()
+    const diffMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)))
+    if (diffMinutes >= 1 && diffMinutes < 43200) {
+      prevServiceMinutes += diffMinutes
+      prevCompletedCount++
     }
   })
-  const prevRataServis = prevCompletedCount > 0 ? Math.round((prevServiceMinutes / prevCompletedCount / 60) * 10) / 10 : 0
+  const prevAvgMinutes = prevCompletedCount > 0 ? prevServiceMinutes / prevCompletedCount : 0
+  const prevRataServisHours = Math.round((prevAvgMinutes / 60) * 10) / 10
 
   const calcDelta = (current: number, prev: number, isTime = false) => {
     if (prev === 0) return current > 0 ? (isTime ? "+1,0" : "+100%") : "0%"
@@ -231,9 +252,9 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
 
   const deltaPendapatan = calcDelta(totalPendapatan, prevPendapatan)
   const deltaKunjungan = calcDelta(totalKunjungan, prevKunjungan)
-  const deltaRataServis = calcDelta(rataServis, prevRataServis, true) + " jam"
+  const deltaRataServis = calcDelta(rataServisHours, prevRataServisHours, true) + (avgMinutes < 60 && completedJobCount > 0 ? " mnt" : " jam")
 
-  // 2. Revenue Trend (6 data points)
+  // 2. Revenue Trend
   const revenueTrend = []
   if (filter === "Mingguan") {
     // 7 days
@@ -298,7 +319,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   const dailyVisits = Array(7).fill(0).map((_, i) => ({ day: days[(i + 1) % 7], masuk: 0, selesai: 0 }))
   
   validWorkOrders.forEach(wo => {
-    const d = new Date(wo.createdAt || Date.now())
+    const d = parseWorkOrderDate(wo)
     const dayName = days[d.getDay()]
     const idx = dailyVisits.findIndex(v => v.day === dayName)
     if (idx !== -1) {
@@ -322,7 +343,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     svc.jobs += 1
   })
 
-  // 5. Monthly Report
+  // 5. Financial Summary
   let pengeluaran = totalPendapatan * 0.55 // approximate real expenses
   let piutang = 0
   validInvoices.forEach(inv => {
@@ -343,7 +364,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   return { 
     totalPendapatan, deltaPendapatan,
     totalKunjungan, deltaKunjungan,
-    rataServis, deltaRataServis,
+    rataServis: rataServisFormatted, deltaRataServis,
     revenueTrend, dailyVisits, serviceBreakdown, monthlyReport 
   }
 }
@@ -361,7 +382,7 @@ export function getTechnicianStats(technicians: Technician[], workOrders: WorkOr
     // Completed this month
     const completedThisMonth = techWOs.filter(wo => {
       if (wo.status !== "Selesai" && wo.status !== "Siap Diambil") return false
-      const d = new Date(wo.createdAt || Date.now())
+      const d = parseWorkOrderDate(wo)
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear
     }).length
 
@@ -370,17 +391,17 @@ export function getTechnicianStats(technicians: Technician[], workOrders: WorkOr
       wo.status === "Dikerjakan" || wo.status === "Antrian" || wo.status === "Menunggu Sparepart"
     ).length
 
-    // Calculate real average hours per job
+    // Calculate real average minutes and hours per job
     let totalMinutes = 0
     let countedJobs = 0
     techWOs.forEach(wo => {
-      if ((wo.status === "Selesai" || wo.status === "Siap Diambil") && wo.createdAt) {
-        const created = new Date(wo.createdAt)
-        const completed = wo.completedAt ? new Date(wo.completedAt) : now
+      if (wo.status === "Selesai" || wo.status === "Siap Diambil") {
+        const created = parseWorkOrderDate(wo)
+        const completed = wo.completedAt ? (parseDateFlexible(wo.completedAt) || now) : now
         if (!isNaN(created.getTime()) && !isNaN(completed.getTime())) {
           const diffMs = completed.getTime() - created.getTime()
-          const diffMinutes = diffMs / (1000 * 60)
-          if (diffMinutes > 0 && diffMinutes < 43200) { // between 0 and 30 days
+          const diffMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)))
+          if (diffMinutes >= 1 && diffMinutes < 43200) { // between 1 min and 30 days
             totalMinutes += diffMinutes
             countedJobs++
           }
@@ -388,11 +409,17 @@ export function getTechnicianStats(technicians: Technician[], workOrders: WorkOr
       }
     })
 
-    const avgHours = countedJobs > 0 ? Math.round((totalMinutes / countedJobs / 60) * 10) / 10 : 0
+    const avgMinutes = countedJobs > 0 ? totalMinutes / countedJobs : 0
+    const avgHours = Math.round((avgMinutes / 60) * 10) / 10
+    const avgTimeFormatted = countedJobs === 0
+      ? "0 jam"
+      : avgMinutes < 60
+      ? `${Math.max(1, Math.round(avgMinutes))} mnt`
+      : `${avgHours} jam`
 
     // Efficiency: completed / total assigned * 100
     const totalAssigned = techWOs.filter(wo => {
-      const d = new Date(wo.createdAt || Date.now())
+      const d = parseWorkOrderDate(wo)
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear
     }).length
     const efficiency = totalAssigned > 0 ? Math.round((completedThisMonth / totalAssigned) * 100) : 0
@@ -402,6 +429,7 @@ export function getTechnicianStats(technicians: Technician[], workOrders: WorkOr
       completedThisMonth,
       activeJobs,
       avgHours,
+      avgTimeFormatted,
       efficiency,
     }
   })

@@ -23,6 +23,7 @@ function formatInvoice(row: any): Invoice {
     paymentRef: row.payment_ref || undefined,
     paidAt: row.paid_at || undefined,
     bankName: row.bank_name || undefined,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
   }
 }
 

@@ -120,6 +120,7 @@ export interface Technician {
   activeJobs: number
   completedThisMonth: number
   avgHours: number // average hours per job
+  avgTimeFormatted?: string
   efficiency: number // 0-100
   phone?: string
   specialty?: string

@@ -82,7 +82,7 @@ export function AnalyticsScreen() {
   const kpis = [
     { label: "Pendapatan", value: formatCompact(monthlyReport.pendapatan), icon: TrendingUp, delta: deltaPendapatan, up: !deltaPendapatan.startsWith("-") },
     { label: "Kunjungan", value: `${monthlyReport.totalTransaksi}`, icon: Users, delta: deltaKunjungan, up: !deltaKunjungan.startsWith("-") },
-    { label: "Rata Servis", value: `${rataServis} jam`, icon: Timer, delta: deltaRataServis, up: !deltaRataServis.startsWith("-") },
+    { label: "Rata Servis", value: String(rataServis).includes(" ") ? String(rataServis) : `${rataServis} jam`, icon: Timer, delta: deltaRataServis, up: !deltaRataServis.startsWith("-") },
   ]
 
   return (
@@ -230,7 +230,7 @@ export function AnalyticsScreen() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium">{t.name}</span>
                   <span className="text-muted-foreground">
-                    {t.completedThisMonth} job · {t.avgHours} jam/job
+                    {t.completedThisMonth} job · {t.avgTimeFormatted || `${t.avgHours} jam`}/job
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

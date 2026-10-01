@@ -32,17 +32,32 @@ export function PwaInstaller() {
 
     // 3. Register Service Worker (all environments for push notification support)
     if ("serviceWorker" in navigator) {
+      let refreshing = false
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true
+          window.location.reload()
+        }
+      })
+
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {
+          // Immediately check for SW update on every app launch
+          reg.update().catch(() => {})
+
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: "SKIP_WAITING" })
+          }
+
           // Check for updates
           reg.addEventListener("updatefound", () => {
             const installing = reg.installing
             if (installing) {
               installing.addEventListener("statechange", () => {
                 if (installing.state === "installed" && navigator.serviceWorker.controller) {
-                  // New update available
-                  console.log("[PWA] Update baru tersedia")
+                  // New update available - trigger skip waiting to activate and reload
+                  installing.postMessage({ type: "SKIP_WAITING" })
                 }
               })
             }

@@ -18,6 +18,11 @@ function formatWorkOrder(row: any): WorkOrder {
     usedParts: typeof row.used_parts === 'string' ? JSON.parse(row.used_parts) : (row.used_parts || []),
     estimatedDone: row.estimated_done || '',
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    completedAt: row.completed_at
+      ? new Date(row.completed_at).toISOString()
+      : (row.status === 'Selesai' || row.status === 'Siap Diambil'
+          ? (row.updated_at ? new Date(row.updated_at).toISOString() : undefined)
+          : undefined),
   }
 }
 
@@ -39,8 +44,15 @@ export async function POST(req: Request) {
     const code = body.code
 
     await query(
-      `INSERT INTO work_orders (id, code, customer, vehicle, service, complaint, status, technician, progress, labor_cost, used_parts, estimated_done, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+      `INSERT INTO work_orders (
+         id, code, customer, vehicle, service, complaint, status, technician,
+         progress, labor_cost, used_parts, estimated_done, completed_at, created_at, updated_at
+       )
+       VALUES (
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+         CASE WHEN $7 IN ('Selesai', 'Siap Diambil') THEN NOW() ELSE NULL END,
+         NOW(), NOW()
+       )
        ON CONFLICT (id) DO UPDATE SET
          code = EXCLUDED.code,
          customer = EXCLUDED.customer,
@@ -53,6 +65,7 @@ export async function POST(req: Request) {
          labor_cost = EXCLUDED.labor_cost,
          used_parts = EXCLUDED.used_parts,
          estimated_done = EXCLUDED.estimated_done,
+         completed_at = CASE WHEN EXCLUDED.status IN ('Selesai', 'Siap Diambil') AND work_orders.completed_at IS NULL THEN NOW() ELSE work_orders.completed_at END,
          updated_at = NOW()`,
       [
         id,
@@ -115,6 +128,7 @@ export async function PUT(req: Request) {
          labor_cost = $8,
          used_parts = $9,
          estimated_done = $10,
+         completed_at = CASE WHEN $5 IN ('Selesai', 'Siap Diambil') AND completed_at IS NULL THEN NOW() ELSE completed_at END,
          updated_at = NOW()
        WHERE id = $11`,
       [
