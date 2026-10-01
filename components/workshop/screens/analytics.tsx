@@ -35,7 +35,7 @@ import {
   formatRupiah,
   formatCompact,
 } from "@/lib/data"
-import { getAnalyticsData } from "@/lib/analytics"
+import { getAnalyticsData, getTechnicianStats } from "@/lib/analytics"
 
 const pieColors = ["var(--chart-3)", "var(--chart-2)", "var(--chart-5)", "var(--chart-1)"]
 
@@ -75,6 +75,7 @@ export function AnalyticsScreen() {
   const [exportOpen, setExportOpen] = useState(false)
   
   const { totalPendapatan, deltaPendapatan, totalKunjungan, deltaKunjungan, rataServis, deltaRataServis, revenueTrend, dailyVisits, serviceBreakdown, monthlyReport } = getAnalyticsData(invoices, workOrders, period)
+  const realTechnicians = getTechnicianStats(technicians, workOrders)
   
   const totalJobs = serviceBreakdown.reduce((s, x) => s + x.jobs, 0)
 
@@ -224,7 +225,7 @@ export function AnalyticsScreen() {
         <Card className="gap-3 p-4">
           <h2 className="text-sm font-semibold">Efisiensi Teknisi</h2>
           <ul className="space-y-3">
-            {technicians.map((t) => (
+            {realTechnicians.map((t) => (
               <li key={t.id} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-medium">{t.name}</span>

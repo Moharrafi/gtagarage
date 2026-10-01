@@ -50,6 +50,7 @@ export interface WorkOrder {
   technician: string
   progress: number
   createdAt: string
+  completedAt?: string
   estimatedDone: string
   laborCost: number
   usedParts: UsedPart[]
@@ -83,6 +84,7 @@ export interface Invoice {
   status: PaymentStatus
   method?: "QRIS" | "Transfer" | "Kartu" | "Tunai"
   date: string
+  createdAt?: string
   paidAmount: number
   discountType?: "none" | "voucher" | "manual"
   discountCode?: string

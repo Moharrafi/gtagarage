@@ -1,11 +1,60 @@
-import type { Invoice, WorkOrder, Part } from "./data"
+import type { Invoice, WorkOrder, Part, Technician } from "./data"
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
+// Robust date parser: handles ISO strings, Indonesian locale strings like "1 Okt, 11.04", and timestamps
+function parseInvoiceDate(inv: Invoice): Date {
+  // 1. Try createdAt (ISO string from DB)
+  if (inv.createdAt) {
+    const d = new Date(inv.createdAt)
+    if (!isNaN(d.getTime())) return d
+  }
+  // 2. Try paidAt combined with date if date contains a day reference
+  // 3. Try the date field
+  if (inv.date) {
+    // Try direct parse first (ISO format)
+    const d1 = new Date(inv.date)
+    if (!isNaN(d1.getTime())) return d1
+
+    // Try parsing Indonesian date format like "1 Okt, 11.04" or "25 Sep 2026"
+    const idMonths: Record<string, number> = {
+      'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'mei': 4, 'jun': 5,
+      'jul': 6, 'agu': 7, 'ags': 7, 'sep': 8, 'okt': 9, 'nov': 10, 'des': 11
+    }
+
+    // Pattern: "1 Okt, 11.04" (day month, time)
+    const shortMatch = inv.date.match(/^(\d{1,2})\s+(\w{3}),?\s*(\d{1,2})\.(\d{2})$/i)
+    if (shortMatch) {
+      const day = parseInt(shortMatch[1])
+      const monthKey = shortMatch[2].toLowerCase()
+      const hour = parseInt(shortMatch[3])
+      const minute = parseInt(shortMatch[4])
+      const month = idMonths[monthKey]
+      if (month !== undefined) {
+        const now = new Date()
+        return new Date(now.getFullYear(), month, day, hour, minute)
+      }
+    }
+
+    // Pattern: "25 Sep 2026"
+    const longMatch = inv.date.match(/^(\d{1,2})\s+(\w{3})\s+(\d{4})$/i)
+    if (longMatch) {
+      const day = parseInt(longMatch[1])
+      const monthKey = longMatch[2].toLowerCase()
+      const year = parseInt(longMatch[3])
+      const month = idMonths[monthKey]
+      if (month !== undefined) {
+        return new Date(year, month, day)
+      }
+    }
+  }
+
+  // 4. Fallback to now
+  return new Date()
+}
+
 export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], parts: Part[]) {
   const today = new Date()
-  const todayStr = today.toISOString().split('T')[0] // yyyy-mm-dd
-  // invoices.date might be "25 Sep 2026" or ISO string. We should robustly check if the invoice date falls in today
   
   let todayRevenue = 0
   let yesterdayRevenue = 0
@@ -20,7 +69,9 @@ export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], 
 
   invoices.forEach(inv => {
     if (inv.status === "Lunas") {
-      const invDate = new Date(inv.createdAt || inv.date || Date.now())
+      const invDate = parseInvoiceDate(inv)
+      if (isNaN(invDate.getTime())) return // skip invalid dates
+      
       if (invDate.getDate() === today.getDate() && invDate.getMonth() === today.getMonth() && invDate.getFullYear() === today.getFullYear()) {
         todayRevenue += inv.paidAmount
       }
@@ -59,7 +110,8 @@ export function getDashboardStats(invoices: Invoice[], workOrders: WorkOrder[], 
     let total = 0
     let visits = 0
     invoices.forEach(inv => {
-      const invDate = new Date(inv.createdAt || inv.date || Date.now())
+      const invDate = parseInvoiceDate(inv)
+      if (isNaN(invDate.getTime())) return
       if (invDate.getMonth() === d.getMonth() && invDate.getFullYear() === d.getFullYear()) {
         if (inv.status === "Lunas") total += inv.paidAmount
         visits += 1
@@ -86,8 +138,8 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
 
   // Filter data within the period
   const validInvoices = invoices.filter(inv => {
-    const d = new Date(inv.createdAt || inv.date || Date.now())
-    return d >= startDate && d <= now
+    const d = parseInvoiceDate(inv)
+    return !isNaN(d.getTime()) && d >= startDate && d <= now
   })
   
   const validWorkOrders = workOrders.filter(wo => {
@@ -106,14 +158,13 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   }
 
   const prevInvoices = invoices.filter(inv => {
-    const d = new Date(inv.createdAt || inv.date || Date.now())
-    return d >= prevStartDate && d < startDate
+    const d = parseInvoiceDate(inv)
+    return !isNaN(d.getTime()) && d >= prevStartDate && d < startDate
   })
 
   // 1. Overview KPIs
   let totalPendapatan = 0
   let totalKunjungan = validInvoices.length
-  let totalServisHours = 0
   
   let prevPendapatan = 0
   let prevKunjungan = prevInvoices.length
@@ -125,9 +176,48 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
   validInvoices.forEach(inv => {
     if (inv.status === "Lunas") totalPendapatan += inv.paidAmount
   })
-  // fake average service time based on filter (could be real if we track timestamps)
-  const rataServis = totalKunjungan > 0 ? (filter === "Mingguan" ? 2.5 : filter === "Bulanan" ? 3.7 : 4.1) : 0
-  const prevRataServis = prevKunjungan > 0 ? (filter === "Mingguan" ? 2.8 : filter === "Bulanan" ? 3.9 : 4.0) : 0
+  
+  // Calculate real average service time from work orders (in hours)
+  let totalServiceMinutes = 0
+  let completedJobCount = 0
+  validWorkOrders.forEach(wo => {
+    if ((wo.status === "Selesai" || wo.status === "Siap Diambil") && wo.createdAt) {
+      const created = new Date(wo.createdAt)
+      const completed = wo.completedAt ? new Date(wo.completedAt) : now
+      if (!isNaN(created.getTime()) && !isNaN(completed.getTime())) {
+        const diffMs = completed.getTime() - created.getTime()
+        const diffMinutes = diffMs / (1000 * 60)
+        // Only count if within reasonable range (1 min to 30 days)
+        if (diffMinutes > 1 && diffMinutes < 43200) {
+          totalServiceMinutes += diffMinutes
+          completedJobCount++
+        }
+      }
+    }
+  })
+  
+  const rataServis = completedJobCount > 0 ? Math.round((totalServiceMinutes / completedJobCount / 60) * 10) / 10 : 0
+  
+  // Previous period rata servis
+  const prevCompletedWOs = workOrders.filter(wo => {
+    const d = new Date(wo.createdAt || Date.now())
+    return d >= prevStartDate && d < startDate && (wo.status === "Selesai" || wo.status === "Siap Diambil")
+  })
+  let prevServiceMinutes = 0
+  let prevCompletedCount = 0
+  prevCompletedWOs.forEach(wo => {
+    if (wo.createdAt) {
+      const created = new Date(wo.createdAt)
+      const completed = wo.completedAt ? new Date(wo.completedAt) : new Date(created.getTime() + 3 * 60 * 60 * 1000)
+      const diffMs = completed.getTime() - created.getTime()
+      const diffMinutes = diffMs / (1000 * 60)
+      if (diffMinutes > 1 && diffMinutes < 43200) {
+        prevServiceMinutes += diffMinutes
+        prevCompletedCount++
+      }
+    }
+  })
+  const prevRataServis = prevCompletedCount > 0 ? Math.round((prevServiceMinutes / prevCompletedCount / 60) * 10) / 10 : 0
 
   const calcDelta = (current: number, prev: number, isTime = false) => {
     if (prev === 0) return current > 0 ? (isTime ? "+1,0" : "+100%") : "0%"
@@ -155,7 +245,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
       let total = 0
       let visits = 0
       validInvoices.forEach(inv => {
-        const invDate = new Date(inv.createdAt || inv.date || Date.now())
+        const invDate = parseInvoiceDate(inv)
         if (invDate.getDate() === d.getDate() && invDate.getMonth() === d.getMonth()) {
           if (inv.status === "Lunas") total += inv.paidAmount
           visits += 1
@@ -170,7 +260,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     const MS_PER_DAY = 1000 * 60 * 60 * 24
     
     validInvoices.forEach(inv => {
-      const invDate = new Date(inv.createdAt || inv.date || Date.now())
+      const invDate = parseInvoiceDate(inv)
       const diffDays = Math.floor((invDate.getTime() - startDate.getTime()) / MS_PER_DAY)
       let bucket = Math.floor(diffDays / 7)
       if (bucket > 3) bucket = 3
@@ -193,7 +283,7 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
       let total = 0
       let visits = 0
       validInvoices.forEach(inv => {
-        const invDate = new Date(inv.createdAt || inv.date || Date.now())
+        const invDate = parseInvoiceDate(inv)
         if (invDate.getMonth() === d.getMonth() && invDate.getFullYear() === d.getFullYear()) {
           if (inv.status === "Lunas") total += inv.paidAmount
           visits += 1
@@ -256,4 +346,63 @@ export function getAnalyticsData(invoices: Invoice[], workOrders: WorkOrder[], f
     rataServis, deltaRataServis,
     revenueTrend, dailyVisits, serviceBreakdown, monthlyReport 
   }
+}
+
+// Calculate real technician stats from work orders
+export function getTechnicianStats(technicians: Technician[], workOrders: WorkOrder[]): Technician[] {
+  const now = new Date()
+  const currentMonth = now.getMonth()
+  const currentYear = now.getFullYear()
+
+  return technicians.map(tech => {
+    // Find all work orders assigned to this technician
+    const techWOs = workOrders.filter(wo => wo.technician === tech.name)
+    
+    // Completed this month
+    const completedThisMonth = techWOs.filter(wo => {
+      if (wo.status !== "Selesai" && wo.status !== "Siap Diambil") return false
+      const d = new Date(wo.createdAt || Date.now())
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+    }).length
+
+    // Active jobs
+    const activeJobs = techWOs.filter(wo => 
+      wo.status === "Dikerjakan" || wo.status === "Antrian" || wo.status === "Menunggu Sparepart"
+    ).length
+
+    // Calculate real average hours per job
+    let totalMinutes = 0
+    let countedJobs = 0
+    techWOs.forEach(wo => {
+      if ((wo.status === "Selesai" || wo.status === "Siap Diambil") && wo.createdAt) {
+        const created = new Date(wo.createdAt)
+        const completed = wo.completedAt ? new Date(wo.completedAt) : now
+        if (!isNaN(created.getTime()) && !isNaN(completed.getTime())) {
+          const diffMs = completed.getTime() - created.getTime()
+          const diffMinutes = diffMs / (1000 * 60)
+          if (diffMinutes > 0 && diffMinutes < 43200) { // between 0 and 30 days
+            totalMinutes += diffMinutes
+            countedJobs++
+          }
+        }
+      }
+    })
+
+    const avgHours = countedJobs > 0 ? Math.round((totalMinutes / countedJobs / 60) * 10) / 10 : 0
+
+    // Efficiency: completed / total assigned * 100
+    const totalAssigned = techWOs.filter(wo => {
+      const d = new Date(wo.createdAt || Date.now())
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+    }).length
+    const efficiency = totalAssigned > 0 ? Math.round((completedThisMonth / totalAssigned) * 100) : 0
+
+    return {
+      ...tech,
+      completedThisMonth,
+      activeJobs,
+      avgHours,
+      efficiency,
+    }
+  })
 }

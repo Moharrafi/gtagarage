@@ -334,6 +334,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
                 vehicle: wo.vehicle,
                 service: wo.service,
                 date: wo.createdAt || "25 Sep 2026",
+                createdAt: wo.createdAt || new Date().toISOString(),
                 status: isLunas ? "Lunas" : "Belum Bayar",
                 paidAmount: isLunas ? invTotal : 0,
                 items: [laborItem, ...partItems],
@@ -427,6 +428,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
               vehicle: wo.vehicle,
               service: wo.service,
               date: wo.createdAt || "25 Sep 2026",
+              createdAt: wo.createdAt || new Date().toISOString(),
               status: isLunas ? "Lunas" : "Belum Bayar",
               paidAmount: isLunas ? invTotal : 0,
               items: [laborItem, ...partItems],
@@ -728,6 +730,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
               progress: progressForStatus(input.status),
               laborCost: input.laborCost,
               usedParts: input.usedParts !== undefined ? input.usedParts : w.usedParts,
+              // Track completion timestamp
+              completedAt: (input.status === "Selesai" || input.status === "Siap Diambil") && !w.completedAt
+                ? new Date().toISOString()
+                : w.completedAt,
             }
           : w,
       )
