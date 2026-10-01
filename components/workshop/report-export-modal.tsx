@@ -120,7 +120,7 @@ export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdo
       lines.push("=== RINCIAN PENDAPATAN PER LINI LAYANAN ===")
       lines.push("No;Lini Layanan;Pekerjaan Selesai (Unit);Nilai Pendapatan (IDR);Kontribusi (%)")
       serviceBreakdown.forEach((s, idx) => {
-        const pct = ((s.value / monthlyReport.pendapatan) * 100).toFixed(1)
+        const pct = monthlyReport.pendapatan > 0 ? ((s.value / monthlyReport.pendapatan) * 100).toFixed(1) : "0.0"
         lines.push(`${idx + 1};${s.name};${s.jobs};${s.value};${pct}%`)
       })
       const totalJobs = serviceBreakdown.reduce((a, b) => a + b.jobs, 0)
@@ -181,7 +181,7 @@ _Tanggal: ${currentDateStr}_
 • *Sisa Piutang:* ${formatRupiah(monthlyReport.piutang)}
 
 🛠️ *PENDAPATAN PER LAYANAN*
-${serviceBreakdown.map((s) => `• ${s.name}: ${formatRupiah(s.value)} (${s.jobs} unit - ${((s.value / monthlyReport.pendapatan) * 100).toFixed(1)}%)`).join("\n")}
+${serviceBreakdown.map((s) => `• ${s.name}: ${formatRupiah(s.value)} (${s.jobs} unit - ${monthlyReport.pendapatan > 0 ? ((s.value / monthlyReport.pendapatan) * 100).toFixed(1) : "0.0"}%)`).join("\n")}
 
 📉 *PENGELUARAN OPERASIONAL (OPEX)*
 ${expenseBreakdown.map((e) => `• ${e.category}: ${formatRupiah(e.amount)} (${e.pct}%)`).join("\n")}
@@ -367,6 +367,8 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
                   reportCode={reportCode}
                   currentDateStr={currentDateStr}
                   technicians={technicians}
+                  monthlyReport={monthlyReport}
+                  serviceBreakdown={serviceBreakdown}
                 />
               </div>
             </div>
@@ -388,6 +390,8 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
             reportCode={reportCode}
             currentDateStr={currentDateStr}
             technicians={technicians}
+            monthlyReport={monthlyReport}
+            serviceBreakdown={serviceBreakdown}
             isPrint
           />
         </div>
@@ -404,12 +408,16 @@ function DocumentPrintLayout({
   reportCode,
   currentDateStr,
   technicians = [],
+  monthlyReport,
+  serviceBreakdown,
   isPrint = false,
 }: {
   profile: ReturnType<typeof useWorkshop>["profile"]
   reportCode: string
   currentDateStr: string
   technicians?: ReturnType<typeof useWorkshop>["technicians"]
+  monthlyReport: { period: string; pendapatan: number; pengeluaran: number; laba: number; labaMargin: number; totalTransaksi: number; rataTransaksi: number; piutang: number }
+  serviceBreakdown: { name: string; value: number; jobs: number }[]
   isPrint?: boolean
 }) {
   return (
@@ -537,7 +545,7 @@ function DocumentPrintLayout({
                     {s.value.toLocaleString("id-ID")}
                   </td>
                   <td className="px-2 py-1 text-right font-mono text-[9px] text-slate-500">
-                    {((s.value / monthlyReport.pendapatan) * 100).toFixed(1)}%
+                    {monthlyReport.pendapatan > 0 ? ((s.value / monthlyReport.pendapatan) * 100).toFixed(1) : "0.0"}%
                   </td>
                 </tr>
               ))}
