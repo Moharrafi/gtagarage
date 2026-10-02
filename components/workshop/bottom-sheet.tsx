@@ -46,6 +46,10 @@ export function BottomSheet({
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 transition-opacity" />
         <Drawer.Content
           aria-describedby={undefined}
+          onOpenAutoFocus={(e) => {
+            // Prevent auto-focusing on inputs when drawer opens to prevent mobile virtual keyboard & iOS auto-zoom
+            e.preventDefault()
+          }}
           className={cn(
             "fixed bottom-0 left-0 right-0 z-50 mx-auto flex w-full flex-col bg-card shadow-2xl outline-none",
             "max-w-[440px] md:max-w-[640px] lg:max-w-[720px]",

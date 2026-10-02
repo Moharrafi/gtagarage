@@ -129,12 +129,21 @@ function AppShellInner() {
     };
   }, []);
 
+  useEffect(() => {
+    // Reset window and document scroll to prevent iPhone address-bar & keyboard displacement
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0)
+      document.body.scrollTop = 0
+      document.documentElement.scrollTop = 0
+    }
+  }, [currentUser, tab])
+
   const activeJobsCount = workOrders.filter((w) => w.status !== "Selesai").length
   const lowStockCount = parts.filter((p) => p.stock <= p.minStock).length
 
   if (!authLoaded) {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-background">
+      <div className="fixed inset-0 flex w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-xs text-muted-foreground font-medium">Memuat sistem GTA GARAGE...</p>
@@ -153,9 +162,9 @@ function AppShellInner() {
   }
 
   return (
-    <div className="flex min-h-dvh w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6">
+    <div className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6 overflow-hidden sm:overflow-visible">
       <audio ref={audioRef} src="/media/cash-in.mp3" preload="auto" style={{ display: 'none' }} />
-      <div className="relative flex h-dvh w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
+      <div className="relative flex h-full w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
         {/* Tablet / Desktop Sidebar Rail */}
         <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">
           {/* Brand header */}
@@ -352,7 +361,7 @@ function AppShellInner() {
           </main>
 
           {/* Mobile Bottom Navigation (Hidden on Tablet) */}
-          <div className="md:hidden">
+          <div className="shrink-0 md:hidden bg-card">
             <BottomNav active={tab} onChange={setTab} />
           </div>
         </div>

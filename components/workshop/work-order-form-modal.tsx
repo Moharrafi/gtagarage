@@ -243,11 +243,12 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <input
                 type="text"
-                autoFocus
                 value={pickerSearch}
                 onChange={(e) => setPickerSearch(e.target.value)}
                 placeholder="Ketik nama sparepart / SKU..."
-                className="w-full rounded-xl border border-input bg-muted/40 pl-9 pr-9 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                enterKeyHint="search"
+                inputMode="search"
+                className="w-full rounded-xl border border-input bg-muted/40 pl-9 pr-9 py-2.5 text-base sm:text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
               {pickerSearch && (
                 <button

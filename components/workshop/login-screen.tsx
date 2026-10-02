@@ -43,6 +43,12 @@ export function LoginScreen() {
 
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault()
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, 0)
+    }
     if (!username.trim()) {
       toast.error("Username Kosong", "Silakan masukkan nama pengguna atau ID akun.")
       return
@@ -53,6 +59,11 @@ export function LoginScreen() {
       const ok = login(username, password)
       setLoading(false)
       if (ok) {
+        if (typeof window !== "undefined") {
+          window.scrollTo(0, 0)
+          document.body.scrollTop = 0
+          document.documentElement.scrollTop = 0
+        }
         try {
           sessionStorage.removeItem("notif_prompt_dismissed")
         } catch {}
@@ -70,7 +81,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="flex min-h-dvh w-full items-center justify-center bg-slate-100/80 dark:bg-zinc-950 p-4 sm:p-6 text-foreground transition-colors duration-200">
+    <div className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full items-center justify-center bg-slate-100/80 dark:bg-zinc-950 p-4 sm:p-6 text-foreground transition-colors duration-200 overflow-y-auto">
       {/* Background subtle texture for authentic industrial feel */}
       <div className="fixed inset-0 pointer-events-none opacity-40 dark:opacity-20 [background-image:radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:20px_20px]" />
 
@@ -122,7 +133,7 @@ export function LoginScreen() {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 placeholder="mis. owner / admin / mekanik"
-                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-3 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-3 text-base sm:text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
             </div>
           </div>
@@ -149,7 +160,7 @@ export function LoginScreen() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="Kata sandi akun"
-                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-9 text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
+                className="w-full rounded-xl border border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-950/60 py-2.5 pl-9 pr-9 text-base sm:text-xs text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:border-slate-800 dark:focus:border-zinc-400 focus:bg-white dark:focus:bg-zinc-950 focus:outline-none focus:ring-1 focus:ring-slate-800 dark:focus:ring-zinc-400 transition-colors"
               />
               <button
                 type="button"
