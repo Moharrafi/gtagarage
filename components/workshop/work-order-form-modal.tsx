@@ -203,6 +203,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
         }
       }}
       full={partPickerOpen}
+      bodyClassName={cn(partPickerOpen && "p-0 flex flex-col overflow-hidden")}
       header={
         partPickerOpen ? (
           <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3 bg-muted/20">
@@ -235,9 +236,9 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
     >
       {partPickerOpen ? (
         /* ================= PART PICKER VIEW (SEAMLESS INSIDE DRAWER) ================= */
-        <div className="space-y-3 pb-2">
+        <div className="flex-1 flex flex-col h-full bg-card relative">
           {/* Sticky Search Input */}
-          <div className="space-y-2.5">
+          <div className="px-5 pt-4 pb-2 space-y-2.5 shrink-0 bg-card z-10">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <input
@@ -286,7 +287,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
           </div>
 
           {/* Parts List */}
-          <div className="space-y-2 pt-1 min-h-[30vh]">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2 pt-1">
             {filteredPickerParts.length > 0 ? (
               filteredPickerParts.map((p) => {
                 const alreadySelected = form.usedParts?.find(
@@ -430,7 +431,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
           </div>
 
           {/* Sticky Bottom Bar */}
-          <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 border-t border-border bg-card/95 backdrop-blur-sm p-4 flex items-center justify-between gap-3 shadow-lg">
+          <div className="shrink-0 border-t border-border bg-card/95 backdrop-blur-sm p-4 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-3 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] z-10">
             <div className="text-xs">
               <p className="text-muted-foreground text-[11px]">
                 {form.usedParts?.length || 0} suku cadang dipilih
