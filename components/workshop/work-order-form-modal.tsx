@@ -404,7 +404,8 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
             {/* Tombol Buka Full-Screen Picker */}
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                ;(e.currentTarget as HTMLElement)?.blur()
                 setPickerSearch("")
                 setPickerCategory("all")
                 setPartPickerOpen(true)
@@ -629,12 +630,29 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
                     </div>
                   )
                 })
+              ) : parts.length === 0 ? (
+                <div className="py-14 text-center px-4 space-y-3">
+                  <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+                    <Package className="size-6 stroke-[1.5]" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-foreground">Inventaris Suku Cadang Masih Kosong</p>
+                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                      Belum ada data barang di inventaris gudang. Anda dapat menambah suku cadang terlebih dahulu di menu <strong>Stok Suku Cadang</strong>.
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <div className="py-12 text-center text-muted-foreground space-y-2">
-                  <Package className="size-8 mx-auto opacity-40" />
-                  <p className="text-xs">
-                    Tidak ditemukan suku cadang dengan nama &ldquo;{pickerSearch}&rdquo;
-                  </p>
+                <div className="py-14 text-center px-4 space-y-3">
+                  <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+                    <Search className="size-6 stroke-[1.5]" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">Suku Cadang Tidak Ditemukan</p>
+                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                      Tidak ada suku cadang yang cocok dengan kata kunci &ldquo;{pickerSearch}&rdquo;.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

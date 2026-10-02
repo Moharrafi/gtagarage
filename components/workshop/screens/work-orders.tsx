@@ -189,12 +189,22 @@ export function WorkOrdersScreen() {
     })
   }, [workOrders, filter, query])
 
-  function openAdd() {
+  function openAdd(e?: React.MouseEvent) {
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur()
+    } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     setEditItem(null)
     setSheetOpen(true)
   }
 
-  function openEdit(w: WorkOrder) {
+  function openEdit(w: WorkOrder, e?: React.MouseEvent) {
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur()
+    } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     setEditItem(w)
     setSheetOpen(true)
   }
