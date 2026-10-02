@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   TrendingUp,
   TrendingDown,
@@ -126,8 +126,11 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
   const { canEdit, workOrders, parts, invoices } = useWorkshop()
   const [waOpen, setWaOpen] = useState(false)
   
-  const { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = getDashboardStats(invoices, workOrders, parts)
-  const chartData = revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan }))
+  const { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = useMemo(
+    () => getDashboardStats(invoices, workOrders, parts),
+    [invoices, workOrders, parts]
+  )
+  const chartData = useMemo(() => revenueTrend.map((r) => ({ month: r.month, v: r.pendapatan })), [revenueTrend])
   
   const isTodayUp = !todayRevenueDelta.startsWith("-")
   const isMonthUp = !monthRevenueDelta.startsWith("-")

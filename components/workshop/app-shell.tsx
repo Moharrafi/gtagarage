@@ -19,6 +19,7 @@ import { ScreenLoading } from "@/components/workshop/screen-loading"
 const WorkOrdersScreen = dynamic(
   () => import("@/components/workshop/screens/work-orders").then((mod) => mod.WorkOrdersScreen),
   {
+    ssr: false,
     loading: () => (
       <ScreenLoading
         title="Memuat Data Pekerjaan..."
@@ -33,6 +34,7 @@ const WorkOrdersScreen = dynamic(
 const InventoryScreen = dynamic(
   () => import("@/components/workshop/screens/inventory").then((mod) => mod.InventoryScreen),
   {
+    ssr: false,
     loading: () => (
       <ScreenLoading
         title="Memuat Katalog Suku Cadang..."
@@ -47,6 +49,7 @@ const InventoryScreen = dynamic(
 const InvoicesScreen = dynamic(
   () => import("@/components/workshop/screens/invoices").then((mod) => mod.InvoicesScreen),
   {
+    ssr: false,
     loading: () => (
       <ScreenLoading
         title="Memuat Kasir & Invoice..."
@@ -61,6 +64,7 @@ const InvoicesScreen = dynamic(
 const AnalyticsScreen = dynamic(
   () => import("@/components/workshop/screens/analytics").then((mod) => mod.AnalyticsScreen),
   {
+    ssr: false,
     loading: () => (
       <ScreenLoading
         title="Memuat Analitik & Laporan..."
@@ -156,7 +160,7 @@ function AppShellInner() {
         <aside className="hidden md:flex md:w-56 lg:w-64 md:flex-col md:border-r md:border-border md:bg-card/75 md:backdrop-blur-md shrink-0">
           {/* Brand header */}
           <div className="flex items-center gap-3 p-4 border-b border-border/70">
-            <img src="/logo.webp" alt="Logo" width={40} height={40} className="size-10 rounded-xl object-cover shadow-md shadow-primary/25 bg-white" />
+            <img src="/logo-sm.webp" alt="Logo" width={40} height={40} className="size-10 rounded-xl object-cover shadow-md shadow-primary/25 bg-white" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h2 className="truncate text-sm font-bold text-foreground tracking-tight">
@@ -280,7 +284,7 @@ function AppShellInner() {
             )}
           >
             {tab === "beranda" ? (
-              <img src="/logo.webp" alt="Logo" width={36} height={36} fetchPriority="high" className="size-9 md:hidden rounded-xl object-cover shadow-sm ring-1 ring-white/30 bg-white" />
+              <img src="/logo-sm.webp" alt="Logo" width={36} height={36} fetchPriority="high" className="size-9 md:hidden rounded-xl object-cover shadow-sm ring-1 ring-white/30 bg-white" />
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
