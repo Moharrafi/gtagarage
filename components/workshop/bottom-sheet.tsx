@@ -32,6 +32,7 @@ export function BottomSheet({
       }}
       shouldScaleBackground={false}
       repositionInputs={true}
+      handleOnly={true}
     >
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-50 bg-black/60 transition-opacity" />
@@ -46,15 +47,17 @@ export function BottomSheet({
             className
           )}
         >
-          {/* Native gesture pill handle */}
+          {/* Native gesture pill handle — Only this pill triggers dragging to close */}
           {!full && (
-            <div className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/30 md:hidden" />
+            <div className="pt-2.5 pb-1 flex items-center justify-center shrink-0 cursor-grab active:cursor-grabbing md:hidden">
+              <Drawer.Handle className="h-1.5 w-12 rounded-full bg-muted-foreground/35 active:bg-muted-foreground/60 transition-colors" />
+            </div>
           )}
 
           {header !== undefined ? (
             header
           ) : title ? (
-            <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-5 py-3.5">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-5 py-3">
               <Drawer.Title className="text-base font-bold tracking-tight text-foreground">
                 {title}
               </Drawer.Title>
@@ -73,7 +76,7 @@ export function BottomSheet({
 
           <div
             className={cn(
-              "flex-1 overflow-y-auto overscroll-contain p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] no-scrollbar",
+              "flex-1 overflow-y-auto overscroll-contain p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] no-scrollbar touch-pan-y",
               bodyClassName
             )}
           >
