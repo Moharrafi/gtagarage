@@ -27,6 +27,8 @@ import {
   type StockOutLog,
 } from "@/lib/data"
 
+export type { ServiceRate, Technician }
+
 export interface WorkOrderInput {
   customerName: string
   customerPhone: string

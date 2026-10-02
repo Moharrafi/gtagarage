@@ -12,8 +12,10 @@ import type {
   WorkStatus,
   ServiceType,
   Part,
+  ServiceRate,
+  Technician,
 } from "@/lib/data"
-import type { WorkOrderInput, ServiceRate, Technician } from "@/lib/store"
+import type { WorkOrderInput } from "@/lib/store"
 
 const statusProgressMap: Record<WorkStatus, number> = {
   "Antrian": 0,
@@ -50,6 +52,7 @@ function fromWorkOrder(w: WorkOrder): WorkOrderInput {
   return {
     customerName: w.customer.name,
     customerPhone: w.customer.phone || "",
+    plate: w.vehicle.plate,
     brand: w.vehicle.brand,
     model: w.vehicle.model,
     service: w.service,
