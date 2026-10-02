@@ -14,7 +14,7 @@ import { WhatsAppModal } from "@/components/workshop/whatsapp-modal"
 import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
-import { formatRupiah, workOrderTotal, type WorkStatus, type ServiceType, type WorkOrder } from "@/lib/data"
+import { formatRupiah, workOrderTotal, type WorkStatus, type ServiceType, type WorkOrder, type Part } from "@/lib/data"
 import { useWorkshop, type WorkOrderInput } from "@/lib/store"
 
 export type JobFilter = "Aktif" | WorkStatus
@@ -104,26 +104,64 @@ export function WorkOrdersScreen() {
   const [waWoId, setWaWoId] = useState<string | undefined>(undefined)
   const [assignTargetWo, setAssignTargetWo] = useState<WorkOrder | null>(null)
 
-  // Searchable spareparts state in form
-  const [partSearch, setPartSearch] = useState("")
-  const [selectedPartId, setSelectedPartId] = useState("")
-  const [partQty, setPartQty] = useState(1)
-  const [partDropdownOpen, setPartDropdownOpen] = useState(false)
+  // Full-Screen / Mobile Part Picker State
+  const [partPickerOpen, setPartPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState("")
+  const [pickerCategory, setPickerCategory] = useState("all")
 
-  const filteredParts = useMemo(() => {
-    const q = partSearch.trim().toLowerCase()
-    if (!q) return parts.slice(0, 20)
-    return parts.filter(
-      (p) =>
+  const filteredPickerParts = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase()
+    return parts.filter((p) => {
+      const matchQ =
+        !q ||
         p.name.toLowerCase().includes(q) ||
         p.sku.toLowerCase().includes(q) ||
         p.category.toLowerCase().includes(q)
-    )
-  }, [parts, partSearch])
 
-  const activeSelectedPart = useMemo(() => {
-    return parts.find((p) => p.id === selectedPartId)
-  }, [parts, selectedPartId])
+      let matchCat = true
+      if (pickerCategory === "bengkel") {
+        matchCat = /pelumas|oli|rem|brake|busi|spark|pengapian|filter|rantai|gir|kopling|cvt|aki|bat|ban|tyre|suspensi|shock|gasket|packing|baut/i.test(`${p.category} ${p.name}`)
+      } else if (pickerCategory === "vapor") {
+        matchCat = /vapor|glass bead|degreaser|ultrasonic|soda blast/i.test(`${p.category} ${p.name}`)
+      } else if (pickerCategory === "sand") {
+        matchCat = /sand|pasir|silika|garnet|oxide|steel grit/i.test(`${p.category} ${p.name}`)
+      } else if (pickerCategory === "kustom") {
+        matchCat = /kustom|custom|modif|powder|coating|cat|paint|epoxy|bracket|plat/i.test(`${p.category} ${p.name}`)
+      }
+
+      return matchQ && matchCat
+    })
+  }, [parts, pickerSearch, pickerCategory])
+
+  function addPartToForm(part: Part, qtyToAdd = 1) {
+    const current = [...(form.usedParts || [])]
+    const existingIdx = current.findIndex((p) => p.partId === part.id)
+    if (existingIdx !== -1) {
+      current[existingIdx].qty += qtyToAdd
+    } else {
+      current.push({
+        partId: part.id,
+        name: part.name,
+        price: part.price,
+        qty: qtyToAdd,
+      })
+    }
+    setForm((prev) => ({ ...prev, usedParts: current }))
+    toast.success("Suku Cadang Ditambahkan", `+${qtyToAdd} ${part.name} masuk ke SPK.`)
+  }
+
+  function updatePartQtyInForm(partId: string, delta: number) {
+    const current = [...(form.usedParts || [])]
+    const existingIdx = current.findIndex((p) => p.partId === partId)
+    if (existingIdx === -1) return
+    const newQty = current[existingIdx].qty + delta
+    if (newQty <= 0) {
+      current.splice(existingIdx, 1)
+    } else {
+      current[existingIdx].qty = newQty
+    }
+    setForm((prev) => ({ ...prev, usedParts: current }))
+  }
 
   const activeJobsByTech = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -216,20 +254,18 @@ export function WorkOrdersScreen() {
       ...emptyForm,
       technician: technicians[0]?.name || "Agus Pratama",
     })
-    setPartSearch("")
-    setSelectedPartId("")
-    setPartQty(1)
-    setPartDropdownOpen(false)
+    setPartPickerOpen(false)
+    setPickerSearch("")
+    setPickerCategory("all")
     setSheetOpen(true)
   }
 
   function openEdit(w: WorkOrder) {
     setEditId(w.id)
     setForm(fromWorkOrder(w))
-    setPartSearch("")
-    setSelectedPartId("")
-    setPartQty(1)
-    setPartDropdownOpen(false)
+    setPartPickerOpen(false)
+    setPickerSearch("")
+    setPickerCategory("all")
     setSheetOpen(true)
   }
 
@@ -675,154 +711,64 @@ export function WorkOrdersScreen() {
               </span>
             </div>
             
+            {/* List suku cadang yang sudah ditambahkan */}
             {form.usedParts && form.usedParts.length > 0 && (
               <div className="space-y-2">
                 {form.usedParts.map((p, idx) => (
                   <div key={idx} className="flex items-center justify-between rounded-lg bg-card p-2 text-xs ring-1 ring-border shadow-xs">
                     <div className="min-w-0 pr-2">
                       <p className="font-semibold text-foreground truncate">{p.name}</p>
-                      <p className="text-muted-foreground text-[11px]">{p.qty}x @ {formatRupiah(p.price)} = <strong className="text-foreground">{formatRupiah(p.qty * p.price)}</strong></p>
+                      <p className="text-muted-foreground text-[11px]">
+                        {p.qty}x @ {formatRupiah(p.price)} = <strong className="text-foreground">{formatRupiah(p.qty * p.price)}</strong>
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newParts = [...(form.usedParts || [])]
-                        newParts.splice(idx, 1)
-                        setForm({ ...form, usedParts: newParts })
-                      }}
-                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                      title="Hapus part"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => updatePartQtyInForm(p.partId, -1)}
+                        className="flex size-6 items-center justify-center rounded bg-muted text-muted-foreground hover:bg-muted/80 text-xs font-bold"
+                      >
+                        -
+                      </button>
+                      <span className="w-5 text-center font-semibold text-xs">{p.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => updatePartQtyInForm(p.partId, 1)}
+                        className="flex size-6 items-center justify-center rounded bg-muted text-muted-foreground hover:bg-muted/80 text-xs font-bold"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newParts = [...(form.usedParts || [])]
+                          newParts.splice(idx, 1)
+                          setForm({ ...form, usedParts: newParts })
+                        }}
+                        className="ml-1 p-1 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                        title="Hapus part"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Searchable Combobox Picker */}
-            <div className="space-y-2">
-              <div className="relative">
-                <div className="flex gap-2 items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      value={activeSelectedPart ? activeSelectedPart.name : partSearch}
-                      onChange={(e) => {
-                        setPartSearch(e.target.value)
-                        if (selectedPartId) setSelectedPartId("")
-                        setPartDropdownOpen(true)
-                      }}
-                      onFocus={() => setPartDropdownOpen(true)}
-                      placeholder="Cari sparepart (ketik nama / SKU)..."
-                      className="w-full rounded-lg border border-input bg-card pl-8.5 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                    {(partSearch || selectedPartId) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPartSearch("")
-                          setSelectedPartId("")
-                          setPartDropdownOpen(false)
-                        }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min={1}
-                      value={partQty}
-                      onChange={(e) => setPartQty(Math.max(1, Number(e.target.value)))}
-                      className="w-14 px-1.5 text-center text-xs h-9 bg-card"
-                    />
-                    <button
-                      type="button"
-                      disabled={!activeSelectedPart}
-                      onClick={() => {
-                        if (!activeSelectedPart) return
-                        const qty = Math.max(1, partQty)
-                        const newParts = [...(form.usedParts || [])]
-                        const existing = newParts.find((p) => p.partId === activeSelectedPart.id)
-                        if (existing) {
-                          existing.qty += qty
-                        } else {
-                          newParts.push({ partId: activeSelectedPart.id, name: activeSelectedPart.name, price: activeSelectedPart.price, qty })
-                        }
-                        setForm({ ...form, usedParts: newParts })
-                        setPartSearch("")
-                        setSelectedPartId("")
-                        setPartQty(1)
-                        setPartDropdownOpen(false)
-                        toast.success("Sparepart Ditambahkan", `+${qty} ${activeSelectedPart.name} masuk ke SPK.`)
-                      }}
-                      className={cn(
-                        "flex items-center justify-center gap-1 rounded-lg px-3 h-9 text-xs font-semibold transition-all",
-                        activeSelectedPart
-                          ? "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90"
-                          : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"
-                      )}
-                    >
-                      <Plus className="size-3.5" /> Tambah
-                    </button>
-                  </div>
-                </div>
-
-                {/* Floating Search Results */}
-                {partDropdownOpen && !selectedPartId && (
-                  <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-lg">
-                    {filteredParts.length > 0 ? (
-                      filteredParts.map((p) => {
-                        const isBulkConsumable = p.price === 0 || /pasir|silika|garnet|glass bead/i.test(p.name)
-                        return (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedPartId(p.id)
-                              setPartSearch(p.name)
-                              setPartDropdownOpen(false)
-                            }}
-                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs hover:bg-accent transition-colors"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <p className="font-medium text-foreground truncate">{p.name}</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {p.sku} · Stok: <strong className={cn(p.stock <= p.minStock ? "text-destructive" : "text-foreground")}>{p.stock}</strong>
-                                {isBulkConsumable && <span className="ml-1 text-amber-600 dark:text-amber-400 font-semibold">(Bahan Operasional)</span>}
-                              </p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <span className="font-semibold text-primary">{formatRupiah(p.price)}</span>
-                            </div>
-                          </button>
-                        )
-                      })
-                    ) : (
-                      <div className="p-3 text-center text-xs text-muted-foreground">
-                        {partSearch ? `Tidak ada suku cadang cocok dengan "${partSearch}"` : "Belum ada data suku cadang di stok"}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {activeSelectedPart && (
-                <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs">
-                  <span className="text-foreground">
-                    Terpilih: <strong>{activeSelectedPart.name}</strong> ({formatRupiah(activeSelectedPart.price)})
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    Sisa stok: {activeSelectedPart.stock}
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* Tombol Buka Full-Screen Picker */}
+            <button
+              type="button"
+              onClick={() => {
+                setPickerSearch("")
+                setPickerCategory("all")
+                setPartPickerOpen(true)
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 py-3 px-4 text-xs font-semibold text-primary transition-all active:scale-[0.99]"
+            >
+              <Plus className="size-4" />
+              <span>{form.usedParts && form.usedParts.length > 0 ? "Tambah Suku Cadang Lainnya" : "Pilih Suku Cadang dari Stok"}</span>
+            </button>
           </div>
 
           <div className="space-y-1.5">
@@ -866,6 +812,173 @@ export function WorkOrdersScreen() {
           </button>
         </form>
       </BottomSheet>
+
+      {/* FULL SCREEN MOBILE-FRIENDLY PART PICKER MODAL */}
+      {partPickerOpen && (
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background/95 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-150">
+          <div className="flex h-full w-full flex-col bg-card sm:h-[88vh] sm:max-w-xl sm:rounded-2xl sm:border sm:border-border sm:shadow-2xl overflow-hidden">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-muted/40 shrink-0">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Pilih Suku Cadang</h3>
+                <p className="text-[11px] text-muted-foreground">Cari dan pilih suku cadang yang terpakai</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPartPickerOpen(false)}
+                className="flex size-9 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            {/* Sticky Search Input */}
+            <div className="p-3 border-b border-border bg-card shrink-0 space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  autoFocus
+                  value={pickerSearch}
+                  onChange={(e) => setPickerSearch(e.target.value)}
+                  placeholder="Ketik nama sparepart / SKU..."
+                  className="w-full rounded-xl border border-input bg-muted/40 pl-9 pr-9 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {pickerSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPickerSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar text-[11px]">
+                {[
+                  { id: "all", label: "Semua" },
+                  { id: "bengkel", label: "🔧 Sparepart" },
+                  { id: "vapor", label: "💧 Vapor" },
+                  { id: "sand", label: "🏖️ Sandblast" },
+                  { id: "kustom", label: "⚡ Kustom" },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setPickerCategory(c.id)}
+                    className={cn(
+                      "shrink-0 rounded-lg px-2.5 py-1 font-medium transition-colors",
+                      pickerCategory === c.id
+                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable Parts List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {filteredPickerParts.length > 0 ? (
+                filteredPickerParts.map((p) => {
+                  const alreadySelected = form.usedParts?.find((x) => x.partId === p.id)
+                  const isBulk = p.price === 0 || /pasir|silika|garnet|glass bead/i.test(p.name)
+
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        "flex items-center justify-between p-3 rounded-xl border transition-all",
+                        alreadySelected
+                          ? "border-primary/40 bg-primary/5 shadow-xs"
+                          : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                      )}
+                    >
+                      <div className="min-w-0 pr-3 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-xs text-foreground">{p.name}</span>
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">{p.sku}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                          <span>Stok: <strong className={cn(p.stock <= p.minStock ? "text-destructive" : "text-foreground")}>{p.stock} unit</strong></span>
+                          <span>•</span>
+                          <span className="font-bold text-primary">{formatRupiah(p.price)}</span>
+                          {isBulk && (
+                            <span className="rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+                              Bahan Operasional
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        {alreadySelected ? (
+                          <div className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 p-1">
+                            <button
+                              type="button"
+                              onClick={() => updatePartQtyInForm(p.id, -1)}
+                              className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs"
+                            >
+                              -
+                            </button>
+                            <span className="w-6 text-center font-bold text-xs text-primary">{alreadySelected.qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => updatePartQtyInForm(p.id, 1)}
+                              className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs"
+                            >
+                              +
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => addPartToForm(p, 1)}
+                            className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-transform active:scale-95"
+                          >
+                            <Plus className="size-3.5" /> Pilih
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="py-12 text-center text-muted-foreground space-y-2">
+                  <Package className="size-8 mx-auto opacity-40" />
+                  <p className="text-xs">Tidak ditemukan suku cadang dengan nama "{pickerSearch}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="border-t border-border bg-muted/40 p-3 flex items-center justify-between shrink-0 gap-3">
+              <div className="text-xs">
+                <p className="text-muted-foreground text-[11px]">
+                  {form.usedParts?.length || 0} suku cadang dipilih
+                </p>
+                <p className="font-bold text-foreground">
+                  Total: {formatRupiah(form.usedParts?.reduce((s, p) => s + p.qty * p.price, 0) || 0)}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPartPickerOpen(false)}
+                className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary/90 transition-transform active:scale-[0.99]"
+              >
+                Selesai Memilih
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} initialWorkOrderId={waWoId} />}
 

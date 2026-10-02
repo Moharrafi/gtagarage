@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gtagarage-pwa-v13'
+const CACHE_NAME = 'gtagarage-pwa-v14'
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
