@@ -78,7 +78,12 @@ export function InventoryScreen() {
   const lowCount = parts.filter((p) => p.stock <= p.minStock).length
   const stockTarget = stockSheetId ? parts.find((p) => p.id === stockSheetId) : null
 
-  function openAdd() {
+  function openAdd(e?: React.MouseEvent) {
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur()
+    } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     setEditId(null)
     setIsAutoSku(true)
     const initialCategory = "Vapor Blasting"
@@ -88,7 +93,12 @@ export function InventoryScreen() {
     setSheetOpen(true)
   }
 
-  function openEdit(p: Part) {
+  function openEdit(p: Part, e?: React.MouseEvent) {
+    if (e?.currentTarget instanceof HTMLElement) {
+      e.currentTarget.blur()
+    } else if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
     setEditId(p.id)
     setIsAutoSku(false)
     setForm(fromPart(p))
@@ -359,7 +369,9 @@ export function InventoryScreen() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur()
+                            if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) document.activeElement.blur()
                             setStockSheetId(p.id)
                             setStockQty(1)
                             setStockUnitCost(p.buyPrice || 0)
@@ -371,7 +383,9 @@ export function InventoryScreen() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            if (e.currentTarget instanceof HTMLElement) e.currentTarget.blur()
+                            if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) document.activeElement.blur()
                             setStockOutSheetId(p.id)
                             setStockOutQty(1)
                             const catStr = `${p.category} ${p.name}`.toLowerCase()
@@ -391,7 +405,7 @@ export function InventoryScreen() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => openEdit(p)}
+                          onClick={(e) => openEdit(p, e)}
                           className="flex items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent dark:border-slate-700 dark:hover:bg-slate-800"
                         >
                           <Pencil className="size-3.5" /> Edit

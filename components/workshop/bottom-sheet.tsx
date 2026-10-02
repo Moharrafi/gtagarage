@@ -24,6 +24,14 @@ export function BottomSheet({
   bodyClassName?: string
   full?: boolean
 }) {
+  React.useEffect(() => {
+    if (open && typeof document !== "undefined") {
+      if (document.activeElement instanceof HTMLElement && document.activeElement !== document.body) {
+        document.activeElement.blur()
+      }
+    }
+  }, [open])
+
   return (
     <Drawer.Root
       open={open}
