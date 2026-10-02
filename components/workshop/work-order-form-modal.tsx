@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo } from "react"
-import { X, Plus, Trash2, Search, Package } from "lucide-react"
+import { X, Plus, Trash2, Search, Package, ArrowLeft } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/workshop/toast"
@@ -193,12 +193,264 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
   }
 
   return (
-    <>
-      <BottomSheet
-        open={open}
-        onClose={onClose}
-        title={editItem ? "Edit Pekerjaan" : "Kendaraan Masuk"}
-      >
+    <BottomSheet
+      open={open}
+      onClose={() => {
+        if (partPickerOpen) {
+          setPartPickerOpen(false)
+        } else {
+          onClose()
+        }
+      }}
+      full={partPickerOpen}
+      header={
+        partPickerOpen ? (
+          <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 py-3 bg-muted/20">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPartPickerOpen(false)}
+                className="flex size-8 items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+                title="Kembali ke form pekerjaan"
+              >
+                <ArrowLeft className="size-4.5" />
+              </button>
+              <div>
+                <h3 className="text-sm font-bold tracking-tight text-foreground">Pilih Suku Cadang</h3>
+                <p className="text-[10px] text-muted-foreground">Katalog inventaris suku cadang gudang</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPartPickerOpen(false)}
+              aria-label="Tutup"
+              className="flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
+            >
+              <X className="size-4.5" />
+            </button>
+          </div>
+        ) : undefined
+      }
+      title={partPickerOpen ? "Pilih Suku Cadang" : editItem ? "Edit Pekerjaan" : "Kendaraan Masuk"}
+    >
+      {partPickerOpen ? (
+        /* ================= PART PICKER VIEW (SEAMLESS INSIDE DRAWER) ================= */
+        <div className="space-y-3 pb-2">
+          {/* Sticky Search Input */}
+          <div className="space-y-2.5">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <input
+                type="text"
+                autoFocus
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder="Ketik nama sparepart / SKU..."
+                className="w-full rounded-xl border border-input bg-muted/40 pl-9 pr-9 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {pickerSearch && (
+                <button
+                  type="button"
+                  onClick={() => setPickerSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Category Pills */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar text-[11px]">
+              {[
+                { id: "all", label: "Semua" },
+                { id: "bengkel", label: "🔧 Sparepart" },
+                { id: "vapor", label: "💧 Vapor" },
+                { id: "sand", label: "🏖️ Sandblast" },
+                { id: "kustom", label: "⚡ Kustom" },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setPickerCategory(c.id)}
+                  className={cn(
+                    "shrink-0 rounded-lg px-2.5 py-1 font-medium transition-colors cursor-pointer",
+                    pickerCategory === c.id
+                      ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Parts List */}
+          <div className="space-y-2 pt-1 min-h-[30vh]">
+            {filteredPickerParts.length > 0 ? (
+              filteredPickerParts.map((p) => {
+                const alreadySelected = form.usedParts?.find(
+                  (x) => x.partId === p.id
+                )
+                const isBulk =
+                  p.price === 0 ||
+                  /pasir|silika|garnet|glass bead/i.test(p.name)
+
+                return (
+                  <div
+                    key={p.id}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-xl border transition-all",
+                      alreadySelected
+                        ? "border-primary/40 bg-primary/5 shadow-xs"
+                        : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
+                    )}
+                  >
+                    <div className="min-w-0 pr-3 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-xs text-foreground">
+                          {p.name}
+                        </span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                          {p.sku}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
+                        <span>
+                          Stok:{" "}
+                          <strong
+                            className={cn(
+                              p.stock <= p.minStock
+                                ? "text-destructive"
+                                : "text-foreground"
+                            )}
+                          >
+                            {p.stock} unit
+                          </strong>
+                        </span>
+                        <span>•</span>
+                        <span className="font-bold text-primary">
+                          {formatRupiah(p.price)}
+                        </span>
+                        {isBulk && (
+                          <span className="rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
+                            Bahan Operasional
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      {alreadySelected ? (
+                        <div className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 p-1">
+                          <button
+                            type="button"
+                            onClick={() => updatePartQtyInForm(p.id, -1)}
+                            className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center font-bold text-xs text-primary">
+                            {alreadySelected.qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updatePartQtyInForm(p.id, 1)}
+                            className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => addPartToForm(p, 1)}
+                          className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-transform active:scale-95 cursor-pointer"
+                        >
+                          <Plus className="size-3.5" /> Pilih
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            ) : parts.length === 0 ? (
+              <div className="py-12 text-center px-4 space-y-3">
+                <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+                  <Package className="size-6 stroke-[1.5]" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-foreground">Inventaris Suku Cadang Masih Kosong</p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    Belum ada data barang di inventaris gudang. Anda dapat menambah suku cadang terlebih dahulu di menu <strong>Stok Suku Cadang</strong>.
+                  </p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setPartPickerOpen(false)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-accent px-4 py-2 text-xs font-semibold text-foreground shadow-xs transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="size-3.5" />
+                    Kembali ke Form Pekerjaan
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center px-4 space-y-3">
+                <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+                  <Search className="size-6 stroke-[1.5]" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">Suku Cadang Tidak Ditemukan</p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    {pickerSearch ? (
+                      <>Tidak ada suku cadang yang cocok dengan kata kunci &ldquo;{pickerSearch}&rdquo;.</>
+                    ) : (
+                      <>Tidak ada suku cadang dalam kategori yang dipilih.</>
+                    )}
+                  </p>
+                </div>
+                {(pickerSearch || pickerCategory !== "all") && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPickerSearch("")
+                        setPickerCategory("all")
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-accent px-3 py-1.5 text-xs font-medium text-foreground transition-colors cursor-pointer"
+                    >
+                      Reset Filter & Pencarian
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sticky Bottom Bar */}
+          <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 border-t border-border bg-card/95 backdrop-blur-sm p-4 flex items-center justify-between gap-3 shadow-lg">
+            <div className="text-xs">
+              <p className="text-muted-foreground text-[11px]">
+                {form.usedParts?.length || 0} suku cadang dipilih
+              </p>
+              <p className="font-bold text-foreground">
+                Total: {formatRupiah(form.usedParts?.reduce((s, p) => s + p.qty * p.price, 0) || 0)}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPartPickerOpen(false)}
+              className="rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-md hover:bg-primary/90 transition-transform active:scale-[0.99] cursor-pointer"
+            >
+              Selesai Memilih
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* ================= STANDARD FORM VIEW ================= */
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -404,7 +656,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
               </div>
             )}
 
-            {/* Tombol Buka Full-Screen Picker */}
+            {/* Tombol Buka Suku Cadang Picker */}
             <button
               type="button"
               onClick={(e) => {
@@ -472,210 +724,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
             {editItem ? "Simpan Perubahan" : "Simpan Pekerjaan"}
           </button>
         </form>
-      </BottomSheet>
-
-      {/* FULL SCREEN MOBILE-FRIENDLY PART PICKER MODAL */}
-      {partPickerOpen && (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-background/95 sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-150">
-          <div className="flex h-full w-full flex-col bg-card sm:h-[88vh] sm:max-w-xl sm:rounded-2xl sm:border sm:border-border sm:shadow-2xl overflow-hidden animate-sheet-mobile">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-muted/40 shrink-0">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">Pilih Suku Cadang</h3>
-                <p className="text-[11px] text-muted-foreground">
-                  Cari dan pilih suku cadang yang terpakai
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPartPickerOpen(false)}
-                className="flex size-9 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            {/* Sticky Search Input */}
-            <div className="p-3 border-b border-border bg-card shrink-0 space-y-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  autoFocus
-                  value={pickerSearch}
-                  onChange={(e) => setPickerSearch(e.target.value)}
-                  placeholder="Ketik nama sparepart / SKU..."
-                  className="w-full rounded-xl border border-input bg-muted/40 pl-9 pr-9 py-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                {pickerSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setPickerSearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
-                  >
-                    <X className="size-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Category Pills */}
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar text-[11px]">
-                {[
-                  { id: "all", label: "Semua" },
-                  { id: "bengkel", label: "🔧 Sparepart" },
-                  { id: "vapor", label: "💧 Vapor" },
-                  { id: "sand", label: "🏖️ Sandblast" },
-                  { id: "kustom", label: "⚡ Kustom" },
-                ].map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setPickerCategory(c.id)}
-                    className={cn(
-                      "shrink-0 rounded-lg px-2.5 py-1 font-medium transition-colors cursor-pointer",
-                      pickerCategory === c.id
-                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    )}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Scrollable Parts List */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {filteredPickerParts.length > 0 ? (
-                filteredPickerParts.map((p) => {
-                  const alreadySelected = form.usedParts?.find(
-                    (x) => x.partId === p.id
-                  )
-                  const isBulk =
-                    p.price === 0 ||
-                    /pasir|silika|garnet|glass bead/i.test(p.name)
-
-                  return (
-                    <div
-                      key={p.id}
-                      className={cn(
-                        "flex items-center justify-between p-3 rounded-xl border transition-all",
-                        alreadySelected
-                          ? "border-primary/40 bg-primary/5 shadow-xs"
-                          : "border-border bg-card hover:border-primary/30 hover:bg-muted/30"
-                      )}
-                    >
-                      <div className="min-w-0 pr-3 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-xs text-foreground">
-                            {p.name}
-                          </span>
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
-                            {p.sku}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
-                          <span>
-                            Stok:{" "}
-                            <strong
-                              className={cn(
-                                p.stock <= p.minStock
-                                  ? "text-destructive"
-                                  : "text-foreground"
-                              )}
-                            >
-                              {p.stock} unit
-                            </strong>
-                          </span>
-                          <span>•</span>
-                          <span className="font-bold text-primary">
-                            {formatRupiah(p.price)}
-                          </span>
-                          {isBulk && (
-                            <span className="rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 text-[10px] font-medium">
-                              Bahan Operasional
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-2">
-                        {alreadySelected ? (
-                          <div className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 p-1">
-                            <button
-                              type="button"
-                              onClick={() => updatePartQtyInForm(p.id, -1)}
-                              className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs cursor-pointer"
-                            >
-                              -
-                            </button>
-                            <span className="w-6 text-center font-bold text-xs text-primary">
-                              {alreadySelected.qty}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updatePartQtyInForm(p.id, 1)}
-                              className="flex size-7 items-center justify-center rounded bg-card text-foreground font-bold hover:bg-muted text-xs shadow-xs cursor-pointer"
-                            >
-                              +
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => addPartToForm(p, 1)}
-                            className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-transform active:scale-95 cursor-pointer"
-                          >
-                            <Plus className="size-3.5" /> Pilih
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              ) : parts.length === 0 ? (
-                <div className="py-14 text-center px-4 space-y-3">
-                  <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
-                    <Package className="size-6 stroke-[1.5]" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-foreground">Inventaris Suku Cadang Masih Kosong</p>
-                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                      Belum ada data barang di inventaris gudang. Anda dapat menambah suku cadang terlebih dahulu di menu <strong>Stok Suku Cadang</strong>.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-14 text-center px-4 space-y-3">
-                  <div className="size-12 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
-                    <Search className="size-6 stroke-[1.5]" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-semibold text-foreground">Suku Cadang Tidak Ditemukan</p>
-                    <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                      Tidak ada suku cadang yang cocok dengan kata kunci &ldquo;{pickerSearch}&rdquo;.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-3 border-t border-border bg-muted/20 shrink-0 flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {form.usedParts?.length || 0} suku cadang dipilih
-              </span>
-              <button
-                type="button"
-                onClick={() => setPartPickerOpen(false)}
-                className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-all cursor-pointer"
-              >
-                Selesai Memilih
-              </button>
-            </div>
-          </div>
-        </div>
       )}
-    </>
+    </BottomSheet>
   )
 })

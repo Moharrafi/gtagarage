@@ -55,7 +55,10 @@ export function BottomSheet({
           )}
 
           {header !== undefined ? (
-            header
+            <>
+              <Drawer.Title className="sr-only">{title || "Panel Dialog"}</Drawer.Title>
+              {header}
+            </>
           ) : title ? (
             <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-5 py-3">
               <Drawer.Title className="text-base font-bold tracking-tight text-foreground">
