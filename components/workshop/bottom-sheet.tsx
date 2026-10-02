@@ -38,7 +38,7 @@ export function BottomSheet({
         type="button"
         aria-label="Tutup dialog"
         onClick={onClose}
-        className="absolute inset-0 bg-black/60 transition-opacity duration-200 animate-in fade-in"
+        className="absolute inset-0 bg-black/60 animate-backdrop-in"
       />
       <div
         role="dialog"

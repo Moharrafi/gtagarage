@@ -171,37 +171,51 @@
 }
 
 /* Hardware-accelerated 60/120fps mobile sheet animation */
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-backdrop-in {
+  animation: backdrop-fade-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @keyframes sheet-slide-up {
-  0% {
+  from {
     transform: translate3d(0, 100%, 0);
   }
-  100% {
+  to {
     transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes sheet-dialog-fade {
-  0% {
+  from {
     opacity: 0;
-    transform: translate3d(0, 20px, 0) scale(0.97);
+    transform: translate3d(0, 16px, 0) scale(0.98);
   }
-  100% {
+  to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 .animate-sheet-mobile {
-  animation: sheet-slide-up 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: sheet-slide-up 280ms cubic-bezier(0.19, 1, 0.22, 1) both;
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  transform: translate3d(0, 0, 0);
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
 }
 
 @media (min-width: 768px) {
   .animate-sheet-mobile {
-    animation: sheet-dialog-fade 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: sheet-dialog-fade 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
     will-change: transform, opacity;
   }
 }
