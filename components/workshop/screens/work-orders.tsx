@@ -815,7 +815,7 @@ export function WorkOrdersScreen() {
 
       {/* FULL SCREEN MOBILE-FRIENDLY PART PICKER MODAL */}
       {partPickerOpen && (
-        <div className="fixed inset-0 z-[70] flex flex-col bg-background/95 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background/95 sm:items-center sm:justify-center sm:p-4 animate-in fade-in duration-150">
           <div className="flex h-full w-full flex-col bg-card sm:h-[88vh] sm:max-w-xl sm:rounded-2xl sm:border sm:border-border sm:shadow-2xl overflow-hidden animate-sheet-mobile">
             
             {/* Header */}
