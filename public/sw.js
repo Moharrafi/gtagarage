@@ -1,12 +1,12 @@
-const CACHE_NAME = 'gtagarage-pwa-v15'
+const CACHE_NAME = 'gtagarage-pwa-v16'
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
   '/logo.png',
+  '/logo.webp',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/apple-icon.png',
-  '/apple-touch-icon.png',
   '/media/cash-in.mp3',
 ]
 

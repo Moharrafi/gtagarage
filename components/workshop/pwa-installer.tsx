@@ -30,42 +30,60 @@ export function PwaInstaller() {
     const iosDevice = /iphone|ipad|ipod/.test(userAgent)
     setIsIos(iosDevice)
 
-    // 3. Register Service Worker (all environments for push notification support)
+    // 3. Register Service Worker (delayed until window load to avoid competing with initial page render)
     if ("serviceWorker" in navigator) {
-      let refreshing = false
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        if (!refreshing) {
-          refreshing = true
-          window.location.reload()
-        }
-      })
-
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((reg) => {
-          // Immediately check for SW update on every app launch
-          reg.update().catch(() => {})
-
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: "SKIP_WAITING" })
+      const registerSW = () => {
+        let refreshing = false
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (!refreshing) {
+            refreshing = true
+            window.location.reload()
           }
+        })
 
-          // Check for updates
-          reg.addEventListener("updatefound", () => {
-            const installing = reg.installing
-            if (installing) {
-              installing.addEventListener("statechange", () => {
-                if (installing.state === "installed" && navigator.serviceWorker.controller) {
-                  // New update available - trigger skip waiting to activate and reload
-                  installing.postMessage({ type: "SKIP_WAITING" })
-                }
-              })
+        navigator.serviceWorker
+          .register("/sw.js")
+          .then((reg) => {
+            // Immediately check for SW update on every app launch
+            reg.update().catch(() => {})
+
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: "SKIP_WAITING" })
             }
+
+            // Check for updates
+            reg.addEventListener("updatefound", () => {
+              const installing = reg.installing
+              if (installing) {
+                installing.addEventListener("statechange", () => {
+                  if (installing.state === "installed" && navigator.serviceWorker.controller) {
+                    // New update available - trigger skip waiting to activate and reload
+                    installing.postMessage({ type: "SKIP_WAITING" })
+                  }
+                })
+              }
+            })
           })
-        })
-        .catch((err) => {
-          console.warn("[PWA] Service worker registration error:", err)
-        })
+          .catch((err) => {
+            console.warn("[PWA] Service worker registration error:", err)
+          })
+      }
+
+      if (document.readyState === "complete") {
+        if ("requestIdleCallback" in window) {
+          (window as any).requestIdleCallback(registerSW, { timeout: 2000 })
+        } else {
+          setTimeout(registerSW, 500)
+        }
+      } else {
+        window.addEventListener("load", () => {
+          if ("requestIdleCallback" in window) {
+            (window as any).requestIdleCallback(registerSW, { timeout: 2000 })
+          } else {
+            setTimeout(registerSW, 500)
+          }
+        }, { once: true })
+      }
     }
 
     // 4. Capture BeforeInstallPromptEvent
