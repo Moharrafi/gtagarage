@@ -60,6 +60,9 @@ import {
   generateQrisDataUrlSync,
 } from "@/lib/invoice-canvas"
 import { playCashInSound } from "@/lib/sound"
+import { printThermalReceipt } from "@/lib/print-receipt"
+import { parseInvoiceDate } from "@/lib/analytics"
+import { SearchFilterBar, type SearchFilterOption } from "@/components/workshop/search-filter-bar"
 
 export type InvoiceFilter = "Belum Lunas" | "Belum Bayar" | "Sebagian" | "Jatuh Tempo" | "Lunas" | "Semua"
 
@@ -70,6 +73,16 @@ const filters: InvoiceFilter[] = [
   "Jatuh Tempo",
   "Lunas",
   "Semua",
+]
+
+const invoiceSearchOptions: SearchFilterOption[] = [
+  { key: "all", label: "Semua Bidang", placeholder: "Cari nomor, pelanggan, nopol, SPK..." },
+  { key: "number", label: "No. Invoice", placeholder: "Cari nomor invoice (mis. INV/2026...)..." },
+  { key: "customer", label: "Pelanggan", placeholder: "Cari nama atau telepon pelanggan..." },
+  { key: "plate", label: "Plat Nomor", placeholder: "Cari plat nomor (mis. B 5543 WLN)..." },
+  { key: "vehicle", label: "Kendaraan", placeholder: "Cari tipe motor (mis. NMAX)..." },
+  { key: "workOrderCode", label: "Ref. SPK", placeholder: "Cari kode pekerjaan (mis. SPK-001)..." },
+  { key: "method", label: "Metode Bayar", placeholder: "Cari metode bayar (QRIS, Tunai, VA)..." },
 ]
 
 const methods = [
@@ -141,7 +154,7 @@ function ThermalReceipt({ invoice, isPrint = false }: { invoice: Invoice; isPrin
             isPrint ? "text-black" : "text-slate-900",
           )}
         >
-          {profile.name || "MOTOCRAFT STUDIO & GARAGE"}
+          {profile.name || "GTA GARAGE"}
         </h3>
         {profile.slogan && (
           <p className={cn("text-[10px] leading-tight whitespace-pre-line", isPrint ? "text-black" : "text-slate-600")}>
@@ -499,8 +512,10 @@ Terima kasih!`
 }
 
 export function InvoicesScreen() {
-  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig, workOrders, updateWorkOrder, invoices: invoiceList, setInvoices: setInvoiceList } = useWorkshop()
+  const { profile, vouchers, dismissTip, isTipDismissed, canEdit, addNotification, midtransConfig, workOrders, updateWorkOrder, invoices: invoiceList, setInvoices: setInvoiceList, isLoading } = useWorkshop()
   const [filter, setFilter] = useState<InvoiceFilter>("Belum Lunas")
+  const [query, setQuery] = useState("")
+  const [searchField, setSearchField] = useState("all")
   const [active, setActive] = useState<Invoice | null>(null)
   const [sheetTab, setSheetTab] = useState<"detail" | "struk">("detail")
   const [payFor, setPayFor] = useState<Invoice | null>(null)
@@ -525,16 +540,15 @@ export function InvoicesScreen() {
   const [copiedMidtransUrl, setCopiedMidtransUrl] = useState(false)
   const [printTargetInvoice, setPrintTargetInvoice] = useState<Invoice | null>(null)
 
-  function handlePrintInvoice(inv?: Invoice | null) {
+  function handlePrintInvoice(inv?: Invoice | null, paperWidth: "80mm" | "58mm" = "80mm") {
     const target = inv || paidInvoice || payFor || active
     if (!target) {
       toast.error("Tidak Ada Data", "Pilih invoice yang ingin dicetak.")
       return
     }
     setPrintTargetInvoice(target)
-    setTimeout(() => {
-      window.print()
-    }, 100)
+    toast.info("Menyiapkan Struk", `Membuka dialog cetak thermal ${paperWidth}...`)
+    printThermalReceipt(target, profile, { paperWidth })
   }
 
   // Calculate live amount for QRIS API request
@@ -798,17 +812,76 @@ export function InvoicesScreen() {
     }
   }
 
-  const list =
-    filter === "Semua"
-      ? invoiceList
-      : filter === "Belum Lunas"
-      ? invoiceList.filter((i) => i.status !== "Lunas")
-      : invoiceList.filter((i) => i.status === filter)
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return invoiceList.filter((i) => {
+      // 1. Status Filter
+      if (filter === "Semua") {
+        // match all
+      } else if (filter === "Belum Lunas") {
+        if (i.status === "Lunas") return false
+      } else {
+        if (i.status !== filter) return false
+      }
+
+      // 2. Query Search
+      if (!q) return true
+
+      switch (searchField) {
+        case "number":
+          return i.number.toLowerCase().includes(q)
+        case "customer":
+          return (
+            i.customer.name.toLowerCase().includes(q) ||
+            i.customer.phone.toLowerCase().includes(q)
+          )
+        case "plate":
+          return i.vehicle.plate.toLowerCase().includes(q)
+        case "vehicle":
+          return (
+            i.vehicle.brand.toLowerCase().includes(q) ||
+            i.vehicle.model.toLowerCase().includes(q)
+          )
+        case "workOrderCode":
+          return i.workOrderCode.toLowerCase().includes(q)
+        case "method":
+          return (i.method || "").toLowerCase().includes(q)
+        case "all":
+        default: {
+          const searchStr = [
+            i.number,
+            i.workOrderCode,
+            i.customer.name,
+            i.customer.phone,
+            i.vehicle.plate,
+            i.vehicle.brand,
+            i.vehicle.model,
+            i.service,
+            i.method || "",
+            i.paymentRef || "",
+          ]
+            .join(" ")
+            .toLowerCase()
+          return searchStr.includes(q)
+        }
+      }
+    })
+  }, [invoiceList, filter, query, searchField])
+
+  const currentMonth = new Date().getMonth()
+  const currentYear = new Date().getFullYear()
 
   const outstanding = invoiceList
     .filter((i) => i.status !== "Lunas")
     .reduce((s, i) => s + (invoiceTotal(i) - i.paidAmount), 0)
-  const collected = invoiceList.reduce((s, i) => s + i.paidAmount, 0)
+
+  // Real cash collected in the current month (matches Laporan Keuangan)
+  const collected = invoiceList
+    .filter((i) => {
+      const d = parseInvoiceDate(i)
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear
+    })
+    .reduce((s, i) => s + (i.paidAmount || 0), 0)
 
   const getFilterCount = (f: InvoiceFilter) => {
     if (f === "Semua") return invoiceList.length
@@ -1012,10 +1085,18 @@ export function InvoicesScreen() {
           )}
         >
           <span className="text-xs opacity-80">Belum Tertagih</span>
-          <p className="mt-2 text-lg font-semibold tracking-tight">{formatRupiah(outstanding)}</p>
-          <span className="mt-0.5 text-[0.7rem] opacity-80">
-            {invoiceList.filter((i) => i.status !== "Lunas").length} invoice
-          </span>
+          {isLoading ? (
+            <div className="mt-2 h-7 w-28 rounded-md bg-white/25 animate-pulse" />
+          ) : (
+            <p className="mt-2 text-lg font-semibold tracking-tight">{formatRupiah(outstanding)}</p>
+          )}
+          {isLoading ? (
+            <div className="mt-1 h-3 w-16 rounded bg-white/20 animate-pulse" />
+          ) : (
+            <span className="mt-0.5 text-[0.7rem] opacity-80">
+              {invoiceList.filter((i) => i.status !== "Lunas").length} invoice
+            </span>
+          )}
         </Card>
         <Card
           role="button"
@@ -1029,10 +1110,18 @@ export function InvoicesScreen() {
           )}
         >
           <span className="text-xs text-muted-foreground">Terkumpul Bulan Ini</span>
-          <p className="mt-2 text-lg font-semibold tracking-tight text-success">{formatRupiah(collected)}</p>
-          <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
-            {invoiceList.filter((i) => i.status === "Lunas").length} invoice lunas
-          </span>
+          {isLoading ? (
+            <div className="mt-2 h-7 w-28 rounded-md bg-muted/80 animate-pulse" />
+          ) : (
+            <p className="mt-2 text-lg font-semibold tracking-tight text-success">{formatRupiah(collected)}</p>
+          )}
+          {isLoading ? (
+            <div className="mt-1 h-3 w-20 rounded bg-muted/60 animate-pulse" />
+          ) : (
+            <span className="mt-0.5 text-[0.7rem] text-muted-foreground">
+              {invoiceList.filter((i) => i.status === "Lunas").length} invoice lunas
+            </span>
+          )}
         </Card>
       </div>
 
@@ -1067,6 +1156,16 @@ export function InvoicesScreen() {
         })}
       </div>
 
+      {/* Search Bar with Filter Criterion Button */}
+      <SearchFilterBar
+        query={query}
+        onQueryChange={setQuery}
+        selectedField={searchField}
+        onFieldChange={setSearchField}
+        options={invoiceSearchOptions}
+        ariaLabel="Cari data invoice tagihan"
+      />
+
       {!canEdit && (
         <div className="flex items-center gap-2.5 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-xs font-medium text-amber-700 dark:text-amber-300">
           <Eye className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -1075,15 +1174,46 @@ export function InvoicesScreen() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-        {list.length === 0 ? (
+        {isLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i} className="gap-0 p-3.5 animate-pulse border-border">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-muted/80 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-1/2 rounded bg-muted/80" />
+                  <div className="h-3 w-1/3 rounded bg-muted/60" />
+                  <div className="h-4 w-1/4 rounded-full bg-muted/50" />
+                </div>
+                <div className="space-y-1.5 text-right">
+                  <div className="h-4 w-20 rounded bg-muted/80" />
+                  <div className="h-3 w-12 rounded bg-muted/60 ml-auto" />
+                </div>
+              </div>
+            </Card>
+          ))
+        ) : list.length === 0 ? (
           <Card className="col-span-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground dark:border-slate-800">
             <FileText className="size-10 stroke-[1.5] text-muted-foreground/50 mb-2" />
-            <p className="text-sm font-semibold text-foreground">Tidak Ada Invoice</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
-              {filter === "Belum Lunas"
+            <p className="text-sm font-semibold text-foreground">
+              {query ? "Pencarian Tidak Ditemukan" : "Tidak Ada Invoice"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
+              {query
+                ? `Tidak ada invoice yang sesuai dengan kata kunci "${query}".`
+                : filter === "Belum Lunas"
                 ? "Semua tagihan sudah berstatus lunas. Tidak ada tagihan yang tertunggak."
                 : `Tidak ada data invoice dengan status "${filter}".`}
             </p>
+            {query && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuery("")}
+                className="mt-3 text-xs h-8 rounded-xl"
+              >
+                Reset Pencarian
+              </Button>
+            )}
           </Card>
         ) : (
           list.map((inv) => (
@@ -1284,13 +1414,25 @@ export function InvoicesScreen() {
                 <div className="mx-auto w-full max-w-[330px] rounded-2xl bg-white p-5 text-slate-900 shadow-2xl border-2 border-slate-300">
                   <ThermalReceipt invoice={active} />
                   <div className="mt-4 pt-3 border-t border-dashed border-slate-300 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handlePrintInvoice(active)}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:underline"
-                    >
-                      <Printer className="size-3.5" /> Cetak Kertas Thermal
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintInvoice(active, "80mm")}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:underline"
+                        title="Ukuran standar kertas printer kasir lebar (80mm)"
+                      >
+                        <Printer className="size-3.5" /> Cetak 80mm
+                      </button>
+                      <span className="text-slate-400">·</span>
+                      <button
+                        type="button"
+                        onClick={() => handlePrintInvoice(active, "58mm")}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-black hover:underline"
+                        title="Ukuran printer mini / bluetooth (58mm)"
+                      >
+                        <Printer className="size-3.5" /> Cetak 58mm
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1708,29 +1850,43 @@ export function InvoicesScreen() {
               {/* ================= STEP 1: PILIH METODE PEMBAYARAN ================= */}
               {payStep === "select_method" && (
                 <>
-                  {/* Midtrans Status Pill Header */}
-                  <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2 dark:border-slate-800">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-foreground">Midtrans Gateway</span>
-                      <span className="text-[10px] text-muted-foreground">· Otomatis &amp; Realtime</span>
+                  {/* Status Pill Header */}
+                  {method === "Tunai" ? (
+                    <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <Wallet className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-xs font-bold text-foreground">Pembayaran Kasir</span>
+                        <span className="text-[10px] text-muted-foreground">· Tunai Langsung</span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-700 dark:text-emerald-300">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Kasir Bengkel (Tunai)
+                      </span>
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
-                        midtransConfig?.environment === "production"
-                          ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
-                          : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
-                      )}
-                    >
+                  ) : (
+                    <div className="flex items-center justify-between rounded-xl bg-muted/40 border border-border px-3 py-2 dark:border-slate-800">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-foreground">Midtrans Gateway</span>
+                        <span className="text-[10px] text-muted-foreground">· Otomatis &amp; Realtime</span>
+                      </div>
                       <span
                         className={cn(
-                          "size-1.5 rounded-full animate-pulse",
-                          midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                          midtransConfig?.environment === "production"
+                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
+                            : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
                         )}
-                      />
-                      Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox (Mode Uji Coba)"}
-                    </span>
-                  </div>
+                      >
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full animate-pulse",
+                            midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                          )}
+                        />
+                        Midtrans {midtransConfig?.environment === "production" ? "Live" : "Sandbox (Mode Uji Coba)"}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Financial summary card */}
                   <div className="rounded-2xl border border-border bg-muted/40 p-3.5 space-y-2.5 dark:border-slate-800">
@@ -1810,7 +1966,9 @@ export function InvoicesScreen() {
                         {adminFee > 0 ? (
                           <p className="text-[10px] text-muted-foreground">Termasuk biaya admin penanganan gateway</p>
                         ) : (
-                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Bebas biaya admin transfer</p>
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                            {method === "Tunai" ? "Tanpa biaya admin (Pembayaran Tunai)" : "Bebas biaya admin transfer"}
+                          </p>
                         )}
                       </div>
                       <span className="text-xl font-black tracking-tight text-primary">
@@ -1884,13 +2042,22 @@ export function InvoicesScreen() {
                     </Button>
                   </div>
 
-                  {/* Midtrans Trust Footer */}
-                  <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
-                    <Lock className="size-3 text-muted-foreground/70" />
-                    <span>
-                      Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
-                    </span>
-                  </div>
+                  {/* Trust / Notice Footer */}
+                  {method === "Tunai" ? (
+                    <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                      <Wallet className="size-3 text-muted-foreground/70" />
+                      <span>
+                        Pembayaran tunai langsung di kasir bengkel · Struk dicetak otomatis
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                      <Lock className="size-3 text-muted-foreground/70" />
+                      <span>
+                        Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1908,22 +2075,29 @@ export function InvoicesScreen() {
                       <span>Ubah Metode</span>
                     </button>
                     <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
-                          midtransConfig?.environment === "production"
-                            ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
-                            : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
-                        )}
-                      >
+                      {method === "Tunai" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400">
+                          <Wallet className="size-3" />
+                          Kasir Tunai
+                        </span>
+                      ) : (
                         <span
                           className={cn(
-                            "size-1.5 rounded-full animate-pulse",
-                            midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide",
+                            midtransConfig?.environment === "production"
+                              ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 dark:text-emerald-400"
+                              : "bg-blue-500/10 text-blue-600 border border-blue-500/25 dark:text-blue-400"
                           )}
-                        />
-                        {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
-                      </span>
+                        >
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full animate-pulse",
+                              midtransConfig?.environment === "production" ? "bg-emerald-500" : "bg-blue-500"
+                            )}
+                          />
+                          {midtransConfig?.environment === "production" ? "Live" : "Sandbox"}
+                        </span>
+                      )}
                       <div className="text-right">
                         <span className="text-[10px] text-muted-foreground block">Total Tagihan:</span>
                         <span className="text-sm font-black text-foreground">{formatRupiah(finalPayAmount)}</span>
@@ -2334,13 +2508,20 @@ export function InvoicesScreen() {
                     </div>
                   )}
 
-                  {/* Midtrans Trust Footer */}
-                  <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
-                    <Lock className="size-3 text-muted-foreground/70" />
-                    <span>
-                      Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
-                    </span>
-                  </div>
+                  {/* Trust / Notice Footer */}
+                  {method === "Tunai" ? (
+                    <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                      <Wallet className="size-3 text-muted-foreground/70" />
+                      <span>Transaksi kasir tunai langsung · Tercatat otomatis di laporan keuangan</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1.5 text-center text-[10px] text-muted-foreground pt-1">
+                      <Lock className="size-3 text-muted-foreground/70" />
+                      <span>
+                        Diproses aman via <strong>Midtrans Payment Gateway</strong> (GoTo Financial) · BI &amp; PCI-DSS Level 1
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -2894,8 +3075,8 @@ export function InvoicesScreen() {
       </BottomSheet>
       {/* Printable Thermal Receipt View */}
       {Boolean(printTargetInvoice || paidInvoice || payFor || active) && (
-        <div id="print-section" className="hidden print:flex bg-white text-black font-mono">
-          <div className="w-[340px] mx-auto p-5 bg-white text-black border-2 border-black rounded-2xl">
+        <div id="print-receipt-section" className="hidden print:block bg-white text-black font-mono">
+          <div className="w-[80mm] max-w-full mx-auto p-1 bg-white text-black">
             <ThermalReceipt invoice={(printTargetInvoice || paidInvoice || payFor || active)!} isPrint />
           </div>
         </div>

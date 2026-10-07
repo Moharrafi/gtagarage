@@ -148,6 +148,7 @@ interface WorkshopContextValue {
 
   currentUser: UserAccount | null
   authLoaded: boolean
+  isLoading: boolean
   login: (username: string, password?: string) => boolean
   loginAs: (user: UserAccount) => void
   logout: () => void
@@ -285,6 +286,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
 
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -350,6 +352,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         console.error("Failed to load initial data via bootstrap", e);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     })();
     return () => { isMounted = false; };
@@ -1127,7 +1133,11 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       if (savedUser) {
         const parsed = JSON.parse(savedUser)
         if (parsed && parsed.username) {
-          setCurrentUser(parsed)
+          const upToDate = defaultUsers.find((u) => u.username.toLowerCase() === parsed.username.toLowerCase()) || parsed
+          setCurrentUser(upToDate)
+          try {
+            localStorage.setItem("bengkel_auth_user", JSON.stringify(upToDate))
+          } catch {}
         }
       }
     } catch (e) {
@@ -1211,6 +1221,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
       currentUser,
       authLoaded,
+      isLoading,
       login,
       loginAs,
       logout,
@@ -1267,6 +1278,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
       currentUser,
       authLoaded,
+      isLoading,
       login,
       loginAs,
       logout,

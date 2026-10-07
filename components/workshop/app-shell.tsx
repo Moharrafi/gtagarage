@@ -104,7 +104,7 @@ function AppShellInner() {
   const [tab, setTab] = useState<TabKey>("beranda")
   const [notifOpen, setNotifOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { profile, currentUser, authLoaded, unreadNotifCount, workOrders, parts } = useWorkshop()
+  const { profile, currentUser, authLoaded, unreadNotifCount, workOrders, parts, isLoading } = useWorkshop()
   const head = titles[tab]
   const displayTitle = tab === "beranda" ? (profile.name || head.title) : head.title
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -143,7 +143,7 @@ function AppShellInner() {
 
   if (!authLoaded) {
     return (
-      <div className="fixed inset-0 flex w-full items-center justify-center bg-background">
+      <div suppressHydrationWarning className="fixed inset-0 flex w-full items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <p className="text-xs text-muted-foreground font-medium">Memuat sistem GTA GARAGE...</p>
@@ -162,7 +162,7 @@ function AppShellInner() {
   }
 
   return (
-    <div className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6 overflow-hidden sm:overflow-visible">
+    <div suppressHydrationWarning className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full justify-center bg-gradient-to-br from-muted/60 to-background sm:p-3 md:p-5 lg:p-6 overflow-hidden sm:overflow-visible">
       <audio ref={audioRef} src="/media/cash-in.mp3" preload="auto" style={{ display: 'none' }} />
       <div className="relative flex h-full w-full max-w-[440px] md:max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col md:flex-row overflow-hidden bg-background shadow-xl sm:h-[calc(100dvh-1.5rem)] md:h-[calc(100dvh-2.5rem)] sm:rounded-[2rem] sm:ring-1 sm:ring-border">
         {/* Tablet / Desktop Sidebar Rail */}
@@ -285,19 +285,31 @@ function AppShellInner() {
           {/* Header - DANA 2-Tone Style */}
           <header
             className={cn(
-              "z-20 flex items-center gap-3 bg-primary px-4 md:px-6 text-white shrink-0 shadow-xs",
+              "relative z-20 flex items-center gap-3 bg-primary px-4 md:px-6 text-white shrink-0 shadow-xs",
               tab === "beranda" 
                 ? "border-b-0 pt-[calc(env(safe-area-inset-top)+0.875rem)] pb-2" 
                 : "border-b border-primary/20 pt-[calc(env(safe-area-inset-top)+0.875rem)] pb-3.5 shadow-sm shadow-primary/20",
               "dark:border-slate-800 dark:bg-slate-900"
             )}
           >
+            {/* Top sync progress bar */}
+            {isLoading && (
+              <div className="absolute top-0 left-0 right-0 h-0.5 overflow-hidden bg-white/20 z-30">
+                <div className="h-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] animate-indeterminate" />
+              </div>
+            )}
             {tab === "beranda" ? (
               <img src="/logo-sm.webp" alt="Logo" width={36} height={36} fetchPriority="high" className="size-9 md:hidden rounded-xl object-cover shadow-sm ring-1 ring-white/30 bg-white" />
             ) : null}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-base md:text-lg font-bold leading-tight text-white tracking-tight">{displayTitle}</h1>
+                {isLoading && (
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium text-white/90 border border-white/25 animate-pulse">
+                    <span className="size-1.5 rounded-full bg-emerald-300 animate-ping" />
+                    Sinkronisasi...
+                  </span>
+                )}
                 {currentUser.role === "Mekanik" && (
                   <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold text-white border border-white/30">
                     Mode Mekanik

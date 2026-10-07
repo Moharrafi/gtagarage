@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { AlertTriangle, Trash2, RotateCcw, Power, AlertCircle, X } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
+import { AlertTriangle, Trash2, RotateCcw, Power, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type ConfirmVariant = "destructive" | "warning" | "default"
@@ -28,18 +29,14 @@ let confirmListener: ((state: ConfirmState | null) => void) | null = null
 
 /**
  * Trigger a beautiful in-app confirmation modal instead of native window.confirm.
- * Usage:
- *   const ok = await confirmModal({
- *     title: "Hapus Tarif Layanan?",
- *     description: 'Hapus tarif layanan "Repaint Tangki"?',
- *     confirmText: "Hapus Tarif",
- *     variant: "destructive",
- *     icon: "trash",
- *   })
- *   if (ok) { ... }
  */
 export function confirmModal(options: ConfirmOptions): Promise<boolean> {
   return new Promise((resolve) => {
+    if (activeConfirm) {
+      activeConfirm.resolve(false)
+      activeConfirm = null
+    }
+
     const fullOptions: Required<ConfirmOptions> = {
       title: options.title,
       description: options.description,
@@ -62,11 +59,18 @@ export function confirmModal(options: ConfirmOptions): Promise<boolean> {
 
 export function ConfirmDialog() {
   const [current, setCurrent] = useState<ConfirmState | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const confirmBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
+    setMounted(true)
     confirmListener = setCurrent
     return () => {
       confirmListener = null
+      if (activeConfirm) {
+        activeConfirm.resolve(false)
+        activeConfirm = null
+      }
     }
   }, [])
 
@@ -76,26 +80,40 @@ export function ConfirmDialog() {
       activeConfirm = null
       setCurrent(null)
       resolve(ok)
+    } else {
+      setCurrent(null)
     }
   }, [])
 
-  // Keyboard shortcut: Esc to cancel
+  // Auto focus confirm button when opened
+  useEffect(() => {
+    if (current) {
+      const timer = setTimeout(() => {
+        confirmBtnRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [current])
+
+  // Keyboard shortcut: Esc to cancel, Enter to confirm
   useEffect(() => {
     if (!current) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault()
+        e.stopPropagation()
         handleAction(false)
       } else if (e.key === "Enter") {
         e.preventDefault()
+        e.stopPropagation()
         handleAction(true)
       }
     }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
+    window.addEventListener("keydown", onKeyDown, { capture: true })
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true })
   }, [current, handleAction])
 
-  if (!current) return null
+  if (!mounted || !current || typeof document === "undefined") return null
 
   const { options } = current
 
@@ -127,25 +145,36 @@ export function ConfirmDialog() {
       ? "bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/25"
       : "bg-primary hover:bg-primary/90 text-white shadow-sm shadow-primary/25"
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
       aria-describedby="confirm-dialog-desc"
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/65 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/65 backdrop-blur-xs select-none duration-150 animate-in fade-in pointer-events-auto"
+      style={{ pointerEvents: "auto" }}
       onClick={() => handleAction(false)}
+      onPointerDown={(e) => {
+        // Prevent background drawers/sheets from receiving pointer events
+        e.stopPropagation()
+      }}
     >
       <div
-        className="relative w-full max-w-sm rounded-3xl border border-border/80 bg-card p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900"
+        className="relative w-full max-w-sm rounded-3xl border border-border/80 bg-card p-5 shadow-2xl space-y-4 duration-200 animate-in zoom-in-95 dark:border-slate-800 dark:bg-slate-900 focus:outline-none pointer-events-auto"
+        style={{ pointerEvents: "auto" }}
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
         {/* Close X button */}
         <button
           type="button"
-          onClick={() => handleAction(false)}
+          onClick={(e) => {
+            e.stopPropagation()
+            handleAction(false)
+          }}
           aria-label="Tutup konfirmasi"
-          className="absolute right-3.5 top-3.5 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          className="absolute right-3.5 top-3.5 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
         >
           <X className="size-4" />
         </button>
@@ -175,17 +204,23 @@ export function ConfirmDialog() {
         <div className="flex gap-2 pt-1">
           <button
             type="button"
-            onClick={() => handleAction(false)}
-            className="flex-1 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all dark:border-slate-700 dark:hover:bg-slate-800"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleAction(false)
+            }}
+            className="flex-1 rounded-xl border border-border bg-card py-2.5 text-xs font-semibold text-foreground hover:bg-muted active:scale-[0.98] transition-all cursor-pointer dark:border-slate-700 dark:hover:bg-slate-800"
           >
             {options.cancelText}
           </button>
           <button
+            ref={confirmBtnRef}
             type="button"
-            autoFocus
-            onClick={() => handleAction(true)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleAction(true)
+            }}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98] text-white [&>svg]:text-white [&>svg]:stroke-white",
+              "flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold transition-all active:scale-[0.98] text-white cursor-pointer [&>svg]:text-white [&>svg]:stroke-white",
               confirmBtnClasses
             )}
           >
@@ -194,6 +229,7 @@ export function ConfirmDialog() {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

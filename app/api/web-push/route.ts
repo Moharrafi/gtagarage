@@ -78,10 +78,11 @@ export async function POST(req: Request) {
       if (targets.length === 0) {
         return NextResponse.json(
           {
-            success: false,
-            message: 'Belum ada perangkat yang terdaftar di database. Silakan klik "Aktifkan Notifikasi" terlebih dahulu.',
+            success: true,
+            deliveredCount: 0,
+            message: 'Tidak ada perangkat terdaftar untuk dikirim notifikasi.',
           },
-          { status: 400 }
+          { status: 200 }
         )
       }
 
@@ -95,41 +96,45 @@ export async function POST(req: Request) {
       )
 
       const results = await Promise.allSettled(
-        targets.map((sub) => webpush.sendNotification(sub, notifPayload))
+        targets.map((sub) =>
+          webpush.sendNotification(sub, notifPayload, {
+            TTL: 60,
+          })
+        )
       )
 
-      // Prune dead subscriptions from PostgreSQL (HTTP 404 or 410)
+      // Prune dead/revoked subscriptions from PostgreSQL (HTTP 404 Not Found or 410 Gone)
       const deadEndpoints: string[] = []
+      let successCount = 0
+
       results.forEach((res, idx) => {
-        if (res.status === 'rejected') {
+        if (res.status === 'fulfilled') {
+          successCount++
+        } else {
           const err = res.reason
-          if (err && (err.statusCode === 404 || err.statusCode === 410)) {
+          const statusCode = err?.statusCode
+          if (statusCode === 404 || statusCode === 410) {
+            // Expected web push lifecycle: browser session closed/uninstalled/revoked
             deadEndpoints.push(targets[idx].endpoint)
+          } else {
+            console.warn('[WebPush] Unexpected subscriber error:', err?.message || err)
           }
-          console.error('Push error for subscriber:', res.reason)
         }
       })
 
       if (deadEndpoints.length > 0) {
+        console.log(`[WebPush] Automatically pruned ${deadEndpoints.length} expired/revoked subscription(s) from database.`)
         await query(
           'DELETE FROM push_subscriptions WHERE endpoint = ANY($1::text[])',
           [deadEndpoints]
         ).catch((e) => console.error('Failed to prune dead subscriptions:', e))
       }
 
-      const hasSuccess = results.some((r) => r.status === 'fulfilled')
-      if (!hasSuccess) {
-        const firstError = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
-        const errorMsg = firstError?.reason?.message || firstError?.reason?.body || 'Push service rejected notification'
-        return NextResponse.json(
-          { success: false, message: `Gagal mengirim push: ${errorMsg}` },
-          { status: 500 }
-        )
-      }
-
       return NextResponse.json({
         success: true,
-        message: `Notifikasi berhasil dikirim ke ${results.filter((r) => r.status === 'fulfilled').length} perangkat.`,
+        message: `Notifikasi berhasil diproses: ${successCount} perangkat terkirim${deadEndpoints.length > 0 ? `, ${deadEndpoints.length} perangkat kedaluwarsa dibersihkan` : ''}.`,
+        deliveredCount: successCount,
+        prunedCount: deadEndpoints.length,
       })
     }
 

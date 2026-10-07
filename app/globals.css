@@ -236,7 +236,7 @@
 
 @media print {
   @page {
-    margin: 5mm;
+    margin: 8mm 10mm;
     size: auto;
   }
   html,
@@ -245,33 +245,78 @@
     min-height: 100% !important;
     overflow: visible !important;
     background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
+  /* Hide page elements by visibility so ancestor hierarchies remain active */
   body * {
     visibility: hidden;
   }
-  /* Hide any overlays, backdrops, and dialog containers */
-  .fixed:not(#print-section),
-  [role="dialog"] {
-    display: none !important;
-  }
+  /* Explicitly make print targets and their contents fully visible */
   #print-section,
-  #print-section * {
+  #print-section *,
+  #print-receipt-section,
+  #print-receipt-section *,
+  #print-report-section,
+  #print-report-section * {
     visibility: visible !important;
   }
-  #print-section {
-    position: fixed !important;
+  /* 1. Thermal 80mm Receipt Fallback */
+  #print-receipt-section {
+    display: block !important;
+    position: absolute !important;
     left: 0 !important;
     top: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    display: flex !important;
-    justify-content: center !important;
+    width: 80mm !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 2.5mm 3.5mm !important;
     background: #ffffff !important;
+    color: #000000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    z-index: 999999 !important;
+    z-index: 9999999 !important;
+  }
+  /* 2. Official A4 Financial & Executive Report */
+  #print-report-section {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    z-index: 9999999 !important;
+  }
+  /* 3. Generic print container fallback */
+  #print-section {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    z-index: 9999999 !important;
+  }
+  /* Clean up non-printable chrome */
+  nav,
+  aside,
+  header,
+  footer,
+  button:not(#print-section button):not(#print-report-section button),
+  [data-sonner-toaster] {
+    display: none !important;
   }
 }
 

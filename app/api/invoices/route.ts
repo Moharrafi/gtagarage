@@ -76,18 +76,18 @@ export async function POST(req: Request) {
         id,
         inv.number,
         inv.workOrderCode || '',
-        JSON.stringify(inv.customer),
-        JSON.stringify(inv.vehicle),
-        inv.service,
+        JSON.stringify(inv.customer || {}),
+        JSON.stringify(inv.vehicle || {}),
+        inv.service || 'Servis',
         JSON.stringify(inv.items || []),
-        inv.status,
+        inv.status || 'Belum Bayar',
         inv.method || null,
         inv.date,
-        inv.paidAmount || 0,
+        Number(inv.paidAmount) || 0,
         inv.discountType || null,
         inv.discountCode || null,
-        inv.discountAmount || 0,
-        inv.adminFee || 0,
+        Number(inv.discountAmount) || 0,
+        Number(inv.adminFee) || 0,
         inv.paymentRef || null,
         inv.paidAt || null,
         inv.bankName || null,
@@ -115,16 +115,18 @@ export async function PUT(req: Request) {
 
     const cur = currentRes.rows[0]
     const updatedStatus = inv.status ?? cur.status
-    const updatedPaidAmount = inv.paidAmount !== undefined ? inv.paidAmount : cur.paid_amount
+    const updatedPaidAmount = inv.paidAmount !== undefined ? Number(inv.paidAmount) : Number(cur.paid_amount)
     const updatedMethod = inv.method !== undefined ? inv.method : cur.method
-    const updatedAdminFee = inv.adminFee !== undefined ? inv.adminFee : cur.admin_fee
+    const updatedAdminFee = inv.adminFee !== undefined ? Number(inv.adminFee) : Number(cur.admin_fee || 0)
     const updatedPaymentRef = inv.paymentRef !== undefined ? inv.paymentRef : cur.payment_ref
     const updatedPaidAt = inv.paidAt !== undefined ? inv.paidAt : cur.paid_at
     const updatedBankName = inv.bankName !== undefined ? inv.bankName : cur.bank_name
     const updatedDiscountType = inv.discountType !== undefined ? inv.discountType : cur.discount_type
     const updatedDiscountCode = inv.discountCode !== undefined ? inv.discountCode : cur.discount_code
-    const updatedDiscountAmount = inv.discountAmount !== undefined ? inv.discountAmount : cur.discount_amount
-    const updatedItems = inv.items ? JSON.stringify(inv.items) : cur.items
+    const updatedDiscountAmount = inv.discountAmount !== undefined ? Number(inv.discountAmount) : Number(cur.discount_amount || 0)
+    const updatedItems = inv.items !== undefined
+      ? JSON.stringify(inv.items)
+      : (typeof cur.items === 'string' ? cur.items : JSON.stringify(cur.items || []))
 
     await query(
       `UPDATE invoices SET

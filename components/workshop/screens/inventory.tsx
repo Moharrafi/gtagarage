@@ -38,7 +38,7 @@ function matchesPillar(p: Part, pillarId: string): boolean {
 const labelCls = "mb-1 block text-xs font-medium text-muted-foreground"
 
 export function InventoryScreen() {
-  const { parts, categories, addPart, updatePart, deletePart, stockIn, stockOut, canEdit, stockInLogs, stockOutLogs } = useWorkshop()
+  const { parts, categories, addCategory, addPart, updatePart, deletePart, stockIn, stockOut, canEdit, stockInLogs, stockOutLogs, isLoading } = useWorkshop()
   const [query, setQuery] = useState("")
   const [lowOnly, setLowOnly] = useState(false)
   const [selectedPillar, setSelectedPillar] = useState<string>("all")
@@ -122,6 +122,9 @@ export function InventoryScreen() {
       return
     }
     const finalCategory = form.category.trim() || "Bengkel"
+    if (finalCategory && !categories.some((c) => c.toLowerCase() === finalCategory.toLowerCase())) {
+      addCategory(finalCategory)
+    }
     const finalSku = (form.sku.trim() || generatePartSKU(form.name, finalCategory, parts)).toUpperCase()
     const finalForm = { ...form, category: finalCategory, sku: finalSku }
     if (editId) {
@@ -170,15 +173,27 @@ export function InventoryScreen() {
             <span className="text-xs text-muted-foreground">Nilai Stok</span>
             <Boxes className="size-4 text-primary" />
           </div>
-          <p className="mt-2 text-lg font-semibold tracking-tight">{formatRupiah(totalValue)}</p>
-          <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{parts.length} jenis item</p>
+          {isLoading ? (
+            <div className="mt-2 h-7 w-28 rounded-md bg-muted/80 animate-pulse" />
+          ) : (
+            <p className="mt-2 text-lg font-semibold tracking-tight">{formatRupiah(totalValue)}</p>
+          )}
+          {isLoading ? (
+            <div className="mt-1 h-3 w-16 rounded bg-muted/60 animate-pulse" />
+          ) : (
+            <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{parts.length} jenis item</p>
+          )}
         </Card>
         <Card className="gap-0 p-3.5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">Perlu Restock</span>
             <TrendingDown className="size-4 text-destructive" />
           </div>
-          <p className="mt-2 text-lg font-semibold tracking-tight">{lowCount} item</p>
+          {isLoading ? (
+            <div className="mt-2 h-7 w-16 rounded-md bg-muted/80 animate-pulse" />
+          ) : (
+            <p className="mt-2 text-lg font-semibold tracking-tight">{lowCount} item</p>
+          )}
           <p className="mt-0.5 text-[0.7rem] text-muted-foreground">Di bawah minimum</p>
         </Card>
       </div>
@@ -262,12 +277,29 @@ export function InventoryScreen() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-        {filtered.map((p) => {
-          const low = p.stock <= p.minStock
-          const maxStock = Math.max(p.minStock * 2, p.stock, 1)
-          const calculatedRatio = Math.round((p.stock / maxStock) * 100)
-          const ratio = p.stock === 0 ? 0 : Math.min(100, Math.max(6, calculatedRatio))
-          const open = openId === p.id
+        {isLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i} className="gap-0 p-3.5 animate-pulse border-border">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/5 rounded bg-muted/80" />
+                  <div className="h-3 w-2/5 rounded bg-muted/60" />
+                </div>
+                <div className="space-y-1 text-right">
+                  <div className="h-4 w-12 rounded bg-muted/80 ml-auto" />
+                  <div className="h-2.5 w-10 rounded bg-muted/60 ml-auto" />
+                </div>
+              </div>
+              <div className="mt-3.5 h-2 w-full rounded-full bg-muted/50" />
+            </Card>
+          ))
+        ) : (
+          filtered.map((p) => {
+            const low = p.stock <= p.minStock
+            const maxStock = Math.max(p.minStock * 2, p.stock, 1)
+            const calculatedRatio = Math.round((p.stock / maxStock) * 100)
+            const ratio = p.stock === 0 ? 0 : Math.min(100, Math.max(6, calculatedRatio))
+            const open = openId === p.id
           return (
             <Card key={p.id} className="gap-0 p-0">
               <button
@@ -438,9 +470,9 @@ export function InventoryScreen() {
               </div>
             </Card>
           )
-        })}
+        }))}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 && (
           <p className="col-span-full py-10 text-center text-sm text-muted-foreground">Tidak ada item yang cocok.</p>
         )}
       </div>
@@ -585,7 +617,6 @@ export function InventoryScreen() {
             <div className="pt-1">
               <Input
                 id="pt-cat"
-                list="category-suggestions"
                 value={form.category}
                 onChange={(e) => {
                   const newCat = e.target.value
@@ -595,14 +626,9 @@ export function InventoryScreen() {
                     sku: isAutoSku ? generatePartSKU(prev.name, newCat, parts) : prev.sku,
                   }))
                 }}
-                placeholder="Pilih di atas atau ketik kategori baru..."
+                placeholder="Pilih tombol di atas atau ketik nama kategori baru..."
                 className="h-8.5 text-xs bg-background"
               />
-              <datalist id="category-suggestions">
-                {categories.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

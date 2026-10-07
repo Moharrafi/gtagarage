@@ -70,7 +70,7 @@ function ChartTooltip({
 const periods = ["Mingguan", "Bulanan", "Tahunan"] as const
 
 export function AnalyticsScreen() {
-  const { technicians, invoices, workOrders, stockInLogs } = useWorkshop()
+  const { technicians, invoices, workOrders, stockInLogs, isLoading } = useWorkshop()
   const [period, setPeriod] = useState<(typeof periods)[number]>("Bulanan")
   const [exportOpen, setExportOpen] = useState(false)
   
@@ -107,17 +107,25 @@ export function AnalyticsScreen() {
         {kpis.map((k) => (
           <Card key={k.label} className="gap-0 p-3">
             <k.icon className="size-4 text-primary" />
-            <p className="mt-2 text-base font-semibold tracking-tight">{k.value}</p>
+            {isLoading ? (
+              <div className="mt-2 h-6 w-16 rounded-md bg-muted/80 animate-pulse" />
+            ) : (
+              <p className="mt-2 text-base font-semibold tracking-tight">{k.value}</p>
+            )}
             <p className="text-[0.7rem] text-muted-foreground">{k.label}</p>
-            <span
-              className={cn(
-                "mt-1 inline-flex items-center gap-0.5 text-[0.65rem] font-medium",
-                k.up ? "text-success" : "text-destructive",
-              )}
-            >
-              {k.up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
-              {k.delta}
-            </span>
+            {isLoading ? (
+              <div className="mt-1.5 h-3 w-10 rounded bg-muted/60 animate-pulse" />
+            ) : (
+              <span
+                className={cn(
+                  "mt-1 inline-flex items-center gap-0.5 text-[0.65rem] font-medium",
+                  k.up ? "text-success" : "text-destructive",
+                )}
+              >
+                {k.up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+                {k.delta}
+              </span>
+            )}
           </Card>
         ))}
       </div>

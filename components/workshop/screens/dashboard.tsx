@@ -123,7 +123,7 @@ function SparklineArea({ data }: { data: { month: string; v: number }[] }) {
 }
 
 export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => void }) {
-  const { canEdit, workOrders, parts, invoices } = useWorkshop()
+  const { canEdit, workOrders, parts, invoices, isLoading } = useWorkshop()
   const [waOpen, setWaOpen] = useState(false)
   
   const { todayRevenue, todayRevenueDelta, monthRevenue, monthRevenueDelta, queuedJobs, activeJobs, readyJobs, lowStock, revenueTrend } = useMemo(
@@ -167,20 +167,37 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             <p className="text-[11px] font-medium text-blue-100/90 uppercase tracking-wider">
               Pendapatan Hari Ini
             </p>
-            <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
-                {formatRupiah(todayRevenue || 0)}
-              </span>
-              <span className={cn("inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs", isTodayUp ? "" : "text-red-100 bg-red-500/30")}>
-                {isTodayUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />} {todayRevenueDelta}
-              </span>
-            </div>
+            {isLoading ? (
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="h-8 w-36 md:w-44 rounded-xl bg-white/20 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-xs">
+                  <span className="size-2 rounded-full bg-white animate-spin border-1 border-white border-t-transparent" />
+                  Memuat data...
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                  {formatRupiah(todayRevenue || 0)}
+                </span>
+                <span className={cn("inline-flex items-center gap-0.5 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs", isTodayUp ? "" : "text-red-100 bg-red-500/30")}>
+                  {isTodayUp ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />} {todayRevenueDelta}
+                </span>
+              </div>
+            )}
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-1 text-xs font-semibold text-emerald-100 border border-emerald-300/30">
-            <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-            Bengkel Buka
-          </span>
+          {isLoading ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold text-white/90 border border-white/25 backdrop-blur-xs">
+              <span className="size-2 rounded-full bg-white animate-ping" />
+              Sinkronisasi...
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-1 text-xs font-semibold text-emerald-100 border border-emerald-300/30">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+              Bengkel Buka
+            </span>
+          )}
         </div>
 
         {/* 4 Quick Actions directly on the BLUE background (DANA Style) */}
@@ -220,7 +237,11 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
                 <span className="text-xs text-muted-foreground">{s.label}</span>
                 <s.icon className={`size-4 ${s.tint}`} />
               </div>
-              <p className="mt-2 text-xl md:text-2xl font-semibold tracking-tight text-balance">{s.value}</p>
+              {isLoading ? (
+                <div className="mt-2 h-7 w-14 rounded-lg bg-muted/80 animate-pulse" />
+              ) : (
+                <p className="mt-2 text-xl md:text-2xl font-semibold tracking-tight text-balance">{s.value}</p>
+              )}
               <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{s.sub}</p>
             </Card>
           ))}
@@ -231,13 +252,30 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs text-muted-foreground">Pendapatan Bulan Ini</p>
-              <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
+              {isLoading ? (
+                <div className="mt-1 h-8 w-44 rounded-xl bg-muted/80 animate-pulse" />
+              ) : (
+                <p className="text-2xl md:text-3xl font-semibold tracking-tight">{formatRupiah(monthRevenue)}</p>
+              )}
             </div>
-            <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold", isMonthUp ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive")}>
-              {isMonthUp ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />} {monthRevenueDelta}
-            </span>
+            {isLoading ? (
+              <div className="h-6 w-16 rounded-full bg-muted/60 animate-pulse" />
+            ) : (
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold", isMonthUp ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive")}>
+                {isMonthUp ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />} {monthRevenueDelta}
+              </span>
+            )}
           </div>
-          <SparklineArea data={chartData} />
+          {isLoading ? (
+            <div className="h-20 md:h-24 w-full flex items-center justify-center rounded-2xl bg-muted/20 border border-dashed border-border/70 animate-pulse mt-2">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                <span className="size-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                Memuat grafik tren pendapatan...
+              </span>
+            </div>
+          ) : (
+            <SparklineArea data={chartData} />
+          )}
         </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
@@ -254,40 +292,57 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
             </button>
           </div>
           <div className="space-y-2.5">
-            {activeJobs.slice(0, 3).map((w) => (
-              <Card key={w.id} className="gap-2.5 p-3.5 hover:border-primary/40 transition-colors">
-                <div className="flex items-center gap-3">
-                  <ServiceIcon service={w.service} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium">
-                        {w.vehicle.brand} {w.vehicle.model}
-                      </p>
-                      <span className="shrink-0 text-xs text-muted-foreground">{w.code}</span>
+            {isLoading ? (
+              [1, 2, 3].map((i) => (
+                <Card key={i} className="gap-2.5 p-3.5 animate-pulse border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-xl bg-muted/80 shrink-0" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-4 w-3/5 rounded bg-muted/80" />
+                      <div className="h-3 w-2/5 rounded bg-muted/60" />
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {w.vehicle.plate} · {w.customer.name}
-                    </p>
                   </div>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <WorkStatusBadge status={w.status} />
-                    {w.technician && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium text-foreground/80">
-                        <Wrench className="size-2.5 text-primary" /> {w.technician}
-                      </span>
-                    )}
+                  <div className="h-1.5 w-full rounded-full bg-muted/50 mt-1" />
+                </Card>
+              ))
+            ) : activeJobs.length === 0 ? (
+              <Card className="p-6 text-center text-xs text-muted-foreground">Tidak ada pekerjaan aktif saat ini.</Card>
+            ) : (
+              activeJobs.slice(0, 3).map((w) => (
+                <Card key={w.id} className="gap-2.5 p-3.5 hover:border-primary/40 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <ServiceIcon service={w.service} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium">
+                          {w.vehicle.brand} {w.vehicle.model}
+                        </p>
+                        <span className="shrink-0 text-xs text-muted-foreground">{w.code}</span>
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {w.vehicle.plate} · {w.customer.name}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums text-foreground">{w.progress}%</span>
-                </div>
-                <Progress
-                  value={w.progress}
-                  className="h-1.5"
-                  aria-label={`Progres pengerjaan ${w.vehicle.brand} ${w.vehicle.model}: ${w.progress}%`}
-                />
-              </Card>
-            ))}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <WorkStatusBadge status={w.status} />
+                      {w.technician && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[10px] font-medium text-foreground/80">
+                          <Wrench className="size-2.5 text-primary" /> {w.technician}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs font-semibold tabular-nums text-foreground">{w.progress}%</span>
+                  </div>
+                  <Progress
+                    value={w.progress}
+                    className="h-1.5"
+                    aria-label={`Progres pengerjaan ${w.vehicle.brand} ${w.vehicle.model}: ${w.progress}%`}
+                  />
+                </Card>
+              ))
+            )}
           </div>
         </section>
 
@@ -303,20 +358,36 @@ export function DashboardScreen({ onNavigate }: { onNavigate: (t: TabKey) => voi
               Lihat semua <ChevronRight className="size-3.5" aria-hidden="true" />
             </button>
           </div>
-          <Card className="divide-y divide-border p-0 overflow-hidden">
-            {invoices.slice(0, 3).map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-muted/30 transition-colors">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{inv.customer.name}</p>
-                  <p className="text-xs text-muted-foreground">{inv.number} · {inv.service}</p>
+          {isLoading ? (
+            <Card className="divide-y divide-border p-0 overflow-hidden">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-3.5 animate-pulse">
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-2/5 rounded bg-muted/80" />
+                    <div className="h-3 w-1/4 rounded bg-muted/60" />
+                  </div>
+                  <div className="h-5 w-20 rounded bg-muted/80 shrink-0" />
                 </div>
-                <div className="text-right">
-                  <p className="shrink-0 text-sm font-semibold text-foreground">{formatRupiah(invoiceTotal(inv))}</p>
-                  <span className="text-[10px] text-muted-foreground">{inv.status}</span>
+              ))}
+            </Card>
+          ) : invoices.length === 0 ? (
+            <Card className="p-6 text-center text-xs text-muted-foreground">Belum ada invoice transaksi.</Card>
+          ) : (
+            <Card className="divide-y divide-border p-0 overflow-hidden">
+              {invoices.slice(0, 3).map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between gap-3 p-3.5 hover:bg-muted/30 transition-colors">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{inv.customer.name}</p>
+                    <p className="text-xs text-muted-foreground">{inv.number} · {inv.service}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="shrink-0 text-sm font-semibold text-foreground">{formatRupiah(invoiceTotal(inv))}</p>
+                    <span className="text-[10px] text-muted-foreground">{inv.status}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </Card>
+              ))}
+            </Card>
+          )}
         </section>
       </div>
 

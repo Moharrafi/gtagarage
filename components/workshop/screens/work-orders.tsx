@@ -17,6 +17,7 @@ import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { WorkOrderFormModal } from "@/components/workshop/work-order-form-modal"
 import { formatRupiah, workOrderTotal, type WorkStatus, type ServiceType, type WorkOrder, type Part } from "@/lib/data"
 import { useWorkshop, type WorkOrderInput } from "@/lib/store"
+import { SearchFilterBar, type SearchFilterOption } from "@/components/workshop/search-filter-bar"
 
 export type JobFilter = "Aktif" | WorkStatus
 
@@ -38,6 +39,16 @@ const filters: JobFilter[] = [
 ]
 
 const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi"]
+
+const workOrderSearchOptions: SearchFilterOption[] = [
+  { key: "all", label: "Semua Bidang", placeholder: "Cari nopol, pelanggan, motor, SPK..." },
+  { key: "plate", label: "Plat Nomor", placeholder: "Cari plat nomor (mis. B 5543 WLN)..." },
+  { key: "customer", label: "Pelanggan", placeholder: "Cari nama atau telepon pelanggan..." },
+  { key: "vehicle", label: "Motor / Unit", placeholder: "Cari merk / tipe motor (mis. NMAX)..." },
+  { key: "code", label: "Kode SPK / WO", placeholder: "Cari kode pekerjaan (mis. SPK-001)..." },
+  { key: "technician", label: "Mekanik", placeholder: "Cari nama mekanik..." },
+  { key: "service", label: "Tipe Layanan", placeholder: "Cari jenis servis (mis. Vapor Blasting)..." },
+]
 const statuses: WorkStatus[] = [
   "Antrian",
   "Menunggu Sparepart",
@@ -93,9 +104,10 @@ const selectCls =
   "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-slate-400 placeholder:font-normal dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-ring"
 
 export function WorkOrdersScreen() {
-  const { workOrders, parts, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit } = useWorkshop()
+  const { workOrders, parts, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit, isLoading } = useWorkshop()
   const [filter, setFilter] = useState<JobFilter>("Aktif")
   const [query, setQuery] = useState("")
+  const [searchField, setSearchField] = useState("all")
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -171,23 +183,45 @@ export function WorkOrdersScreen() {
       if (!matchFilter) return false
       if (!q) return true
 
-      const searchStr = [
-        w.code,
-        w.vehicle.brand,
-        w.vehicle.model,
-        w.vehicle.plate,
-        w.customer.name,
-        w.customer.phone,
-        w.service,
-        w.complaint,
-        w.technician,
-      ]
-        .join(" ")
-        .toLowerCase()
-
-      return searchStr.includes(q)
+      switch (searchField) {
+        case "plate":
+          return w.vehicle.plate.toLowerCase().includes(q)
+        case "customer":
+          return (
+            w.customer.name.toLowerCase().includes(q) ||
+            w.customer.phone.toLowerCase().includes(q)
+          )
+        case "vehicle":
+          return (
+            w.vehicle.brand.toLowerCase().includes(q) ||
+            w.vehicle.model.toLowerCase().includes(q)
+          )
+        case "code":
+          return w.code.toLowerCase().includes(q)
+        case "technician":
+          return w.technician.toLowerCase().includes(q)
+        case "service":
+          return w.service.toLowerCase().includes(q)
+        case "all":
+        default: {
+          const searchStr = [
+            w.code,
+            w.vehicle.brand,
+            w.vehicle.model,
+            w.vehicle.plate,
+            w.customer.name,
+            w.customer.phone,
+            w.service,
+            w.complaint,
+            w.technician,
+          ]
+            .join(" ")
+            .toLowerCase()
+          return searchStr.includes(q)
+        }
+      }
     })
-  }, [workOrders, filter, query])
+  }, [workOrders, filter, query, searchField])
 
   function openAdd(e?: React.MouseEvent) {
     if (e?.currentTarget instanceof HTMLElement) {
@@ -254,27 +288,15 @@ export function WorkOrdersScreen() {
         })}
       </div>
 
-      {/* Search Bar */}
-      <div className="relative">
-        <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari nopol, pelanggan, motor, atau WO..."
-          className="pl-9 pr-9 h-10 rounded-2xl bg-card border-border dark:border-slate-700/80 shadow-2xs text-xs md:text-sm"
-          aria-label="Cari data pekerjaan servis"
-        />
-        {query && (
-          <button
-            type="button"
-            onClick={() => setQuery("")}
-            aria-label="Hapus pencarian"
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 flex size-6 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
+      {/* Search Bar with Filter Criterion Button */}
+      <SearchFilterBar
+        query={query}
+        onQueryChange={setQuery}
+        selectedField={searchField}
+        onFieldChange={setSearchField}
+        options={workOrderSearchOptions}
+        ariaLabel="Cari data pekerjaan servis"
+      />
 
       {canEdit ? (
         <button
@@ -293,11 +315,31 @@ export function WorkOrdersScreen() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 items-start">
-        {list.map((w) => {
-          const open = openId === w.id
-          const partsTotal = w.usedParts.reduce((s, p) => s + p.qty * p.price, 0)
-          return (
-            <Card key={w.id} className="gap-0 overflow-hidden p-0">
+        {isLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <Card key={i} className="gap-0 overflow-hidden p-3.5 animate-pulse border-border">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-muted/80 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/5 rounded bg-muted/80" />
+                  <div className="h-3 w-2/5 rounded bg-muted/60" />
+                </div>
+              </div>
+              <div className="mt-3.5 space-y-2">
+                <div className="flex justify-between items-center">
+                  <div className="h-4 w-20 rounded bg-muted/60" />
+                  <div className="h-3 w-8 rounded bg-muted/60" />
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-muted/50" />
+              </div>
+            </Card>
+          ))
+        ) : (
+          list.map((w) => {
+            const open = openId === w.id
+            const partsTotal = w.usedParts.reduce((s, p) => s + p.qty * p.price, 0)
+            return (
+              <Card key={w.id} className="gap-0 overflow-hidden p-0">
               <button
                 type="button"
                 onClick={() => setOpenId(open ? null : w.id)}
@@ -533,9 +575,9 @@ export function WorkOrdersScreen() {
               </div>
             </Card>
           )
-        })}
+        }))}
 
-        {list.length === 0 && (
+        {!isLoading && list.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center text-muted-foreground shadow-2xs">
             <Wrench className="mx-auto size-9 stroke-[1.5] text-muted-foreground/50 mb-2" />
             <p className="text-sm font-semibold text-foreground">

@@ -1,4 +1,4 @@
-import type { Invoice, WorkOrder, Part, Technician, StockInLog } from "./data"
+import { invoiceTotal, type Invoice, type WorkOrder, type Part, type Technician, type StockInLog } from "./data"
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
@@ -149,36 +149,42 @@ export function getAnalyticsData(
   
   // Calculate period boundaries based on filter
   let startDate = new Date(now)
+  let endDate = new Date(now)
   let prevStartDate = new Date(startDate)
   let prevEndDate = new Date(startDate)
 
   if (filter === "Mingguan") {
     startDate.setDate(now.getDate() - 7)
+    startDate.setHours(0, 0, 0, 0)
+    endDate.setHours(23, 59, 59, 999)
     prevStartDate = new Date(startDate)
     prevStartDate.setDate(prevStartDate.getDate() - 7)
     prevEndDate = new Date(startDate)
+    prevEndDate.setMilliseconds(prevEndDate.getMilliseconds() - 1)
   } else if (filter === "Bulanan") {
-    // Current calendar month: from 1st of month 00:00:00
+    // Current calendar month: from 1st of month 00:00:00 to last day of month 23:59:59.999
     startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0)
+    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
     // Previous calendar month: from 1st of last month to last day of last month
     prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0)
-    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
+    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
   } else {
-    // Current calendar year: from Jan 1 00:00:00
+    // Current calendar year: from Jan 1 00:00:00 to Dec 31 23:59:59.999
     startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0)
+    endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)
     prevStartDate = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0)
-    prevEndDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59)
+    prevEndDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
   }
 
-  // Filter data within the period
+  // Filter data within the period (inclusive of full day/month boundaries)
   const validInvoices = invoices.filter(inv => {
     const d = parseInvoiceDate(inv)
-    return !isNaN(d.getTime()) && d >= startDate && d <= now
+    return !isNaN(d.getTime()) && d >= startDate && d <= endDate
   })
   
   const validWorkOrders = workOrders.filter(wo => {
     const d = parseWorkOrderDate(wo)
-    return d >= startDate && d <= now
+    return !isNaN(d.getTime()) && d >= startDate && d <= endDate
   })
 
   const prevInvoices = invoices.filter(inv => {
@@ -194,11 +200,11 @@ export function getAnalyticsData(
   let prevKunjungan = prevInvoices.length
 
   prevInvoices.forEach(inv => {
-    if (inv.status === "Lunas") prevPendapatan += inv.paidAmount
+    prevPendapatan += (inv.paidAmount || 0)
   })
   
   validInvoices.forEach(inv => {
-    if (inv.status === "Lunas") totalPendapatan += inv.paidAmount
+    totalPendapatan += (inv.paidAmount || 0)
   })
   
   // Calculate real average service time from work orders
@@ -276,7 +282,7 @@ export function getAnalyticsData(
       validInvoices.forEach(inv => {
         const invDate = parseInvoiceDate(inv)
         if (invDate.getDate() === d.getDate() && invDate.getMonth() === d.getMonth()) {
-          if (inv.status === "Lunas") total += inv.paidAmount
+          total += (inv.paidAmount || 0)
           visits += 1
         }
       })
@@ -300,9 +306,7 @@ export function getAnalyticsData(
       else if (day <= 21) bucket = 2
       else bucket = 3
       
-      if (inv.status === "Lunas") {
-        bucketTotals[bucket] += inv.paidAmount
-      }
+      bucketTotals[bucket] += (inv.paidAmount || 0)
       bucketVisits[bucket] += 1
     })
 
@@ -318,7 +322,7 @@ export function getAnalyticsData(
       validInvoices.forEach(inv => {
         const invDate = parseInvoiceDate(inv)
         if (invDate.getFullYear() === now.getFullYear() && invDate.getMonth() === i) {
-          if (inv.status === "Lunas") total += inv.paidAmount
+          total += (inv.paidAmount || 0)
           visits += 1
         }
       })
@@ -351,7 +355,7 @@ export function getAnalyticsData(
   ]
   validInvoices.forEach(inv => {
     const svc = serviceBreakdown.find(s => s.name === inv.service) || serviceBreakdown[0]
-    if (inv.status === "Lunas") svc.value += inv.paidAmount
+    svc.value += (inv.paidAmount || 0)
     svc.jobs += 1
   })
 
@@ -403,8 +407,11 @@ export function getAnalyticsData(
 
   const pengeluaran = totalBebanStok
   let piutang = 0
-  validInvoices.forEach(inv => {
-    if (inv.status !== "Lunas") piutang += inv.paidAmount || 0
+  invoices.forEach(inv => {
+    if (inv.status !== "Lunas") {
+      const total = invoiceTotal(inv)
+      piutang += Math.max(0, total - (inv.paidAmount || 0))
+    }
   })
 
   const monthlyReport = {

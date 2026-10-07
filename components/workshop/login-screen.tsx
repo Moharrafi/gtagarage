@@ -81,7 +81,7 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full items-center justify-center bg-slate-100/80 dark:bg-zinc-950 p-4 sm:p-6 text-foreground transition-colors duration-200 overflow-y-auto">
+    <div suppressHydrationWarning className="fixed inset-0 sm:relative sm:min-h-dvh flex w-full items-center justify-center bg-slate-100/80 dark:bg-zinc-950 p-4 sm:p-6 text-foreground transition-colors duration-200 overflow-y-auto">
       {/* Background subtle texture for authentic industrial feel */}
       <div className="fixed inset-0 pointer-events-none opacity-40 dark:opacity-20 [background-image:radial-gradient(#94a3b8_1px,transparent_1px)] [background-size:20px_20px]" />
 

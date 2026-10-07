@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
   X,
   Settings,
@@ -33,6 +33,7 @@ import {
   Lock,
   Users,
   Phone,
+  ChevronDown,
 } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { useWorkshop, initials, type PartInput, type ServiceRateInput, type WorkshopProfile, type MidtransConfig } from "@/lib/store"
@@ -49,7 +50,7 @@ interface SettingsModalProps {
 }
 
 type SettingsTab = "harga" | "mekanik" | "voucher" | "midtrans" | "profil" | "tema" | "sistem"
-type CatalogSubTab = "layanan" | "sparepart"
+type CatalogSubTab = "layanan" | "sparepart" | "kategori"
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const {
@@ -61,6 +62,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     updateProfile,
     parts,
     categories,
+    addCategory,
+    deleteCategory,
     serviceRates,
     vouchers,
     addPart,
@@ -155,11 +158,32 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [partForm, setPartForm] = useState<PartInput>({
     name: "",
     sku: "",
-    category: "Pelumas",
+    category: "Pelumas & Oli",
     stock: 10,
     minStock: 5,
     price: 0,
   })
+
+  // Category selector & quick add state
+  const [partCatDropdownOpen, setPartCatDropdownOpen] = useState(false)
+  const [partCatQuery, setPartCatQuery] = useState("")
+  const partCatDropdownRef = useRef<HTMLDivElement>(null)
+  const [newCatInput, setNewCatInput] = useState("")
+
+  useEffect(() => {
+    if (!partCatDropdownOpen) return
+    function handleClickOutside(e: MouseEvent | TouchEvent) {
+      if (partCatDropdownRef.current && !partCatDropdownRef.current.contains(e.target as Node)) {
+        setPartCatDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("touchstart", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("touchstart", handleClickOutside)
+    }
+  }, [partCatDropdownOpen])
 
   // Profile Bengkel state
   const [workshopProfile, setWorkshopProfile] = useState<WorkshopProfile>(profile)
@@ -232,14 +256,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   // Open add part form
   const handleOpenAddPart = () => {
     setEditingPartId(null)
+    const initialCategory = categories[0] || "Pelumas & Oli"
     setPartForm({
       name: "",
-      sku: generatePartSKU("", "Pelumas", parts),
-      category: "Pelumas",
+      sku: generatePartSKU("", initialCategory, parts),
+      category: initialCategory,
       stock: 10,
       minStock: 5,
       price: 0,
     })
+    setPartCatDropdownOpen(false)
+    setPartCatQuery("")
     setPartFormOpen(true)
   }
 
@@ -254,6 +281,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       minStock: p.minStock,
       price: p.price,
     })
+    setPartCatDropdownOpen(false)
+    setPartCatQuery("")
     setPartFormOpen(true)
   }
 
@@ -263,8 +292,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       toast.error("Validasi Gagal", "Silakan isi nama barang dan harga dengan benar.")
       return
     }
-    const finalSku = partForm.sku || generatePartSKU(partForm.name, partForm.category, parts)
-    const finalPartForm = { ...partForm, sku: finalSku }
+    const cat = partForm.category.trim()
+    if (!cat) {
+      toast.error("Validasi Gagal", "Silakan pilih atau ketik kategori barang.")
+      return
+    }
+    // Auto-register category if not existing yet
+    if (!categories.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+      addCategory(cat)
+    }
+    const finalSku = partForm.sku || generatePartSKU(partForm.name, cat, parts)
+    const finalPartForm = { ...partForm, category: cat, sku: finalSku }
     if (editingPartId) {
       updatePart(editingPartId, finalPartForm)
       toast.success("Sparepart Diperbarui", `Item "${finalPartForm.name}" (${finalPartForm.sku}) berhasil disimpan.`)
@@ -273,6 +311,40 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       toast.success("Sparepart Ditambahkan", `Item "${finalPartForm.name}" (${finalPartForm.sku}) berhasil ditambahkan.`)
     }
     setPartFormOpen(false)
+  }
+
+  const handleAddCategorySubmit = () => {
+    const trimmed = newCatInput.trim()
+    if (!trimmed) {
+      toast.error("Nama Kategori Kosong", "Silakan ketik nama kategori yang ingin ditambahkan.")
+      return
+    }
+    if (categories.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error("Kategori Sudah Ada", `Kategori "${trimmed}" sudah terdaftar.`)
+      return
+    }
+    addCategory(trimmed)
+    setNewCatInput("")
+    toast.success("Kategori Ditambahkan", `Kategori "${trimmed}" berhasil disimpan.`)
+  }
+
+  const handleDeleteCategory = async (cat: string) => {
+    const count = parts.filter((p) => p.category.toLowerCase() === cat.toLowerCase()).length
+    const ok = await confirmModal({
+      title: "Hapus Kategori?",
+      description:
+        count > 0
+          ? `Kategori "${cat}" saat ini digunakan oleh ${count} suku cadang/bahan. Yakin ingin menghapus kategori ini?`
+          : `Apakah Anda yakin ingin menghapus kategori "${cat}" dari daftar?`,
+      confirmText: "Hapus Kategori",
+      cancelText: "Batal",
+      variant: "destructive",
+      icon: "trash",
+    })
+    if (ok) {
+      deleteCategory(cat)
+      toast.success("Kategori Dihapus", `Kategori "${cat}" telah dihapus.`)
+    }
   }
 
   // Voucher search & state
@@ -685,7 +757,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
         {/* Sub-tabs & Search Bar (Sticky for 'harga') */}
         {activeTab === "harga" && (
           <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -693,17 +765,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   setSelectedCategory("Semua")
                 }}
                 className={cn(
-                  "group relative flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2 text-xs font-semibold transition-all shadow-xs min-w-0 overflow-hidden",
+                  "group relative flex items-center justify-center gap-1.5 rounded-xl border py-2 px-1.5 text-xs font-semibold transition-all shadow-xs min-w-0 overflow-hidden cursor-pointer",
                   catalogSubTab === "layanan"
                     ? "border-primary bg-primary/10 text-primary dark:bg-primary/25 dark:border-primary dark:text-blue-300 font-bold"
                     : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground dark:border-slate-700/80 dark:bg-slate-900/50 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                 )}
               >
                 <Sparkles className={cn("size-3.5 shrink-0 transition-colors", catalogSubTab === "layanan" ? "text-primary dark:text-blue-300" : "text-muted-foreground dark:text-slate-400")} />
-                <span className="truncate tracking-tight font-medium">Jasa &amp; Vapor</span>
+                <span className="truncate tracking-tight font-medium">Jasa</span>
                 <span
                   className={cn(
-                    "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold transition-colors",
+                    "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[0.62rem] font-bold transition-colors",
                     catalogSubTab === "layanan"
                       ? "bg-primary text-primary-foreground dark:bg-primary dark:text-white"
                       : "bg-muted text-muted-foreground group-hover:bg-muted/80 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-700"
@@ -720,23 +792,50 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   setSelectedCategory("Semua")
                 }}
                 className={cn(
-                  "group relative flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2 text-xs font-semibold transition-all shadow-xs min-w-0 overflow-hidden",
+                  "group relative flex items-center justify-center gap-1.5 rounded-xl border py-2 px-1.5 text-xs font-semibold transition-all shadow-xs min-w-0 overflow-hidden cursor-pointer",
                   catalogSubTab === "sparepart"
                     ? "border-primary bg-primary/10 text-primary dark:bg-primary/25 dark:border-primary dark:text-blue-300 font-bold"
                     : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground dark:border-slate-700/80 dark:bg-slate-900/50 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                 )}
               >
                 <Package className={cn("size-3.5 shrink-0 transition-colors", catalogSubTab === "sparepart" ? "text-primary dark:text-blue-300" : "text-muted-foreground dark:text-slate-400")} />
-                <span className="truncate tracking-tight font-medium">Sparepart &amp; Bahan</span>
+                <span className="truncate tracking-tight font-medium">Sparepart</span>
                 <span
                   className={cn(
-                    "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-[0.65rem] font-bold transition-colors",
+                    "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[0.62rem] font-bold transition-colors",
                     catalogSubTab === "sparepart"
                       ? "bg-primary text-primary-foreground dark:bg-primary dark:text-white"
                       : "bg-muted text-muted-foreground group-hover:bg-muted/80 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-700"
                   )}
                 >
                   {parts.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCatalogSubTab("kategori")
+                  setSelectedCategory("Semua")
+                }}
+                className={cn(
+                  "group relative flex items-center justify-center gap-1.5 rounded-xl border py-2 px-1.5 text-xs font-semibold transition-all shadow-xs min-w-0 overflow-hidden cursor-pointer",
+                  catalogSubTab === "kategori"
+                    ? "border-primary bg-primary/10 text-primary dark:bg-primary/25 dark:border-primary dark:text-blue-300 font-bold"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground dark:border-slate-700/80 dark:bg-slate-900/50 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                )}
+              >
+                <Tag className={cn("size-3.5 shrink-0 transition-colors", catalogSubTab === "kategori" ? "text-primary dark:text-blue-300" : "text-muted-foreground dark:text-slate-400")} />
+                <span className="truncate tracking-tight font-medium">Kategori</span>
+                <span
+                  className={cn(
+                    "ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full px-1 text-[0.62rem] font-bold transition-colors",
+                    catalogSubTab === "kategori"
+                      ? "bg-primary text-primary-foreground dark:bg-primary dark:text-white"
+                      : "bg-muted text-muted-foreground group-hover:bg-muted/80 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-slate-700"
+                  )}
+                >
+                  {categories.length}
                 </span>
               </button>
             </div>
@@ -747,7 +846,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder={catalogSubTab === "layanan" ? "Cari tarif vapor / jasa..." : "Cari suku cadang / bahan..."}
+                  placeholder={
+                    catalogSubTab === "layanan"
+                      ? "Cari tarif vapor / jasa..."
+                      : catalogSubTab === "sparepart"
+                      ? "Cari suku cadang / bahan..."
+                      : "Cari nama kategori..."
+                  }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background pl-8 pr-3 py-2 text-xs font-medium focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
@@ -759,7 +864,16 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <button
                     type="button"
                     onClick={handleOpenAddService}
-                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
+                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95 cursor-pointer"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Tambah</span>
+                  </button>
+                ) : catalogSubTab === "sparepart" ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPart}
+                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95 cursor-pointer"
                   >
                     <Plus className="size-3.5" />
                     <span>Tambah</span>
@@ -767,8 +881,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 ) : (
                   <button
                     type="button"
-                    onClick={handleOpenAddPart}
-                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95"
+                    onClick={() => {
+                      const inputEl = document.getElementById("new-cat-input-field")
+                      inputEl?.focus()
+                    }}
+                    className="flex items-center gap-1 shrink-0 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 active:scale-95 cursor-pointer"
                   >
                     <Plus className="size-3.5" />
                     <span>Tambah</span>
@@ -1010,6 +1127,97 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   {filteredParts.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-border bg-card/60 py-8 text-center text-xs text-muted-foreground">
                       Tidak ada suku cadang/bahan yang cocok.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-SECTION 3: DAFTAR KATEGORI */}
+            {catalogSubTab === "kategori" && (
+              <div className="space-y-3">
+                <p className="text-[0.7rem] text-muted-foreground font-medium">
+                  Kelola kategori suku cadang, bahan operasional, dan layanan bengkel. Kategori ini terhubung ke formulir pendaftaran barang &amp; pembuatan SKU otomatis.
+                </p>
+
+                {/* Quick Add Form */}
+                {canEdit && (
+                  <div className="flex gap-2 items-center rounded-2xl border border-slate-200/90 bg-card p-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
+                    <div className="relative flex-1">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                      <input
+                        id="new-cat-input-field"
+                        type="text"
+                        placeholder="Ketik nama kategori baru (cth: Oli Mesin, Karburator, Body & Fairing)..."
+                        value={newCatInput}
+                        onChange={(e) => setNewCatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            handleAddCategorySubmit()
+                          }
+                        }}
+                        className="w-full rounded-xl border border-border bg-background pl-8.5 pr-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCategorySubmit}
+                      className="flex items-center gap-1.5 shrink-0 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Plus className="size-3.5" />
+                      <span>Tambah Kategori</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Categories List */}
+                <div className="space-y-2">
+                  {categories
+                    .filter((c) => !searchQuery || c.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+                    .map((cat) => {
+                      const partsCount = parts.filter(
+                        (p) => p.category.toLowerCase() === cat.toLowerCase()
+                      ).length
+
+                      return (
+                        <div
+                          key={cat}
+                          className="flex items-center justify-between rounded-2xl border border-slate-200/90 bg-card p-3 shadow-xs hover:border-primary/50 transition-all dark:border-slate-800 dark:bg-slate-900"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary/20">
+                              <Tag className="size-3.5" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-bold text-xs text-foreground truncate">{cat}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {partsCount > 0 ? (
+                                  <span className="text-primary font-semibold">{partsCount} suku cadang terdaftar</span>
+                                ) : (
+                                  <span>Belum ada item terdaftar</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCategory(cat)}
+                              className="flex size-7 items-center justify-center rounded-lg border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 dark:border-destructive/30 dark:bg-destructive/20 transition-all cursor-pointer"
+                              title={`Hapus kategori ${cat}`}
+                            >
+                              <Trash2 className="size-3" />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                  {categories.filter((c) => !searchQuery || c.toLowerCase().includes(searchQuery.toLowerCase().trim())).length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-border bg-card/60 py-8 text-center text-xs text-muted-foreground dark:border-slate-700">
+                      Tidak ada kategori yang cocok dengan pencarian.
                     </div>
                   )}
                 </div>
@@ -2023,22 +2231,115 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-muted-foreground">Kategori</label>
-                    <input
-                      type="text"
-                      list="settings-part-category-suggestions"
-                      placeholder="Blasting / Pelumas / Rem"
-                      value={partForm.category}
-                      onChange={(e) => setPartForm({ ...partForm, category: e.target.value })}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium focus:border-primary focus:outline-none"
-                      required
-                    />
-                    <datalist id="settings-part-category-suggestions">
-                      {categories.map((c) => (
-                        <option key={c} value={c} />
-                      ))}
-                    </datalist>
+                  <div className="relative" ref={partCatDropdownRef}>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-medium text-muted-foreground">Kategori</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPartCatDropdownOpen(true)
+                          setPartCatQuery("")
+                        }}
+                        className="text-[10px] text-primary hover:underline font-semibold cursor-pointer"
+                      >
+                        + Kategori Baru
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Pilih atau ketik kategori..."
+                        value={partForm.category}
+                        onFocus={() => {
+                          setPartCatDropdownOpen(true)
+                          setPartCatQuery(partForm.category)
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setPartForm({
+                            ...partForm,
+                            category: val,
+                            sku: generatePartSKU(partForm.name, val, parts),
+                          })
+                          setPartCatQuery(val)
+                          setPartCatDropdownOpen(true)
+                        }}
+                        className="w-full rounded-xl border border-border bg-background px-3 py-2 pr-8 text-xs font-medium focus:border-primary focus:outline-none"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPartCatDropdownOpen((prev) => !prev)
+                          setPartCatQuery("")
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
+                      >
+                        <ChevronDown className={cn("size-3.5 transition-transform", partCatDropdownOpen && "rotate-180")} />
+                      </button>
+                    </div>
+
+                    {/* Modern Category Dropdown Menu */}
+                    {partCatDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-border bg-card p-2 shadow-2xl space-y-1.5 max-h-56 overflow-y-auto no-scrollbar dark:bg-slate-900 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-100">
+                        {/* Option to create new category if typed category is not in list */}
+                        {partForm.category.trim() && !categories.some((c) => c.toLowerCase() === partForm.category.trim().toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newCat = partForm.category.trim()
+                              addCategory(newCat)
+                              setPartForm((prev) => ({
+                                ...prev,
+                                category: newCat,
+                                sku: generatePartSKU(prev.name, newCat, parts),
+                              }))
+                              setPartCatDropdownOpen(false)
+                              toast.success("Kategori Dibuat", `Kategori "${newCat}" berhasil ditambahkan ke sistem.`)
+                            }}
+                            className="w-full flex items-center gap-1.5 p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-semibold text-left transition-colors cursor-pointer border border-primary/20"
+                          >
+                            <Plus className="size-3.5 shrink-0" />
+                            <span className="truncate">+ Tambah &quot;{partForm.category.trim()}&quot; sebagai kategori baru</span>
+                          </button>
+                        )}
+
+                        <div className="text-[10px] font-semibold text-muted-foreground px-1 pt-0.5">
+                          Daftar Kategori Tersedia:
+                        </div>
+
+                        <div className="space-y-0.5">
+                          {categories
+                            .filter((c) => !partCatQuery || c.toLowerCase().includes(partCatQuery.toLowerCase()))
+                            .map((c) => {
+                              const isSelected = partForm.category.toLowerCase() === c.toLowerCase()
+                              return (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => {
+                                    setPartForm((prev) => ({
+                                      ...prev,
+                                      category: c,
+                                      sku: generatePartSKU(prev.name, c, parts),
+                                    }))
+                                    setPartCatDropdownOpen(false)
+                                  }}
+                                  className={cn(
+                                    "w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium text-left transition-colors cursor-pointer",
+                                    isSelected
+                                      ? "bg-primary text-primary-foreground font-semibold"
+                                      : "hover:bg-muted text-foreground"
+                                  )}
+                                >
+                                  <span className="truncate">{c}</span>
+                                  {isSelected && <Check className="size-3.5 shrink-0" />}
+                                </button>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>

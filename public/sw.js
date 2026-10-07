@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gtagarage-pwa-v17'
+const CACHE_NAME = 'gtagarage-pwa-v19'
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -51,8 +51,13 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Never cache API routes or payment webhook/charge endpoints
-  if (url.pathname.startsWith('/api/')) {
+  // Never cache API routes, Next.js dev/static chunks, or local development traffic
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/_next/') ||
+    url.hostname === 'localhost' ||
+    url.hostname === '127.0.0.1'
+  ) {
     return
   }
 

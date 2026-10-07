@@ -29,13 +29,7 @@ import {
   formatRupiah,
 } from "@/lib/data"
 import { cn } from "@/lib/utils"
-
-export interface StockExpenseItem {
-  name: string
-  qty: number
-  amount: number
-  pct: string
-}
+import { printFinancialReport, type StockExpenseItem } from "@/lib/print-report"
 
 interface ReportExportModalProps {
   open: boolean
@@ -58,12 +52,18 @@ export function ReportExportModal({ open, onClose, monthlyReport, serviceBreakdo
 
   const reportCode = `FIN-${monthlyReport.period.replace(/\s+/g, "").toUpperCase()}-01`
 
-  // 1. HANDLER: CETAK / SIMPAN PDF
+  // 1. HANDLER: CETAK / SIMPAN PDF (A4 RESMI)
   const handlePrint = () => {
-    toast.info("Membuka Dialog Cetak", "Pilih 'Save as PDF' atau printer Anda untuk mencetak.")
-    setTimeout(() => {
-      window.print()
-    }, 200)
+    toast.info("Membuka Dialog Cetak A4", "Pilih 'Save as PDF' atau printer Anda untuk mencetak.")
+    printFinancialReport({
+      profile,
+      reportCode,
+      currentDateStr,
+      technicians,
+      monthlyReport,
+      serviceBreakdown,
+      stockExpenseBreakdown,
+    })
   }
 
   // 2. HANDLER: UNDUH EXCEL / SPREADSHEET (.CSV)
@@ -241,8 +241,8 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
                 </p>
               </div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Laba Bersih</p>
-                <p className="text-xs font-bold text-emerald-600">
+                <p className="text-[10px] text-muted-foreground">{monthlyReport.laba < 0 ? "Rugi Bersih" : "Laba Bersih"}</p>
+                <p className={cn("text-xs font-bold", monthlyReport.laba < 0 ? "text-destructive" : "text-emerald-600")}>
                   {formatRupiah(monthlyReport.laba)} ({monthlyReport.labaMargin}%)
                 </p>
               </div>
@@ -366,8 +366,8 @@ _Laporan resmi dibuat otomatis dari Sistem POS & Operasional ${profile.name || "
       </BottomSheet>
 
       {/* HIDDEN PRINT-SECTION: RENDERED FOR BROWSER PRINT ONLY */}
-      <div id="print-section" className="hidden print:flex bg-white text-slate-900 justify-center">
-        <div className="w-full max-w-[780px] p-6 bg-white text-slate-900 font-sans">
+      <div id="print-report-section" className="hidden print:block bg-white text-slate-900 w-full max-w-full">
+        <div className="w-full max-w-full p-4 sm:p-6 bg-white text-slate-900 font-sans">
           <DocumentPrintLayout
             profile={profile}
             reportCode={reportCode}
@@ -480,15 +480,37 @@ function DocumentPrintLayout({
           </p>
         </div>
 
-        <div className="rounded-lg border border-emerald-300 bg-emerald-50/70 p-2.5">
-          <p className="text-[9px] sm:text-[10px] font-semibold text-emerald-800 uppercase">
-            Laba Bersih Usaha
+        <div
+          className={cn(
+            "rounded-lg border p-2.5",
+            monthlyReport.laba < 0
+              ? "border-rose-300 bg-rose-50/70 text-rose-950"
+              : "border-emerald-300 bg-emerald-50/70 text-emerald-950"
+          )}
+        >
+          <p
+            className={cn(
+              "text-[9px] sm:text-[10px] font-semibold uppercase",
+              monthlyReport.laba < 0 ? "text-rose-800" : "text-emerald-800"
+            )}
+          >
+            {monthlyReport.laba < 0 ? "Rugi Bersih Usaha" : "Laba Bersih Usaha"}
           </p>
-          <p className="text-xs sm:text-sm font-black text-emerald-900 mt-0.5">
+          <p
+            className={cn(
+              "text-xs sm:text-sm font-black mt-0.5",
+              monthlyReport.laba < 0 ? "text-rose-900" : "text-emerald-900"
+            )}
+          >
             {formatRupiah(monthlyReport.laba)}
           </p>
-          <p className="text-[9px] font-extrabold text-emerald-700 mt-0.5">
-            Margin Bersih {monthlyReport.labaMargin}%
+          <p
+            className={cn(
+              "text-[9px] font-extrabold mt-0.5",
+              monthlyReport.laba < 0 ? "text-rose-700" : "text-emerald-700"
+            )}
+          >
+            {monthlyReport.laba < 0 ? `Defisit (${monthlyReport.labaMargin}%)` : `Margin Bersih ${monthlyReport.labaMargin}%`}
           </p>
         </div>
 
@@ -632,12 +654,27 @@ function DocumentPrintLayout({
 
       {/* 6. CATATAN KEUANGAN */}
       <div className="rounded-lg bg-slate-50 border border-slate-200 p-2 sm:p-2.5 my-2.5 text-[9px] sm:text-[10px] text-slate-600 leading-relaxed">
-        <strong className="text-slate-900">Catatan Auditor Bengkel:</strong> Rekonsiliasi keuangan
-        menunjukkan margin laba bersih sebesar <strong>{monthlyReport.labaMargin}%</strong>{" "}
-        (sehat di atas target standar 40%). Rata-rata per-unit kendaraan masuk adalah{" "}
-        <strong>{formatRupiah(monthlyReport.rataTransaksi)}</strong>. Seluruh sisa piutang{" "}
-        <strong>{formatRupiah(monthlyReport.piutang)}</strong> tercatat lancar dengan jadwal
-        pelunasan termin 7-14 hari kerja.
+        <strong className="text-slate-900">Catatan Auditor Bengkel:</strong>{" "}
+        {monthlyReport.laba < 0 ? (
+          <>
+            Rekonsiliasi keuangan periode ini mencatat defisit sementara sebesar{" "}
+            <strong>{formatRupiah(Math.abs(monthlyReport.laba))}</strong> (margin{" "}
+            <strong>{monthlyReport.labaMargin}%</strong>), dikarenakan tingginya alokasi belanja pengadaan
+            suku cadang &amp; persediaan stok (<strong>{formatRupiah(monthlyReport.pengeluaran)}</strong>).
+            Barang tersebut tersimpan sebagai aset persediaan barang siap jual untuk periode mendatang.
+            Rata-rata order tercatat <strong>{formatRupiah(monthlyReport.rataTransaksi)}</strong> dan
+            sisa piutang senilai <strong>{formatRupiah(monthlyReport.piutang)}</strong> berjalan lancar.
+          </>
+        ) : (
+          <>
+            Rekonsiliasi keuangan menunjukkan margin laba bersih yang sehat sebesar{" "}
+            <strong>{monthlyReport.labaMargin}%</strong> (mencapai target standar operasional).
+            Rata-rata transaksi servis adalah{" "}
+            <strong>{formatRupiah(monthlyReport.rataTransaksi)}</strong>. Seluruh sisa piutang{" "}
+            <strong>{formatRupiah(monthlyReport.piutang)}</strong> tercatat lancar dengan jadwal
+            pelunasan termin 7-14 hari kerja.
+          </>
+        )}
       </div>
 
       {/* 7. LEMBAR PENGESAHAN DUA TANDA TANGAN */}
@@ -650,7 +687,7 @@ function DocumentPrintLayout({
               [Tertanda Secara Digital]
             </span>
           </div>
-          <p className="text-[11px] font-bold text-slate-950 underline">Rian Pratama</p>
+          <p className="text-[11px] font-bold text-slate-950 underline">Admin</p>
           <p className="text-[9px] text-slate-500">Finance & Operational Admin</p>
         </div>
 

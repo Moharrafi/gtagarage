@@ -41,7 +41,8 @@ export async function POST(req: Request) {
   try {
     const body = await req.json()
     const id = body.id || `wo-${Date.now()}`
-    const code = body.code
+    const code = body.code || `WO-${Date.now().toString().slice(-4)}`
+    const isCompleted = body.status === 'Selesai' || body.status === 'Siap Diambil'
 
     await query(
       `INSERT INTO work_orders (
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-         CASE WHEN $7 IN ('Selesai', 'Siap Diambil') THEN NOW() ELSE NULL END,
+         CASE WHEN $13 THEN NOW() ELSE NULL END,
          NOW(), NOW()
        )
        ON CONFLICT (id) DO UPDATE SET
@@ -70,16 +71,17 @@ export async function POST(req: Request) {
       [
         id,
         code,
-        JSON.stringify(body.customer),
-        JSON.stringify(body.vehicle),
-        body.service,
+        JSON.stringify(body.customer || {}),
+        JSON.stringify(body.vehicle || {}),
+        body.service || 'Servis',
         body.complaint || '',
         body.status || 'Antrian',
         body.technician || '',
-        body.progress || 0,
-        body.laborCost || 0,
+        Number(body.progress) || 0,
+        Number(body.laborCost) || 0,
         JSON.stringify(body.usedParts || []),
         body.estimatedDone || '',
+        isCompleted,
       ]
     )
 
@@ -105,16 +107,23 @@ export async function PUT(req: Request) {
     }
 
     const current = currentRes.rows[0]
-    const updatedCustomer = updates.customer ? JSON.stringify(updates.customer) : current.customer
-    const updatedVehicle = updates.vehicle ? JSON.stringify(updates.vehicle) : current.vehicle
+    const updatedCustomer = updates.customer !== undefined
+      ? JSON.stringify(updates.customer)
+      : (typeof current.customer === 'string' ? current.customer : JSON.stringify(current.customer || {}))
+    const updatedVehicle = updates.vehicle !== undefined
+      ? JSON.stringify(updates.vehicle)
+      : (typeof current.vehicle === 'string' ? current.vehicle : JSON.stringify(current.vehicle || {}))
     const updatedService = updates.service ?? current.service
     const updatedComplaint = updates.complaint ?? current.complaint
     const updatedStatus = updates.status ?? current.status
     const updatedTechnician = updates.technician ?? current.technician
-    const updatedProgress = updates.progress ?? current.progress
-    const updatedLaborCost = updates.laborCost ?? current.labor_cost
-    const updatedUsedParts = updates.usedParts ? JSON.stringify(updates.usedParts) : current.used_parts
+    const updatedProgress = updates.progress !== undefined ? Number(updates.progress) : current.progress
+    const updatedLaborCost = updates.laborCost !== undefined ? Number(updates.laborCost) : current.labor_cost
+    const updatedUsedParts = updates.usedParts !== undefined
+      ? JSON.stringify(updates.usedParts)
+      : (typeof current.used_parts === 'string' ? current.used_parts : JSON.stringify(current.used_parts || []))
     const updatedEstimatedDone = updates.estimatedDone ?? current.estimated_done
+    const isCompleted = updatedStatus === 'Selesai' || updatedStatus === 'Siap Diambil'
 
     await query(
       `UPDATE work_orders SET
@@ -128,9 +137,9 @@ export async function PUT(req: Request) {
          labor_cost = $8,
          used_parts = $9,
          estimated_done = $10,
-         completed_at = CASE WHEN $5 IN ('Selesai', 'Siap Diambil') AND completed_at IS NULL THEN NOW() ELSE completed_at END,
+         completed_at = CASE WHEN $11 AND completed_at IS NULL THEN NOW() ELSE completed_at END,
          updated_at = NOW()
-       WHERE id = $11`,
+       WHERE id = $12`,
       [
         updatedCustomer,
         updatedVehicle,
@@ -142,6 +151,7 @@ export async function PUT(req: Request) {
         updatedLaborCost,
         updatedUsedParts,
         updatedEstimatedDone,
+        isCompleted,
         id,
       ]
     )
