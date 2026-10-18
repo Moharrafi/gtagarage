@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef } from "react"
-import { X, Plus, Trash2, Search, Package, ArrowLeft, Zap, ChevronDown, Check } from "lucide-react"
+import { X, Plus, Trash2, Search, Package, ArrowLeft, Zap, ChevronDown, Check, Banknote } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/workshop/toast"
@@ -17,22 +17,7 @@ import type {
 } from "@/lib/data"
 import type { WorkOrderInput } from "@/lib/store"
 
-const statusProgressMap: Record<WorkStatus, number> = {
-  "Antrian": 0,
-  "Menunggu Sparepart": 30,
-  "Dikerjakan": 60,
-  "Siap Diambil": 90,
-  "Selesai": 100,
-}
-
 const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi"]
-const statuses: WorkStatus[] = [
-  "Antrian",
-  "Dikerjakan",
-  "Menunggu Sparepart",
-  "Siap Diambil",
-  "Selesai",
-]
 
 const emptyForm: WorkOrderInput = {
   customerName: "",
@@ -42,8 +27,8 @@ const emptyForm: WorkOrderInput = {
   plate: "",
   service: "Servis",
   complaint: "",
-  technician: "Agus Pratama",
-  laborCost: 150000,
+  technician: "Owner",
+  laborCost: 0,
   status: "Antrian",
   usedParts: [],
 }
@@ -86,10 +71,10 @@ interface WorkOrderFormModalProps {
   open: boolean
   onClose: () => void
   editItem: WorkOrder | null
-  technicians: Technician[]
-  serviceRates: ServiceRate[]
-  parts: Part[]
-  activeJobsByTech: Record<string, number>
+  technicians?: Technician[]
+  serviceRates?: ServiceRate[]
+  parts?: Part[]
+  activeJobsByTech?: Record<string, number>
   onSave: (data: WorkOrderInput, editId?: string) => void
 }
 
@@ -118,14 +103,16 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
       } else {
         setForm({
           ...emptyForm,
-          technician: technicians[0]?.name || "Agus Pratama",
+          technician: "Owner",
+          status: "Antrian",
+          laborCost: 0,
         })
       }
       setCatalogPickerOpen(false)
       setPickerSearch("")
       setPickerCategory("all")
     }
-  }, [open, editItem, technicians])
+  }, [open, editItem])
 
   const selectedRate = useMemo(() => {
     if (!serviceRates || serviceRates.length === 0) return null
@@ -739,152 +726,105 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* ================= INPUT BIAYA MANUAL & SUKU CADANG ================= */}
+          <div className="space-y-3 rounded-2xl border border-border/80 bg-muted/20 p-4">
             <div>
-              <label className={labelCls} htmlFor="modal-wo-tech">
-                Teknisi
-              </label>
-              <select
-                id="modal-wo-tech"
-                className={selectCls}
-                value={form.technician}
-                onChange={(e) =>
-                  setForm({ ...form, technician: e.target.value })
-                }
-              >
-                {technicians.map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name} ({activeJobsByTech[t.name] || 0} unit aktif)
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls} htmlFor="modal-wo-status">
-                Status
-              </label>
-              <select
-                id="modal-wo-status"
-                className={selectCls}
-                value={form.status}
-                onChange={(e) =>
-                  setForm({ ...form, status: e.target.value as WorkStatus })
-                }
-              >
-                {statuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s} ({statusProgressMap[s]}%)
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* ================= RINCIAN LAYANAN & SUKU CADANG (UNIFIED SECTION) ================= */}
-          <div className="rounded-2xl border border-border/80 bg-muted/20 p-3.5 space-y-3">
-            {/* Section Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-foreground">
-                  Rincian Layanan & Suku Cadang
-                </h4>
-                <p className="text-[10px] text-muted-foreground">
-                  Tarif jasa pengerjaan teknisi dan suku cadang yang digunakan
-                </p>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground flex items-center gap-1.5" htmlFor="modal-wo-labor">
+                  <span className="flex size-5 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <Banknote className="size-3" />
+                  </span>
+                  <span>Biaya / Tarif Jasa (Rp)</span>
+                </label>
+                {form.laborCost > 0 && (
+                  <span className="rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 text-xs font-bold font-mono">
+                    {formatRupiah(form.laborCost)}
+                  </span>
+                )}
               </div>
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary font-mono">
-                {totalItemsCount} Komponen
-              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Masukkan tarif pekerjaan langsung secara manual oleh Owner
+              </p>
             </div>
 
-            {/* Primary Action Button (Buka Katalog Terpadu) */}
-            <button
-              type="button"
-              onClick={(e) => {
-                ;(e.currentTarget as HTMLElement)?.blur()
-                setPickerSearch("")
-                setPickerCategory("all")
-                setCatalogPickerOpen(true)
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 py-3 px-4 text-xs font-semibold text-primary transition-all active:scale-[0.99] cursor-pointer shadow-xs"
-            >
-              <Plus className="size-4" />
-              <span>
-                {totalItemsCount > 0
-                  ? "Buka Katalog Jasa & Suku Cadang (+ Tambah)"
-                  : "Pilih Jasa & Suku Cadang dari Katalog"}
+            {/* Input Nominal Manual */}
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground select-none">
+                Rp
               </span>
-            </button>
-
-            {/* Selected Items Container */}
-            <div className="space-y-2">
-              {/* 1. Selected Labor / Service Item */}
-              {form.laborCost > 0 ? (
-                <div className="flex items-center justify-between rounded-xl bg-card p-2.5 text-xs ring-1 ring-border shadow-xs border-l-4 border-l-amber-500">
-                  <div className="min-w-0 pr-2 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                        <Zap className="size-3" />
-                      </span>
-                      <p className="font-semibold text-foreground truncate">
-                        {selectedRate ? selectedRate.name : `Biaya Jasa (${form.service})`}
-                      </p>
-                      <span className={cn("rounded px-1.5 py-0.2 text-[9px] font-semibold leading-none", getCategoryBadgeCls(form.service))}>
-                        {form.service}
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground text-[11px] mt-0.5 pl-6.5">
-                      Tarif pengerjaan: <strong className="text-primary font-mono">{formatRupiah(form.laborCost)}</strong>
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPickerSearch("")
-                        setPickerCategory("service")
-                        setCatalogPickerOpen(true)
-                      }}
-                      className="rounded-lg bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      Ganti
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForm((prev) => ({ ...prev, laborCost: 0 }))
-                        toast.info("Tarif Jasa Direset", "Biaya jasa menjadi Rp 0.")
-                      }}
-                      className="p-1 text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
-                      title="Hapus tarif jasa"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between rounded-xl border border-dashed border-border/70 bg-card/50 p-2.5 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-2">
-                    <Zap className="size-3.5 text-muted-foreground/60" />
-                    <span className="text-[11px]">Belum ada biaya jasa</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPickerSearch("")
-                      setPickerCategory("service")
-                      setCatalogPickerOpen(true)
-                    }}
-                    className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
-                  >
-                    + Pilih Tarif Jasa
-                  </button>
-                </div>
+              <Input
+                id="modal-wo-labor"
+                type="number"
+                min={0}
+                step={5000}
+                value={form.laborCost === 0 ? "" : form.laborCost}
+                onChange={(e) => {
+                  const val = e.target.value === "" ? 0 : Math.max(0, Number(e.target.value))
+                  setForm({ ...form, laborCost: val })
+                }}
+                className="pl-11 pr-20 text-sm font-semibold h-11 rounded-xl bg-card border-input focus:ring-primary placeholder:text-muted-foreground"
+                placeholder="0 (masukkan harga manual)"
+              />
+              {form.laborCost > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, laborCost: 0 })}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-medium text-muted-foreground hover:text-destructive px-2 py-1 rounded-md hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Reset
+                </button>
               )}
+            </div>
 
-              {/* 2. Selected Spareparts Items */}
+            {/* Tombol Cepat Nominal */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] text-muted-foreground font-medium mr-0.5">Preset:</span>
+              {[50000, 100000, 150000, 200000, 250000, 350000, 500000].map((amt) => {
+                const isSelected = form.laborCost === amt
+                return (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setForm({ ...form, laborCost: amt })}
+                    className={cn(
+                      "rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all cursor-pointer active:scale-95",
+                      isSelected
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs ring-1 ring-primary"
+                        : "bg-card border border-border/70 text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    {formatRupiah(amt).replace("Rp\u00a0", "").replace(",00", "")}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Optional Catalog / Spareparts Button & Selected List */}
+            <div className="pt-2 border-t border-border/60 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-muted-foreground">
+                  Suku Cadang & Bahan (Opsional)
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    ;(e.currentTarget as HTMLElement)?.blur()
+                    setPickerSearch("")
+                    setPickerCategory("all")
+                    setCatalogPickerOpen(true)
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+                >
+                  <Plus className="size-3" />
+                  {form.usedParts && form.usedParts.length > 0
+                    ? `Kelola Suku Cadang (${form.usedParts.length})`
+                    : "Pilih dari Katalog / Suku Cadang"}
+                </button>
+              </div>
+
+              {/* Selected Spareparts list if any */}
               {form.usedParts && form.usedParts.length > 0 && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 pt-1">
                   {form.usedParts.map((p, idx) => (
                     <div
                       key={idx}
@@ -941,50 +881,21 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
               )}
             </div>
 
-            {/* Quick Manual Labor Cost Input */}
-            <div className="pt-1">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] font-medium text-muted-foreground" htmlFor="modal-wo-labor">
-                  Penyesuaian Manual Biaya Jasa (Rp)
-                </label>
-                <span className="text-[10px] text-muted-foreground">Ketik jika ada kesepakatan khusus</span>
-              </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground select-none">
-                  Rp
-                </span>
-                <Input
-                  id="modal-wo-labor"
-                  type="number"
-                  min={0}
-                  value={form.laborCost || ""}
-                  onChange={(e) =>
-                    setForm({ ...form, laborCost: Number(e.target.value) })
-                  }
-                  className="pl-9 pr-28 font-semibold text-xs h-9"
-                  placeholder="0"
-                />
-                {form.laborCost > 0 && (
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md pointer-events-none font-mono">
-                    {formatRupiah(form.laborCost)}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Live Total Ringkasan Biaya SPK */}
+            {/* Total Ringkasan Biaya SPK */}
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Subtotal Jasa:</span>
+                <span>Biaya Jasa:</span>
                 <span className="font-semibold text-foreground font-mono">{formatRupiah(form.laborCost)}</span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Subtotal Suku Cadang ({form.usedParts?.length || 0} jenis):</span>
-                <span className="font-semibold text-foreground font-mono">{formatRupiah(partsTotal)}</span>
-              </div>
+              {partsTotal > 0 && (
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Suku Cadang ({form.usedParts?.length || 0} item):</span>
+                  <span className="font-semibold text-foreground font-mono">{formatRupiah(partsTotal)}</span>
+                </div>
+              )}
               <div className="border-t border-primary/15 pt-1.5 flex items-center justify-between text-xs font-bold">
-                <span className="text-foreground">Estimasi Total SPK:</span>
-                <span className="text-sm font-extrabold text-primary font-mono">{formatRupiah(form.laborCost + partsTotal)}</span>
+                <span className="text-foreground">Total Estimasi:</span>
+                <span className="text-base font-extrabold text-primary font-mono">{formatRupiah(form.laborCost + partsTotal)}</span>
               </div>
             </div>
           </div>
@@ -993,7 +904,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
             type="submit"
             className="w-full rounded-xl bg-brand-gradient py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/25 transition-transform active:scale-[0.99] cursor-pointer"
           >
-            {editItem ? "Simpan Perubahan" : "Simpan Pekerjaan"}
+            {editItem ? "Simpan Perubahan" : "Simpan Kendaraan Masuk"}
           </button>
         </form>
       )}
