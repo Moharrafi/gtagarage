@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye, Search, X, Zap, CheckCircle2 } from "lucide-react"
+import { ChevronDown, User, Clock, Wrench, Package, Plus, Pencil, Trash2, Eye, Search, X, Zap, CheckCircle2, AlertTriangle, CreditCard, Banknote } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -15,7 +15,7 @@ import { WhatsAppIcon } from "@/components/workshop/whatsapp-icon"
 import { toast } from "@/components/workshop/toast"
 import { confirmModal } from "@/components/workshop/confirm-dialog"
 import { WorkOrderFormModal } from "@/components/workshop/work-order-form-modal"
-import { formatRupiah, workOrderTotal, type WorkStatus, type ServiceType, type WorkOrder, type Part } from "@/lib/data"
+import { formatRupiah, workOrderTotal, invoiceTotal, type WorkStatus, type ServiceType, type WorkOrder, type Part, type Invoice } from "@/lib/data"
 import { useWorkshop, type WorkOrderInput } from "@/lib/store"
 import { SearchFilterBar, type SearchFilterOption } from "@/components/workshop/search-filter-bar"
 
@@ -103,8 +103,12 @@ const labelCls = "mb-1 block text-xs font-medium text-muted-foreground"
 const selectCls =
   "w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-slate-400 placeholder:font-normal dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-ring"
 
-export function WorkOrdersScreen() {
-  const { workOrders, parts, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit, isLoading } = useWorkshop()
+interface WorkOrdersScreenProps {
+  onNavigate?: (tab: "beranda" | "pekerjaan" | "stok" | "invoice" | "analitik") => void
+}
+
+export function WorkOrdersScreen({ onNavigate }: WorkOrdersScreenProps = {}) {
+  const { workOrders, parts, invoices, payInvoiceDirect, serviceRates, technicians, addWorkOrder, updateWorkOrder, deleteWorkOrder, canEdit, isLoading } = useWorkshop()
   const [filter, setFilter] = useState<JobFilter>("Aktif")
   const [query, setQuery] = useState("")
   const [searchField, setSearchField] = useState("all")
@@ -114,6 +118,10 @@ export function WorkOrdersScreen() {
   const [editItem, setEditItem] = useState<WorkOrder | null>(null)
   const [waOpen, setWaOpen] = useState(false)
   const [waWoId, setWaWoId] = useState<string | undefined>(undefined)
+
+  const [payValidation, setPayValidation] = useState<{ wo: WorkOrder; inv?: Invoice } | null>(null)
+  const [isProcessingPay, setIsProcessingPay] = useState(false)
+
   function handleStartWork(w: WorkOrder) {
     const updatedInput: WorkOrderInput = {
       ...fromWorkOrder(w),
@@ -140,6 +148,14 @@ export function WorkOrdersScreen() {
   }
 
   function handleFinalComplete(w: WorkOrder) {
+    const matchingInv = invoices.find((inv) => inv.workOrderCode === w.code)
+    const isPaid = matchingInv && matchingInv.status === "Lunas"
+
+    if (!isPaid) {
+      setPayValidation({ wo: w, inv: matchingInv })
+      return
+    }
+
     const updatedInput: WorkOrderInput = {
       ...fromWorkOrder(w),
       status: "Selesai",
@@ -147,7 +163,7 @@ export function WorkOrdersScreen() {
     updateWorkOrder(w.id, updatedInput)
     toast.success(
       "Pekerjaan Selesai (100%)",
-      `Unit ${w.vehicle.brand} (${w.vehicle.plate}) telah diserahkan dan dipindahkan ke arsip Pekerjaan Selesai.`
+      `Unit ${w.vehicle.brand} (${w.vehicle.plate}) telah diserahkan (Pembayaran Lunas).`
     )
   }
 
@@ -220,6 +236,17 @@ export function WorkOrdersScreen() {
 
   function handleSaveOrder(input: WorkOrderInput, editId?: string) {
     if (editId) {
+      if (input.status === "Selesai") {
+        const matchingWo = workOrders.find((w) => w.id === editId)
+        const matchingInv = invoices.find((inv) => inv.workOrderCode === matchingWo?.code)
+        if (!matchingInv || matchingInv.status !== "Lunas") {
+          toast.error(
+            "Pembayaran Belum Lunas!",
+            "Pekerjaan tidak dapat diubah ke status Selesai sebelum tagihan dilunasi di kasir. Silakan pilih status 'Siap Diambil'."
+          )
+          return
+        }
+      }
       updateWorkOrder(editId, input)
       toast.success("Pekerjaan Diperbarui", `Data pekerjaan ${input.brand} ${input.model} (${input.plate}) berhasil disimpan.`)
     } else {
@@ -576,6 +603,144 @@ export function WorkOrdersScreen() {
       />
 
       {canEdit && <WhatsAppModal open={waOpen} onClose={() => setWaOpen(false)} initialWorkOrderId={waWoId} />}
+
+      {/* ================= MODAL VALIDASI PEMBAYARAN KASIR SEBELUM SELESAI ================= */}
+      {payValidation && (
+        <BottomSheet
+          open={Boolean(payValidation)}
+          onClose={() => {
+            if (!isProcessingPay) setPayValidation(null)
+          }}
+          title="Validasi Pembayaran Kasir"
+        >
+          <div className="space-y-4">
+            {/* Header Warning Banner */}
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 dark:bg-amber-950/30">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                  Tagihan Belum Lunas!
+                </h4>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/90 dark:text-amber-400/90">
+                  Unit tidak dapat diserahkan (status 100% Selesai) sebelum tagihan diselesaikan di kasir, agar pencatatan omzet hari ini di Beranda tetap akurat.
+                </p>
+              </div>
+            </div>
+
+            {/* Vehicle & Bill Summary Card */}
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    {payValidation.wo.code}
+                  </span>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {payValidation.wo.vehicle.brand} {payValidation.wo.vehicle.model}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {payValidation.wo.vehicle.plate} • {payValidation.wo.customer.name}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-flex items-center rounded-full bg-rose-500/15 border border-rose-500/30 px-2.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                    Belum Bayar
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 border-t border-border/70 pt-2.5 text-xs">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Jasa {payValidation.wo.service}:</span>
+                  <span className="font-semibold text-foreground font-mono">
+                    {formatRupiah(payValidation.wo.laborCost)}
+                  </span>
+                </div>
+                {payValidation.wo.usedParts.length > 0 && (
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Suku Cadang ({payValidation.wo.usedParts.length} item):</span>
+                    <span className="font-semibold text-foreground font-mono">
+                      {formatRupiah(payValidation.wo.usedParts.reduce((s, p) => s + p.qty * p.price, 0))}
+                    </span>
+                  </div>
+                )}
+                <div className="border-t border-border/60 pt-2 flex items-center justify-between text-sm font-bold">
+                  <span className="text-foreground">Total Tagihan:</span>
+                  <span className="text-base font-extrabold text-primary font-mono">
+                    {formatRupiah(
+                      payValidation.inv
+                        ? invoiceTotal(payValidation.inv)
+                        : workOrderTotal(payValidation.wo)
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-1">
+              {/* Option 1: Quick Cash Payment */}
+              <button
+                type="button"
+                disabled={isProcessingPay}
+                onClick={async () => {
+                  setIsProcessingPay(true)
+                  const total = payValidation.inv
+                    ? invoiceTotal(payValidation.inv)
+                    : workOrderTotal(payValidation.wo)
+                  const ok = await payInvoiceDirect(payValidation.inv?.id || payValidation.wo.code, "Tunai", total)
+                  setIsProcessingPay(false)
+                  if (ok) {
+                    setPayValidation(null)
+                    toast.success(
+                      "Pembayaran Tunai Diterima! ✅",
+                      `Invoice lunas ${formatRupiah(total)}. Omzet hari ini bertambah & status pekerjaan selesai 100%.`
+                    )
+                  }
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 px-4 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <Banknote className="size-4" />
+                <span>
+                  {isProcessingPay ? "Memproses..." : "Lunasi Tunai di Tempat & Selesai (100%)"}
+                </span>
+              </button>
+
+              {/* Option 2: Open Invoices / Cashier (for QRIS, Transfer, Card) */}
+              <button
+                type="button"
+                disabled={isProcessingPay}
+                onClick={() => {
+                  const targetCode = payValidation.wo.code
+                  setPayValidation(null)
+                  if (onNavigate) {
+                    onNavigate("invoice")
+                  }
+                  toast.info(
+                    "Membuka Kasir Pembayaran",
+                    `Silakan pilih metode bayar QRIS, Virtual Account, atau Kartu untuk tagihan ${targetCode}.`
+                  )
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-primary/10 py-2.5 px-4 text-xs font-semibold text-primary hover:bg-primary/15 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <CreditCard className="size-4" />
+                <span>Buka Kasir Pembayaran (QRIS / Transfer / Kartu)</span>
+              </button>
+
+              {/* Option 3: Cancel */}
+              <button
+                type="button"
+                disabled={isProcessingPay}
+                onClick={() => setPayValidation(null)}
+                className="flex w-full items-center justify-center rounded-xl py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                Batal (Tetap Siap Diambil)
+              </button>
+            </div>
+          </div>
+        </BottomSheet>
+      )}
     </div>
   )
 }

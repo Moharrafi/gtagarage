@@ -25,7 +25,9 @@ import {
   type TechnicianInput,
   type StockInLog,
   type StockOutLog,
+  formatRupiah,
 } from "@/lib/data"
+import { playCashInSound } from "@/lib/sound"
 
 export type { ServiceRate, Technician }
 
@@ -110,6 +112,11 @@ interface WorkshopContextValue {
   workOrders: WorkOrder[]
   invoices: Invoice[]
   setInvoices: React.Dispatch<React.SetStateAction<Invoice[]>>
+  payInvoiceDirect: (
+    invoiceIdOrCode: string,
+    method?: "Tunai" | "QRIS" | "Transfer" | "Kartu",
+    customAmount?: number
+  ) => Promise<boolean>
   parts: Part[]
   serviceRates: ServiceRate[]
   categories: string[]
@@ -282,7 +289,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
   const [parts, setParts] = useState<Part[]>([])
   const [stockInLogs, setStockInLogs] = useState<StockInLog[]>([])
   const [stockOutLogs, setStockOutLogs] = useState<StockOutLog[]>([])
-  const [serviceRates, setServiceRates] = useState<ServiceRate[]>(defaultServiceRates)
+  const [serviceRates, setServiceRates] = useState<ServiceRate[]>([])
   const [categories, setCategories] = useState<string[]>(defaultCategories)
   const [profile, setProfile] = useState<WorkshopProfile>(defaultWorkshopProfile)
   const [invoicesData, setInvoicesData] = useState<Invoice[]>([])
@@ -290,6 +297,19 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
   // Real Notifications State
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
+
+  // One-time cleanup of any legacy demo cache from browser localStorage
+  useEffect(() => {
+    try {
+      const cleanSlate = localStorage.getItem("bengkel_clean_v1")
+      if (!cleanSlate) {
+        localStorage.removeItem("bengkel_vouchers")
+        localStorage.removeItem("bengkel_technicians_v1")
+        localStorage.removeItem("bengkel_notifications")
+        localStorage.setItem("bengkel_clean_v1", "true")
+      }
+    } catch {}
+  }, [])
 
   // Load initial data from PostgreSQL Backend API via single consolidated bootstrap endpoint
   useEffect(() => {
@@ -323,15 +343,15 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
             if (Array.isArray(bInventory.stockOutLogs)) setStockOutLogs(bInventory.stockOutLogs);
           }
 
-          if (Array.isArray(bServiceRates) && bServiceRates.length > 0) {
+          if (Array.isArray(bServiceRates)) {
             setServiceRates(bServiceRates);
           }
 
-          if (Array.isArray(bTechnicians) && bTechnicians.length > 0) {
+          if (Array.isArray(bTechnicians)) {
             setTechnicians(bTechnicians);
           }
 
-          if (Array.isArray(bVouchers) && bVouchers.length > 0) {
+          if (Array.isArray(bVouchers)) {
             setVouchers(bVouchers);
           }
 
@@ -361,7 +381,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     return () => { isMounted = false; };
   }, []);
 
-  // Auto-sync workOrders to invoices
+  // Auto-sync workOrders to invoices (Without blindly marking as Lunas!)
   useEffect(() => {
     if (workOrders.length === 0) return
     setInvoicesData((prevInvoices) => {
@@ -369,51 +389,74 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       let hasChanges = false
 
       workOrders.forEach((wo, idx) => {
-        const existingIdx = updated.findIndex((inv) => inv.workOrderCode === wo.code)
+        const existingIdx = updated.findIndex((inv) => inv.workOrderCode === wo.code || inv.id === `inv-${wo.id}`)
+
+        const laborItem = {
+          label: `Jasa ${wo.service}`,
+          qty: 1,
+          price: wo.laborCost || 0,
+        }
+        const partItems = (wo.usedParts || []).map((p) => ({
+          label: p.name,
+          qty: p.qty,
+          price: p.price,
+        }))
+        const currentItems = laborItem.price > 0 || partItems.length === 0 ? [laborItem, ...partItems] : partItems
 
         if (existingIdx === -1) {
-          if (wo.status === "Siap Diambil" || wo.status === "Selesai") {
-            const laborItem = {
-              label: `Jasa ${wo.service}`,
-              qty: 1,
-              price: wo.laborCost || 90000,
-            }
-            const partItems = (wo.usedParts || []).map((p) => ({
-              label: p.name,
-              qty: p.qty,
-              price: p.price,
-            }))
+          const createdDate = wo.createdAt ? new Date(wo.createdAt) : new Date()
+          const year = createdDate.getFullYear()
+          const month = String(createdDate.getMonth() + 1).padStart(2, "0")
+          const woNum = wo.code.replace(/\D/g, "") || String(idx + 1).padStart(3, "0")
+          const invoiceNumber = `INV/${year}/${month}/${woNum}`
 
-            const invTotal = laborItem.price + partItems.reduce((s, p) => s + p.qty * p.price, 0)
-            const isLunas = wo.status === "Selesai"
-
-            const newInvoice: Invoice = {
-              id: `inv-auto-${wo.id}`,
-              number: `INV/2026/09/0${143 + idx}`,
-              workOrderCode: wo.code,
-              customer: wo.customer,
-              vehicle: wo.vehicle,
-              service: wo.service,
-              date: wo.createdAt || "25 Sep 2026",
-              createdAt: wo.createdAt || new Date().toISOString(),
-              status: isLunas ? "Lunas" : "Belum Bayar",
-              paidAmount: isLunas ? invTotal : 0,
-              items: [laborItem, ...partItems],
-            }
-            updated = [newInvoice, ...updated]
-            hasChanges = true
+          const newInvoice: Invoice = {
+            id: `inv-${wo.id}`,
+            number: invoiceNumber,
+            workOrderCode: wo.code,
+            customer: wo.customer,
+            vehicle: wo.vehicle,
+            service: wo.service,
+            date: createdDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+            createdAt: wo.createdAt || createdDate.toISOString(),
+            status: "Belum Bayar",
+            paidAmount: 0,
+            items: currentItems,
           }
+          updated = [newInvoice, ...updated]
+          hasChanges = true
+
+          fetch('/api/invoices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newInvoice),
+          }).catch((e) => console.error('Failed to sync new invoice to DB:', e))
         } else {
           const existingInv = updated[existingIdx]
-          if (wo.status === "Selesai" && existingInv.status !== "Lunas") {
-            const total = existingInv.items.reduce((s: number, i: InvoiceItem) => s + i.qty * i.price, 0) + (existingInv.adminFee || 0) - (existingInv.discountAmount || 0)
-            updated[existingIdx] = {
-              ...existingInv,
-              status: "Lunas",
-              paidAmount: total,
-              paidAt: existingInv.paidAt || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+          // If invoice is NOT yet paid, keep items synchronized with work order
+          if (existingInv.status !== "Lunas") {
+            const hasItemChanges =
+              JSON.stringify(existingInv.items) !== JSON.stringify(currentItems) ||
+              existingInv.service !== wo.service ||
+              existingInv.customer?.name !== wo.customer?.name
+
+            if (hasItemChanges) {
+              const updatedInv: Invoice = {
+                ...existingInv,
+                customer: wo.customer,
+                vehicle: wo.vehicle,
+                service: wo.service,
+                items: currentItems,
+              }
+              updated[existingIdx] = updatedInv
+              hasChanges = true
+
+              fetch('/api/invoices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedInv),
+              }).catch((e) => console.error('Failed to update invoice in DB:', e))
             }
-            hasChanges = true
           }
         }
       })
@@ -723,6 +766,82 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     }).catch((e) => console.error('Failed to delete work order from DB', e))
   }, [])
 
+  const payInvoiceDirect = useCallback(
+    async (
+      invoiceIdOrCode: string,
+      method: "Tunai" | "QRIS" | "Transfer" | "Kartu" = "Tunai",
+      customAmount?: number
+    ): Promise<boolean> => {
+      const targetInv = invoicesData.find(
+        (i) => i.id === invoiceIdOrCode || i.workOrderCode === invoiceIdOrCode
+      )
+      if (!targetInv) return false
+
+      const now = new Date()
+      const totalAmount =
+        customAmount ??
+        targetInv.items.reduce((s, it) => s + it.qty * it.price, 0) +
+          (targetInv.adminFee || 0) -
+          (targetInv.discountAmount || 0)
+
+      const updatedInvoice: Invoice = {
+        ...targetInv,
+        status: "Lunas",
+        paidAmount: totalAmount,
+        method: method,
+        date: now.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
+        paidAt: now.toISOString(),
+      }
+
+      setInvoicesData((prev) =>
+        prev.map((i) => (i.id === targetInv.id ? updatedInvoice : i))
+      )
+
+      try {
+        await fetch('/api/invoices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedInvoice),
+        })
+      } catch (e) {
+        console.error('Failed to save paid invoice to DB:', e)
+      }
+
+      playCashInSound()
+
+      addNotification({
+        type: "push",
+        title: "Pembayaran Lunas! ✅",
+        body: `Invoice ${updatedInvoice.number} (${updatedInvoice.customer.name}) sebesar ${formatRupiah(totalAmount)} telah diterima lunas via ${method}.`,
+        channel: "Kasir Bengkel",
+        status: "terkirim",
+        linkTab: "invoice",
+      })
+
+      if (targetInv.workOrderCode) {
+        const matchingWo = workOrders.find((w) => w.code === targetInv.workOrderCode)
+        if (matchingWo && matchingWo.status !== "Selesai") {
+          updateWorkOrder(matchingWo.id, {
+            customerName: matchingWo.customer.name,
+            customerPhone: matchingWo.customer.phone,
+            plate: matchingWo.vehicle.plate,
+            brand: matchingWo.vehicle.brand,
+            model: matchingWo.vehicle.model,
+            service: matchingWo.service,
+            complaint: matchingWo.complaint,
+            technician: matchingWo.technician,
+            laborCost: matchingWo.laborCost,
+            status: "Selesai",
+            usedParts: matchingWo.usedParts,
+          })
+        }
+      }
+
+      return true
+    },
+    [invoicesData, workOrders, addNotification, updateWorkOrder]
+  )
+
   const addPart = useCallback((input: PartInput) => {
     const cat = input.category.trim()
     if (cat) {
@@ -880,41 +999,16 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     }).catch((e) => console.error('Failed to update service rate in DB', e))
   }, [])
 
-  const [vouchers, setVouchers] = useState<Voucher[]>(defaultVouchers)
+  const [vouchers, setVouchers] = useState<Voucher[]>([])
 
   useEffect(() => {
     try {
       const savedVouchers = localStorage.getItem("bengkel_vouchers")
       if (savedVouchers) {
         const parsed: Voucher[] = JSON.parse(savedVouchers)
-        // Ensure all vouchers have targetService populated
-        const migrated = parsed.map((v) => {
-          if (!v.targetService) {
-            const codeUpper = v.code.toUpperCase()
-            if (codeUpper.includes("VAPOR")) return { ...v, targetService: "Vapor Blasting" as const }
-            if (codeUpper.includes("SAND")) return { ...v, targetService: "Sand Blasting" as const }
-            if (codeUpper.includes("SERVIS")) return { ...v, targetService: "Servis" as const }
-            return { ...v, targetService: "Semua Layanan" as const }
-          }
-          return v
-        })
-
-        // Add OJOL15 and SERVIS20K if they are missing from saved vouchers
-        const hasOjol = migrated.some((v) => v.code === "OJOL15")
-        const hasServis = migrated.some((v) => v.code === "SERVIS20K")
-        const extras: Voucher[] = []
-        if (!hasOjol) {
-          const ojol = defaultVouchers.find((v) => v.code === "OJOL15")
-          if (ojol) extras.push(ojol)
+        if (Array.isArray(parsed)) {
+          setVouchers(parsed)
         }
-        if (!hasServis) {
-          const servis = defaultVouchers.find((v) => v.code === "SERVIS20K")
-          if (servis) extras.push(servis)
-        }
-
-        const finalVouchers = [...migrated, ...extras]
-        setVouchers(finalVouchers)
-        localStorage.setItem("bengkel_vouchers", JSON.stringify(finalVouchers))
       }
     } catch (e) {
       console.error("Failed to load bengkel_vouchers", e)
@@ -1042,15 +1136,16 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
 
 
   // Technicians / Mechanics State & Actions
-  const [technicians, setTechnicians] = useState<Technician[]>(defaultTechnicians)
+  const [technicians, setTechnicians] = useState<Technician[]>([])
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bengkel_technicians_v1")
       if (saved) {
-        setTechnicians(JSON.parse(saved))
-      } else {
-        localStorage.setItem("bengkel_technicians_v1", JSON.stringify(defaultTechnicians))
+        const parsed: Technician[] = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          setTechnicians(parsed)
+        }
       }
     } catch (e) {
       console.error("Failed to load bengkel_technicians_v1", e)
@@ -1185,6 +1280,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       workOrders,
       invoices: invoicesData,
       setInvoices: setInvoicesData,
+      payInvoiceDirect,
       parts,
       serviceRates,
       categories,
@@ -1242,6 +1338,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     [
       workOrders,
       invoicesData,
+      payInvoiceDirect,
       parts,
       serviceRates,
       categories,

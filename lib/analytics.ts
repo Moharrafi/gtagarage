@@ -50,12 +50,16 @@ export function parseDateFlexible(dateVal?: any): Date | null {
 }
 
 export function parseInvoiceDate(inv: Invoice): Date {
-  if (inv.createdAt) {
-    const d = parseDateFlexible(inv.createdAt)
+  if (inv.status === "Lunas" && inv.paidAt) {
+    const d = parseDateFlexible(inv.paidAt)
     if (d) return d
   }
   if (inv.date) {
     const d = parseDateFlexible(inv.date)
+    if (d) return d
+  }
+  if (inv.createdAt) {
+    const d = parseDateFlexible(inv.createdAt)
     if (d) return d
   }
   return new Date()
