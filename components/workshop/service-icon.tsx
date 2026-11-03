@@ -1,4 +1,4 @@
-import { Wrench, SprayCan, Wind, Paintbrush } from "lucide-react"
+import { Wrench, SprayCan, Wind, Paintbrush, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ServiceType } from "@/lib/data"
 
@@ -7,6 +7,8 @@ const map: Record<ServiceType, { icon: typeof Wrench; tint: string }> = {
   "Vapor Blasting": { icon: Wind, tint: "bg-chart-2/15 text-chart-2" },
   "Sand Blasting": { icon: SprayCan, tint: "bg-chart-5/15 text-chart-5" },
   Kustomisasi: { icon: Paintbrush, tint: "bg-primary/15 text-primary" },
+  "Powder Coating": { icon: Sparkles, tint: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
+  Powdercoating: { icon: Sparkles, tint: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
 }
 
 export function ServiceIcon({

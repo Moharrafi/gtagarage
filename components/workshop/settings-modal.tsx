@@ -854,6 +854,8 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                 ? "bg-amber-500/10 text-amber-700 border-amber-500/25 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30"
                                 : s.category === "Servis"
                                 ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/25 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30"
+                                : s.category === "Powder Coating" || s.category === "Powdercoating"
+                                ? "bg-violet-500/10 text-violet-700 border-violet-500/25 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30"
                                 : "bg-purple-500/10 text-purple-700 border-purple-500/25 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30"
                             )}
                           >
@@ -1867,6 +1869,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       <option value="Sand Blasting">Sand Blasting</option>
                       <option value="Servis">Servis</option>
                       <option value="Kustomisasi">Kustomisasi</option>
+                      <option value="Powder Coating">Powder Coating</option>
                     </select>
                   </div>
 
@@ -2203,7 +2206,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     Target Layanan Pengerjaan
                   </label>
                   <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-                    {(["Semua Layanan", "Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi"] as VoucherTargetService[]).map((srv) => (
+                    {(["Semua Layanan", "Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi", "Powder Coating"] as VoucherTargetService[]).map((srv) => (
                       <button
                         key={srv}
                         type="button"

@@ -6,6 +6,8 @@ export type ServiceType =
   | "Vapor Blasting"
   | "Sand Blasting"
   | "Kustomisasi"
+  | "Powder Coating"
+  | "Powdercoating"
 
 export type WorkStatus =
   | "Antrian"
@@ -54,6 +56,9 @@ export interface WorkOrder {
   estimatedDone: string
   laborCost: number
   usedParts: UsedPart[]
+  hasDp?: boolean
+  dpAmount?: number
+  dpMethod?: "Tunai" | "Transfer" | "QRIS"
 }
 
 export interface Part {
@@ -420,6 +425,8 @@ export const serviceColors: Record<ServiceType, string> = {
   "Vapor Blasting": "var(--chart-2)",
   "Sand Blasting": "var(--chart-5)",
   Kustomisasi: "var(--chart-1)",
+  "Powder Coating": "var(--chart-4)",
+  Powdercoating: "var(--chart-4)",
 }
 
 // ---------- data (dimulai dari bersih) ----------

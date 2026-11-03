@@ -5,6 +5,7 @@ import type { WorkOrder, Invoice, Part, StockInLog, StockOutLog, ServiceRate, Te
 import type { WorkshopProfile, MidtransConfig } from '@/lib/store'
 
 function formatWorkOrder(row: any): WorkOrder {
+  const dpAmount = Number(row.dp_amount) || 0
   return {
     id: row.id,
     code: row.code,
@@ -18,6 +19,9 @@ function formatWorkOrder(row: any): WorkOrder {
     laborCost: Number(row.labor_cost) || 0,
     usedParts: typeof row.used_parts === 'string' ? JSON.parse(row.used_parts) : (row.used_parts || []),
     estimatedDone: row.estimated_done || '',
+    hasDp: dpAmount > 0,
+    dpAmount: dpAmount,
+    dpMethod: row.dp_method || undefined,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     completedAt: row.completed_at
       ? new Date(row.completed_at).toISOString()

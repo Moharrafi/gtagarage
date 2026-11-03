@@ -1234,6 +1234,11 @@ export function InvoicesScreen() {
                   </p>
                   <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                     <PaymentStatusBadge status={inv.status} />
+                    {inv.paidAmount > 0 && inv.status !== "Lunas" && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                        DP: {formatRupiah(inv.paidAmount)}
+                      </span>
+                    )}
                     {inv.discountAmount && inv.discountAmount > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                         <Tag className="size-2.5" />
@@ -1244,6 +1249,11 @@ export function InvoicesScreen() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold">{formatRupiah(invoiceTotal(inv))}</p>
+                  {inv.paidAmount > 0 && inv.status !== "Lunas" && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                      Sisa {formatRupiah(Math.max(0, invoiceTotal(inv) - inv.paidAmount))}
+                    </p>
+                  )}
                   <ChevronRight className="ml-auto mt-1 size-4 text-muted-foreground" />
                 </div>
               </button>

@@ -356,9 +356,10 @@ export function getAnalyticsData(
     { name: "Vapor Blasting", value: 0, jobs: 0 },
     { name: "Sand Blasting", value: 0, jobs: 0 },
     { name: "Kustomisasi", value: 0, jobs: 0 },
+    { name: "Powder Coating", value: 0, jobs: 0 },
   ]
   validInvoices.forEach(inv => {
-    const svc = serviceBreakdown.find(s => s.name === inv.service) || serviceBreakdown[0]
+    const svc = serviceBreakdown.find(s => s.name === inv.service || (s.name === "Powder Coating" && inv.service === "Powdercoating")) || serviceBreakdown[0]
     svc.value += (inv.paidAmount || 0)
     svc.jobs += 1
   })

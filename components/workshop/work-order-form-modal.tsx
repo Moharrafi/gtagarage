@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef } from "react"
-import { X, Plus, Trash2, Search, Package, ArrowLeft, Zap, ChevronDown, Check, Banknote } from "lucide-react"
+import { X, Plus, Trash2, Search, Package, ArrowLeft, Zap, ChevronDown, Check, Banknote, Calendar, Receipt } from "lucide-react"
 import { BottomSheet } from "@/components/workshop/bottom-sheet"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/components/workshop/toast"
@@ -17,7 +17,38 @@ import type {
 } from "@/lib/data"
 import type { WorkOrderInput } from "@/lib/store"
 
-const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi"]
+const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi", "Powder Coating"]
+
+function toLocalDateInputValue(dateOrIso?: string | Date): string {
+  if (!dateOrIso) return ""
+  const d = typeof dateOrIso === "string" ? new Date(dateOrIso) : dateOrIso
+  if (isNaN(d.getTime())) return ""
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function updateDateInIso(isoString: string | undefined, newDateYMD: string): string {
+  if (!newDateYMD) return new Date().toISOString()
+  const [yearStr, monthStr, dayStr] = newDateYMD.split("-")
+  const year = parseInt(yearStr, 10)
+  const month = parseInt(monthStr, 10) - 1
+  const day = parseInt(dayStr, 10)
+
+  let baseDate = isoString ? new Date(isoString) : new Date()
+  if (isNaN(baseDate.getTime())) baseDate = new Date()
+
+  const newDate = new Date(
+    year,
+    month,
+    day,
+    baseDate.getHours(),
+    baseDate.getMinutes(),
+    baseDate.getSeconds()
+  )
+  return newDate.toISOString()
+}
 
 const emptyForm: WorkOrderInput = {
   customerName: "",
@@ -31,6 +62,10 @@ const emptyForm: WorkOrderInput = {
   laborCost: 0,
   status: "Antrian",
   usedParts: [],
+  createdAt: "",
+  hasDp: false,
+  dpAmount: 0,
+  dpMethod: "Tunai",
 }
 
 function getCategoryBadgeCls(cat: ServiceType) {
@@ -41,6 +76,9 @@ function getCategoryBadgeCls(cat: ServiceType) {
       return "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25"
     case "Kustomisasi":
       return "bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/25"
+    case "Powder Coating":
+    case "Powdercoating":
+      return "bg-violet-500/15 text-violet-700 dark:text-violet-300 border border-violet-500/25"
     case "Servis":
     default:
       return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/25"
@@ -48,6 +86,7 @@ function getCategoryBadgeCls(cat: ServiceType) {
 }
 
 function fromWorkOrder(w: WorkOrder): WorkOrderInput {
+  const dpAmount = w.dpAmount || 0
   return {
     customerName: w.customer.name,
     customerPhone: w.customer.phone || "",
@@ -60,6 +99,10 @@ function fromWorkOrder(w: WorkOrder): WorkOrderInput {
     laborCost: w.laborCost,
     status: w.status,
     usedParts: w.usedParts || [],
+    createdAt: w.createdAt,
+    hasDp: Boolean(w.hasDp || dpAmount > 0),
+    dpAmount: dpAmount,
+    dpMethod: w.dpMethod || "Tunai",
   }
 }
 
@@ -103,6 +146,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
       } else {
         setForm({
           ...emptyForm,
+          createdAt: new Date().toISOString(),
           technician: "Owner",
           status: "Antrian",
           laborCost: 0,
@@ -153,7 +197,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
       } else if (pickerCategory === "sand") {
         matchCat = r.category === "Sand Blasting"
       } else if (pickerCategory === "kustom") {
-        matchCat = r.category === "Kustomisasi"
+        matchCat = r.category === "Kustomisasi" || r.category === "Powder Coating" || r.category === "Powdercoating"
       }
 
       return matchQ && matchCat
@@ -238,7 +282,13 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
       )
       return
     }
-    onSave(form, editItem ? editItem.id : undefined)
+    const finalForm: WorkOrderInput = {
+      ...form,
+      hasDp: Boolean(form.hasDp && (form.dpAmount || 0) > 0),
+      dpAmount: form.hasDp ? (Number(form.dpAmount) || 0) : 0,
+      dpMethod: form.hasDp && (form.dpAmount || 0) > 0 ? (form.dpMethod || "Tunai") : undefined,
+    }
+    onSave(finalForm, editItem ? editItem.id : undefined)
     onClose()
   }
 
@@ -679,19 +729,57 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
             </div>
           </div>
 
+          {/* Tanggal Masuk Kendaraan */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className={labelCls} htmlFor="modal-wo-date">
+                Tanggal Masuk
+              </label>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, createdAt: new Date().toISOString() })}
+                className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
+              >
+                Hari ini
+              </button>
+            </div>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                id="modal-wo-date"
+                type="date"
+                value={toLocalDateInputValue(form.createdAt)}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val) {
+                    setForm({
+                      ...form,
+                      createdAt: updateDateInIso(form.createdAt, val),
+                    })
+                  }
+                }}
+                className="pl-9 cursor-pointer"
+                required
+              />
+            </div>
+          </div>
+
           <div>
             <label className={labelCls}>
               Jenis Layanan
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {serviceTypes.map((s) => {
-                const isSelected = form.service === s
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              {serviceTypes.map((s, idx) => {
+                const isSelected = form.service === s || (s === "Powder Coating" && form.service === "Powdercoating")
                 const icons: Record<ServiceType, string> = {
                   "Servis": "🔧",
                   "Vapor Blasting": "💧",
                   "Sand Blasting": "🏖️",
                   "Kustomisasi": "⚡",
+                  "Powder Coating": "🎨",
+                  "Powdercoating": "🎨",
                 }
+                const isLastOdd = idx === 4
                 return (
                   <button
                     key={s}
@@ -699,6 +787,7 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
                     onClick={() => setForm({ ...form, service: s })}
                     className={cn(
                       "flex items-center justify-center gap-1.5 rounded-xl border py-2 px-2.5 text-xs font-semibold transition-all cursor-pointer active:scale-95 text-center",
+                      isLastOdd && "col-span-2 sm:col-span-1 lg:col-span-1",
                       isSelected
                         ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/25 ring-1 ring-primary"
                         : "border-border/80 bg-card text-muted-foreground hover:bg-muted/70 hover:text-foreground hover:border-border"
@@ -898,6 +987,165 @@ export const WorkOrderFormModal = React.memo(function WorkOrderFormModal({
                 <span className="text-base font-extrabold text-primary font-mono">{formatRupiah(form.laborCost + partsTotal)}</span>
               </div>
             </div>
+          </div>
+
+          {/* ================= UANG MUKA / DOWN PAYMENT (DP) ================= */}
+          <div className="space-y-3 rounded-2xl border border-border/80 bg-muted/20 p-4">
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <span className="flex size-5 items-center justify-center rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                    <Receipt className="size-3" />
+                  </span>
+                  <span>Uang Muka / DP Pelanggan</span>
+                </label>
+                {form.hasDp && (form.dpAmount || 0) > 0 && (
+                  <span className="rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold font-mono">
+                    DP: {formatRupiah(form.dpAmount || 0)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Apakah pelanggan memberikan pembayaran uang muka saat unit masuk?
+              </p>
+            </div>
+
+            {/* Selector: Tanpa DP vs Ada DP */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, hasDp: false, dpAmount: 0 })}
+                className={cn(
+                  "rounded-xl border py-2.5 px-3 text-xs font-semibold transition-all cursor-pointer text-center active:scale-95",
+                  !form.hasDp
+                    ? "border-primary bg-primary text-primary-foreground shadow-xs shadow-primary/25"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                )}
+              >
+                Tanpa DP (Belum Bayar)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const totalEst = form.laborCost + partsTotal
+                  const defaultDp = form.dpAmount && form.dpAmount > 0 ? form.dpAmount : (totalEst > 0 ? Math.round(totalEst * 0.5) : 0)
+                  setForm({ ...form, hasDp: true, dpAmount: defaultDp, dpMethod: form.dpMethod || "Tunai" })
+                }}
+                className={cn(
+                  "rounded-xl border py-2.5 px-3 text-xs font-semibold transition-all cursor-pointer text-center active:scale-95",
+                  form.hasDp
+                    ? "border-amber-500 bg-amber-500 text-white shadow-xs shadow-amber-500/25 ring-1 ring-amber-500"
+                    : "border-border bg-card text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                )}
+              >
+                Ada DP (Uang Muka)
+              </button>
+            </div>
+
+            {/* If DP is active */}
+            {form.hasDp && (
+              <div className="space-y-3 pt-2 border-t border-border/60">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls} htmlFor="modal-wo-dp-amount">
+                      Nominal DP (Rp)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground pointer-events-none">
+                        Rp
+                      </span>
+                      <Input
+                        id="modal-wo-dp-amount"
+                        type="number"
+                        min={0}
+                        value={form.dpAmount || ""}
+                        onChange={(e) => setForm({ ...form, dpAmount: Math.max(0, Number(e.target.value)) })}
+                        placeholder="0"
+                        className="pl-9 font-mono font-semibold"
+                        required={form.hasDp}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>
+                      Metode Pembayaran DP
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(["Tunai", "Transfer", "QRIS"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setForm({ ...form, dpMethod: m })}
+                          className={cn(
+                            "rounded-xl border py-2 text-xs font-semibold transition-all cursor-pointer text-center active:scale-95",
+                            form.dpMethod === m
+                              ? "border-amber-600 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 ring-1 ring-amber-600/50"
+                              : "border-border bg-card text-muted-foreground hover:bg-muted"
+                          )}
+                        >
+                          {m === "Tunai" ? "💵 Tunai" : m === "Transfer" ? "🏦 Transfer" : "📱 QRIS"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Presets for DP */}
+                {(form.laborCost + partsTotal) > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted-foreground">Pilihan Cepat:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const totalEst = form.laborCost + partsTotal
+                        setForm({ ...form, dpAmount: Math.round(totalEst * 0.2) })
+                      }}
+                      className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent cursor-pointer active:scale-95 transition-all"
+                    >
+                      20% ({formatRupiah(Math.round((form.laborCost + partsTotal) * 0.2))})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const totalEst = form.laborCost + partsTotal
+                        setForm({ ...form, dpAmount: Math.round(totalEst * 0.5) })
+                      }}
+                      className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent cursor-pointer active:scale-95 transition-all"
+                    >
+                      50% ({formatRupiah(Math.round((form.laborCost + partsTotal) * 0.5))})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const totalEst = form.laborCost + partsTotal
+                        setForm({ ...form, dpAmount: totalEst })
+                      }}
+                      className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-accent cursor-pointer active:scale-95 transition-all"
+                    >
+                      100% (Lunas di Awal)
+                    </button>
+                  </div>
+                )}
+
+                {/* Ringkasan Kalkulasi DP & Sisa Pelunasan */}
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-3 space-y-1">
+                  <div className="flex items-center justify-between text-xs text-amber-900 dark:text-amber-200">
+                    <span>Uang Muka Diterima ({form.dpMethod || "Tunai"}):</span>
+                    <span className="font-bold font-mono">{formatRupiah(form.dpAmount || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-950 dark:text-amber-100 pt-1 border-t border-amber-500/20">
+                    <span>Sisa Tagihan Pelunasan:</span>
+                    <span className="font-mono text-sm">
+                      {formatRupiah(Math.max(0, (form.laborCost + partsTotal) - (form.dpAmount || 0)))}
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-amber-800/80 dark:text-amber-300/80 pt-0.5">
+                    💡 Tagihan di menu invoice otomatis tercatat berstatus <strong className="underline">{(form.laborCost + partsTotal > 0 && (form.dpAmount || 0) >= (form.laborCost + partsTotal)) ? "Lunas" : "Sebagian (DP)"}</strong>. Sisa tagihan akan dilunasi saat penyerahan unit.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <button

@@ -179,6 +179,21 @@ export async function POST(req: Request) {
       ]
     )
 
+    if (Number(body.stock) > 0) {
+      const actualUnitCost = Number(body.buyPrice) || 0
+      const totalCost = Number(body.stock) * actualUnitCost
+      const logId = `inflow-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+      try {
+        await query(
+          `INSERT INTO stock_in_logs (id, part_id, part_name, category, qty, unit_cost, total_cost, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+          [logId, id, body.name, body.category, Number(body.stock), actualUnitCost, totalCost]
+        )
+      } catch (err) {
+        console.warn('Could not insert initial stock_in_logs:', err)
+      }
+    }
+
     return NextResponse.json({ success: true, id, message: 'Part saved to database.' })
   } catch (error: any) {
     console.error('Failed to save part:', error)

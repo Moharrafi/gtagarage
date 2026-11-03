@@ -38,7 +38,7 @@ const filters: JobFilter[] = [
   "Selesai",
 ]
 
-const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi"]
+const serviceTypes: ServiceType[] = ["Servis", "Vapor Blasting", "Sand Blasting", "Kustomisasi", "Powder Coating"]
 
 const workOrderSearchOptions: SearchFilterOption[] = [
   { key: "all", label: "Semua Bidang", placeholder: "Cari nopol, pelanggan, motor, SPK..." },
@@ -68,6 +68,9 @@ const emptyForm: WorkOrderInput = {
   technician: "Owner",
   laborCost: 0,
   status: "Antrian",
+  hasDp: false,
+  dpAmount: 0,
+  dpMethod: "Tunai",
 }
 
 function formatWorkOrderDate(dateStr?: string) {
@@ -84,6 +87,7 @@ function formatWorkOrderDate(dateStr?: string) {
 }
 
 function fromWorkOrder(w: WorkOrder): WorkOrderInput {
+  const dpAmount = w.dpAmount || 0
   return {
     customerName: w.customer.name,
     customerPhone: w.customer.phone,
@@ -96,6 +100,10 @@ function fromWorkOrder(w: WorkOrder): WorkOrderInput {
     laborCost: w.laborCost,
     status: w.status,
     usedParts: w.usedParts,
+    createdAt: w.createdAt,
+    hasDp: Boolean(w.hasDp || dpAmount > 0),
+    dpAmount: dpAmount,
+    dpMethod: w.dpMethod || "Tunai",
   }
 }
 
@@ -360,6 +368,11 @@ export function WorkOrdersScreen({ onNavigate }: WorkOrdersScreenProps = {}) {
                   </p>
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <WorkStatusBadge status={w.status} />
+                    {w.dpAmount && w.dpAmount > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                        DP: {formatRupiah(w.dpAmount)}
+                      </span>
+                    ) : null}
                     <span
                       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary"
                     >
@@ -522,6 +535,11 @@ export function WorkOrdersScreen({ onNavigate }: WorkOrdersScreenProps = {}) {
                       <div className="text-right">
                         <p className="text-[0.7rem] text-muted-foreground">Total Estimasi</p>
                         <p className="text-base font-semibold">{formatRupiah(workOrderTotal(w))}</p>
+                        {w.dpAmount && w.dpAmount > 0 ? (
+                          <p className="text-[0.7rem] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                            DP: {formatRupiah(w.dpAmount)} ({w.dpMethod || "Tunai"}) · Sisa: {formatRupiah(Math.max(0, workOrderTotal(w) - w.dpAmount))}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 

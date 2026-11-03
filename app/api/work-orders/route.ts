@@ -3,7 +3,22 @@ export const dynamic = 'force-dynamic';
 import { query } from '@/lib/db'
 import type { WorkOrder } from '@/lib/data'
 
+let dbMigrated = false
+async function ensureDpColumns() {
+  if (dbMigrated) return
+  try {
+    await query(`
+      ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS dp_amount NUMERIC DEFAULT 0;
+      ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS dp_method VARCHAR(50);
+    `)
+    dbMigrated = true
+  } catch (e) {
+    // ignore
+  }
+}
+
 function formatWorkOrder(row: any): WorkOrder {
+  const dpAmount = Number(row.dp_amount) || 0
   return {
     id: row.id,
     code: row.code,
@@ -17,6 +32,9 @@ function formatWorkOrder(row: any): WorkOrder {
     laborCost: Number(row.labor_cost) || 0,
     usedParts: typeof row.used_parts === 'string' ? JSON.parse(row.used_parts) : (row.used_parts || []),
     estimatedDone: row.estimated_done || '',
+    hasDp: dpAmount > 0,
+    dpAmount: dpAmount,
+    dpMethod: row.dp_method || undefined,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     completedAt: row.completed_at
       ? new Date(row.completed_at).toISOString()
@@ -28,6 +46,7 @@ function formatWorkOrder(row: any): WorkOrder {
 
 export async function GET() {
   try {
+    await ensureDpColumns()
     const res = await query('SELECT * FROM work_orders ORDER BY created_at DESC')
     const data = res.rows.map(formatWorkOrder)
     return NextResponse.json({ success: true, data })
@@ -39,20 +58,28 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    await ensureDpColumns()
     const body = await req.json()
     const id = body.id || `wo-${Date.now()}`
     const code = body.code || `WO-${Date.now().toString().slice(-4)}`
     const isCompleted = body.status === 'Selesai' || body.status === 'Siap Diambil'
+    const createdAt = body.createdAt && !isNaN(new Date(body.createdAt).getTime())
+      ? new Date(body.createdAt)
+      : new Date()
+    const dpAmount = Number(body.dpAmount) || 0
+    const dpMethod = dpAmount > 0 ? (body.dpMethod || 'Tunai') : null
 
     await query(
       `INSERT INTO work_orders (
          id, code, customer, vehicle, service, complaint, status, technician,
-         progress, labor_cost, used_parts, estimated_done, completed_at, created_at, updated_at
+         progress, labor_cost, used_parts, estimated_done, completed_at, created_at, updated_at,
+         dp_amount, dp_method
        )
        VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
          CASE WHEN $13 THEN NOW() ELSE NULL END,
-         NOW(), NOW()
+         $14, NOW(),
+         $15, $16
        )
        ON CONFLICT (id) DO UPDATE SET
          code = EXCLUDED.code,
@@ -67,6 +94,9 @@ export async function POST(req: Request) {
          used_parts = EXCLUDED.used_parts,
          estimated_done = EXCLUDED.estimated_done,
          completed_at = CASE WHEN EXCLUDED.status IN ('Selesai', 'Siap Diambil') AND work_orders.completed_at IS NULL THEN NOW() ELSE work_orders.completed_at END,
+         created_at = COALESCE(EXCLUDED.created_at, work_orders.created_at),
+         dp_amount = EXCLUDED.dp_amount,
+         dp_method = EXCLUDED.dp_method,
          updated_at = NOW()`,
       [
         id,
@@ -82,6 +112,9 @@ export async function POST(req: Request) {
         JSON.stringify(body.usedParts || []),
         body.estimatedDone || '',
         isCompleted,
+        createdAt,
+        dpAmount,
+        dpMethod,
       ]
     )
 
@@ -94,6 +127,7 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    await ensureDpColumns()
     const body = await req.json()
     const { id, ...updates } = body
 
@@ -124,6 +158,11 @@ export async function PUT(req: Request) {
       : (typeof current.used_parts === 'string' ? current.used_parts : JSON.stringify(current.used_parts || []))
     const updatedEstimatedDone = updates.estimatedDone ?? current.estimated_done
     const isCompleted = updatedStatus === 'Selesai' || updatedStatus === 'Siap Diambil'
+    const updatedCreatedAt = updates.createdAt && !isNaN(new Date(updates.createdAt).getTime())
+      ? new Date(updates.createdAt)
+      : current.created_at
+    const updatedDpAmount = updates.dpAmount !== undefined ? Number(updates.dpAmount) : (Number(current.dp_amount) || 0)
+    const updatedDpMethod = updates.dpMethod !== undefined ? updates.dpMethod : current.dp_method
 
     await query(
       `UPDATE work_orders SET
@@ -138,8 +177,11 @@ export async function PUT(req: Request) {
          used_parts = $9,
          estimated_done = $10,
          completed_at = CASE WHEN $11 AND completed_at IS NULL THEN NOW() ELSE completed_at END,
+         created_at = $12,
+         dp_amount = $13,
+         dp_method = $14,
          updated_at = NOW()
-       WHERE id = $12`,
+       WHERE id = $15`,
       [
         updatedCustomer,
         updatedVehicle,
@@ -152,6 +194,9 @@ export async function PUT(req: Request) {
         updatedUsedParts,
         updatedEstimatedDone,
         isCompleted,
+        updatedCreatedAt,
+        updatedDpAmount,
+        updatedDpMethod,
         id,
       ]
     )

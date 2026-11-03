@@ -16,6 +16,7 @@ import {
   type Part,
   type ServiceType,
   type WorkStatus,
+  type PaymentStatus,
   type ServiceRate,
   type Voucher,
   type UserAccount,
@@ -43,6 +44,10 @@ export interface WorkOrderInput {
   laborCost: number
   status: WorkStatus
   usedParts?: { partId: string; name: string; qty: number; price: number }[]
+  createdAt?: string
+  hasDp?: boolean
+  dpAmount?: number
+  dpMethod?: "Tunai" | "Transfer" | "QRIS"
 }
 
 export interface PartInput {
@@ -402,6 +407,9 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
           price: p.price,
         }))
         const currentItems = laborItem.price > 0 || partItems.length === 0 ? [laborItem, ...partItems] : partItems
+        const rawTotal = currentItems.reduce((s, it) => s + it.qty * it.price, 0)
+        const dpVal = (wo.hasDp && (wo.dpAmount || 0) > 0) ? Number(wo.dpAmount) : (Number(wo.dpAmount) || 0)
+        const isDpPaid = dpVal > 0
 
         if (existingIdx === -1) {
           const createdDate = wo.createdAt ? new Date(wo.createdAt) : new Date()
@@ -409,6 +417,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
           const month = String(createdDate.getMonth() + 1).padStart(2, "0")
           const woNum = wo.code.replace(/\D/g, "") || String(idx + 1).padStart(3, "0")
           const invoiceNumber = `INV/${year}/${month}/${woNum}`
+
+          const status: PaymentStatus = isDpPaid
+            ? (rawTotal > 0 && dpVal >= rawTotal ? "Lunas" : "Sebagian")
+            : "Belum Bayar"
 
           const newInvoice: Invoice = {
             id: `inv-${wo.id}`,
@@ -419,8 +431,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
             service: wo.service,
             date: createdDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }),
             createdAt: wo.createdAt || createdDate.toISOString(),
-            status: "Belum Bayar",
-            paidAmount: 0,
+            status,
+            paidAmount: dpVal,
+            method: isDpPaid ? (wo.dpMethod || "Tunai") : undefined,
+            paidAt: isDpPaid ? (wo.createdAt || createdDate.toISOString()) : undefined,
             items: currentItems,
           }
           updated = [newInvoice, ...updated]
@@ -433,12 +447,24 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
           }).catch((e) => console.error('Failed to sync new invoice to DB:', e))
         } else {
           const existingInv = updated[existingIdx]
-          // If invoice is NOT yet paid, keep items synchronized with work order
+          // If invoice is NOT yet marked fully Lunas, keep items & DP synchronized with work order
           if (existingInv.status !== "Lunas") {
+            const createdDate = wo.createdAt ? new Date(wo.createdAt) : new Date()
+            const expectedDateStr = createdDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })
+            
+            const currentPaid = isDpPaid ? dpVal : 0
+            const newStatus: PaymentStatus = currentPaid > 0
+              ? (rawTotal > 0 && currentPaid >= rawTotal ? "Lunas" : "Sebagian")
+              : "Belum Bayar"
+
             const hasItemChanges =
               JSON.stringify(existingInv.items) !== JSON.stringify(currentItems) ||
               existingInv.service !== wo.service ||
-              existingInv.customer?.name !== wo.customer?.name
+              existingInv.customer?.name !== wo.customer?.name ||
+              (wo.createdAt && existingInv.createdAt !== wo.createdAt) ||
+              existingInv.paidAmount !== currentPaid ||
+              existingInv.status !== newStatus ||
+              (isDpPaid && existingInv.method !== wo.dpMethod)
 
             if (hasItemChanges) {
               const updatedInv: Invoice = {
@@ -447,6 +473,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
                 vehicle: wo.vehicle,
                 service: wo.service,
                 items: currentItems,
+                date: expectedDateStr,
+                createdAt: wo.createdAt || existingInv.createdAt,
+                paidAmount: currentPaid,
+                status: newStatus,
+                method: isDpPaid ? (wo.dpMethod || existingInv.method || "Tunai") : existingInv.method,
+                paidAt: isDpPaid ? (existingInv.paidAt || wo.createdAt || createdDate.toISOString()) : existingInv.paidAt,
               }
               updated[existingIdx] = updatedInv
               hasChanges = true
@@ -665,7 +697,10 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
     setWorkOrders((prev) => {
       const code = nextWorkOrderCode(prev)
       const now = new Date()
-      const timeLabel = now.toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+      const createdDate = input.createdAt ? new Date(input.createdAt) : now
+      const finalCreatedAt = !isNaN(createdDate.getTime()) ? createdDate.toISOString() : now.toISOString()
+      const timeLabel = new Date(finalCreatedAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+      const dpVal = input.hasDp && (input.dpAmount || 0) > 0 ? Number(input.dpAmount) : 0
       const wo: WorkOrder = {
         id: `wo-${Date.now()}`,
         code,
@@ -688,16 +723,19 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         status: input.status,
         technician: input.technician,
         progress: progressForStatus(input.status),
-        createdAt: now.toISOString(),
+        createdAt: finalCreatedAt,
         estimatedDone: "Belum ditentukan",
         laborCost: input.laborCost,
         usedParts: input.usedParts || [],
+        hasDp: dpVal > 0,
+        dpAmount: dpVal,
+        dpMethod: dpVal > 0 ? (input.dpMethod || "Tunai") : undefined,
       }
 
       addNotification({
         type: "push",
         title: "SPK Pengerjaan Baru",
-        body: `${code} ${input.brand} ${input.model} (${input.plate}) an. ${input.customerName} - ${input.service}.`,
+        body: `${code} ${input.brand} ${input.model} (${input.plate}) an. ${input.customerName} - ${input.service}${dpVal > 0 ? ` (DP: ${formatRupiah(dpVal)})` : ""}.`,
         channel: input.technician || "Kasir",
         status: "terkirim",
         linkTab: "pekerjaan",
@@ -727,6 +765,7 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
         })
       }
 
+      const dpVal = input.hasDp && (input.dpAmount || 0) > 0 ? Number(input.dpAmount) : 0
       const updatedList = prev.map((w) =>
         w.id === id
           ? {
@@ -740,6 +779,12 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
               progress: progressForStatus(input.status),
               laborCost: input.laborCost,
               usedParts: input.usedParts !== undefined ? input.usedParts : w.usedParts,
+              createdAt: input.createdAt && !isNaN(new Date(input.createdAt).getTime())
+                ? new Date(input.createdAt).toISOString()
+                : w.createdAt,
+              hasDp: dpVal > 0,
+              dpAmount: dpVal,
+              dpMethod: dpVal > 0 ? (input.dpMethod || "Tunai") : undefined,
               // Track completion timestamp
               completedAt: (input.status === "Selesai" || input.status === "Siap Diambil") && !w.completedAt
                 ? new Date().toISOString()
@@ -859,6 +904,23 @@ export function WorkshopProvider({ children }: { children: ReactNode }) {
       usedInOrders: [],
     }
     setParts((prev) => [newPart, ...prev])
+
+    if (input.stock > 0) {
+      const cost = input.buyPrice || 0
+      setStockInLogs((prev) => {
+        const newLog: StockInLog = {
+          id: `sil-${Date.now()}`,
+          partId: newPart.id,
+          partName: newPart.name,
+          category: newPart.category,
+          qty: input.stock,
+          unitCost: cost,
+          totalCost: input.stock * cost,
+          createdAt: new Date().toISOString(),
+        }
+        return [newLog, ...prev]
+      })
+    }
 
     fetch('/api/inventory', {
       method: 'POST',
